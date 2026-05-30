@@ -1,0 +1,181 @@
+// PBMS – Simplified Parking Building Management System
+// Enough for: Manager, Staff, Driver, System Admin
+
+// ── Group: Auth & Users ─────────────────────────────────────
+
+Table Roles {
+  RoleID   int         [pk, increment]
+  RoleName varchar(30) [not null, unique, note: 'Admin | Manager | Staff | Driver']
+}
+
+Table Users {
+  UserID       int          [pk, increment]
+  FullName     varchar(150) [not null]
+  Email        varchar(100) [not null, unique]
+  PasswordHash varchar(255) [not null]
+  Phone        varchar(20)
+  RoleID       int          [not null, ref: > Roles.RoleID]
+  Status       varchar(20)  [not null, default: 'Active', note: 'Active | Locked']
+  CreatedAt    datetime     [not null, default: `GETDATE()`]
+}
+
+// ── Group: Facility Setup ───────────────────────────────────
+
+Table ParkingFacility {
+  FacilityID   int          [pk, increment]
+  FacilityName varchar(200) [not null]
+  Address      varchar(500)
+  OpenTime     time         [not null]
+  CloseTime    time         [not null]
+  Status       varchar(20)  [not null, default: 'Active', note: 'Active | Maintenance | Inactive']
+  Description  varchar(500)
+}
+
+Table VehicleTypes {
+  VehicleTypeID int          [pk, increment]
+  TypeCode      varchar(20)  [not null, unique, note: 'MOTORBIKE | CAR | EV']
+  TypeName      varchar(100) [not null]
+  Status        varchar(20)  [not null, default: 'Active']
+}
+
+Table ParkingZones {
+  ZoneID        int          [pk, increment]
+  ZoneCode      varchar(20)  [not null, unique, note: 'A | B | C | B1 | F1']
+  ZoneName      varchar(100) [not null, note: 'Motorbike Zone A, Car Zone B']
+  VehicleTypeID int          [not null, ref: > VehicleTypes.VehicleTypeID]
+  Capacity      int          [not null]
+  Status        varchar(20)  [not null, default: 'Active', note: 'Active | Maintenance | Locked']
+}
+
+Table ParkingSlots {
+  SlotID    varchar(20) [pk, note: 'Example: A1, A2, B1, B2']
+  ZoneID    int         [not null, ref: > ParkingZones.ZoneID]
+  Status    varchar(20) [not null, default: 'Available',
+                         note: 'Available | Occupied | Reserved | Maintenance | Locked']
+  Note      varchar(255)
+}
+
+// ── Group: Pricing ──────────────────────────────────────────
+
+Table PricingPolicies {
+  PolicyID      int           [pk, increment]
+  VehicleTypeID int           [not null, ref: > VehicleTypes.VehicleTypeID]
+  PolicyName    varchar(100)  [not null]
+  PricePerHour  decimal(12,2) [not null]
+  DailyMaxFee   decimal(12,2)
+  LostTicketFee decimal(12,2) [not null, default: 0]
+  OvertimeFee   decimal(12,2) [not null, default: 0]
+  Status        varchar(20)   [not null, default: 'Active', note: 'Active | Inactive']
+  CreatedAt     datetime      [not null, default: `GETDATE()`]
+}
+
+// ── Group: Reservation ──────────────────────────────────────
+
+Table Reservations {
+  ReservationID int         [pk, increment]
+  UserID        int         [not null, ref: > Users.UserID]
+  VehicleTypeID int         [not null, ref: > VehicleTypes.VehicleTypeID]
+  ZoneID        int         [ref: > ParkingZones.ZoneID]
+  SlotID        varchar(20) [ref: > ParkingSlots.SlotID]
+  LicensePlate  varchar(20)
+  ReservedFrom  datetime    [not null]
+  ReservedTo    datetime    [not null]
+  Status        varchar(20) [not null, default: 'Pending',
+                             note: 'Pending | Confirmed | CheckedIn | Cancelled | Expired']
+  CreatedAt     datetime    [not null, default: `GETDATE()`]
+}
+
+// ── Group: Parking Operations ───────────────────────────────
+
+Table ParkingSessions {
+  SessionID      int           [pk, increment]
+  TicketCode     varchar(50)   [not null, unique]
+  UserID         int           [ref: > Users.UserID, note: 'Nullable for guest driver']
+  ReservationID  int           [ref: > Reservations.ReservationID]
+  VehicleTypeID  int           [not null, ref: > VehicleTypes.VehicleTypeID]
+  ZoneID         int           [not null, ref: > ParkingZones.ZoneID]
+  SlotID         varchar(20)   [not null, ref: > ParkingSlots.SlotID]
+  LicensePlate   varchar(20)   [not null]
+
+  EntryTime      datetime      [not null, default: `GETDATE()`]
+  ExitTime       datetime
+  EntryGate      varchar(50)
+  ExitGate       varchar(50)
+
+  EstimatedFee   decimal(12,2)
+  TotalFee       decimal(12,2)
+
+  Status         varchar(20)   [not null, default: 'Active',
+                                note: 'Active | Completed | Cancelled | Unpaid']
+
+  EntryStaffID   int           [ref: > Users.UserID]
+  ExitStaffID    int           [ref: > Users.UserID]
+  Note           varchar(500)
+
+  indexes {
+    LicensePlate [name: 'IX_Session_LicensePlate']
+    Status       [name: 'IX_Session_Status']
+    SlotID       [name: 'IX_Session_Slot']
+  }
+}
+
+Table Payments {
+  PaymentID     int           [pk, increment]
+  SessionID     int           [not null, ref: > ParkingSessions.SessionID]
+  Amount        decimal(12,2) [not null]
+  PaymentMethod varchar(30)   [not null, note: 'Cash | BankTransfer | EWallet']
+  PaymentTime   datetime      [not null, default: `GETDATE()`]
+  Status        varchar(20)   [not null, default: 'Completed',
+                               note: 'Pending | Completed | Refunded | Failed']
+}
+
+// ── Group: Exception Handling ───────────────────────────────
+
+Table Incidents {
+  IncidentID    int           [pk, increment]
+  SessionID     int           [ref: > ParkingSessions.SessionID]
+  ReportedByID  int           [ref: > Users.UserID]
+  IncidentType  varchar(50)   [not null,
+                               note: 'LostTicket | WrongPlate | Overstay | WrongZone | Unpaid | SlotOccupied | Other']
+  Description   varchar(1000)
+  PenaltyFee    decimal(12,2) [not null, default: 0]
+  Status        varchar(20)   [not null, default: 'Open', note: 'Open | Resolved | Cancelled']
+  CreatedAt     datetime      [not null, default: `GETDATE()`]
+  ResolvedAt    datetime
+}
+
+// ── Group: Feedback & Reports ───────────────────────────────
+
+Table Feedbacks {
+  FeedbackID   int          [pk, increment]
+  UserID       int          [ref: > Users.UserID]
+  SessionID    int          [ref: > ParkingSessions.SessionID]
+  FeedbackType varchar(50)  [not null, note: 'LostTicket | WrongFee | HardToFindVehicle | SlotOccupied | Other']
+  Content      varchar(1000)
+  Status       varchar(20)  [not null, default: 'New', note: 'New | Processing | Resolved']
+  CreatedAt    datetime     [not null, default: `GETDATE()`]
+}
+
+Table ReportSnapshots {
+  ReportID        int           [pk, increment]
+  ReportDate      date          [not null]
+  VehicleTypeID   int           [ref: > VehicleTypes.VehicleTypeID]
+  TotalEntries    int           [not null, default: 0]
+  TotalExits      int           [not null, default: 0]
+  TotalRevenue    decimal(14,2) [not null, default: 0]
+  OccupancyRate   decimal(5,2)
+  PeakHour        int           [note: '0-23']
+  CreatedAt       datetime      [not null, default: `GETDATE()`]
+
+  indexes {
+    (ReportDate, VehicleTypeID) [unique]
+  }
+}
+
+// ── Group: System Configuration ─────────────────────────────
+
+Table SystemConfigs {
+  ConfigKey   varchar(100) [pk]
+  ConfigValue varchar(500) [not null]
+  Description varchar(500)
+}
