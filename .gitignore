@@ -37,5 +37,6 @@ build/
 .idea/
 .DS_Store
 
-# Cursor local config (rules live at repo root only)
+# Cursor local config and security rules (local only, never push)
 .cursor/
+cursor-pre-push-security-rules.mdc
