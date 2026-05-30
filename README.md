@@ -58,6 +58,78 @@ pnpm dev       # http://localhost:5173
 - Vite proxy: request `/api/*` từ frontend được chuyển tới `http://localhost:5122`
 - Hoặc dùng biến `VITE_API_BASE_URL` trong `frontend/.env`
 
+## GitHub Actions (CI & Security)
+
+Repo dùng 2 workflow trong `.github/workflows/`. Cả hai **tự chạy** khi:
+
+- **Push** lên nhánh `main` hoặc `dev`
+- Mở / cập nhật **Pull Request** vào `main` hoặc `dev`
+
+Xem kết quả: GitHub repo → tab **Actions** → chọn workflow run.
+
+### 1. CI (`ci.yml`)
+
+Kiểm tra code build được trước khi merge.
+
+| Job | Thư mục | Việc làm |
+|-----|---------|----------|
+| `frontend-build` | `frontend/` | `npm ci` → lint (nếu có script) → `npm run build` |
+| `backend-build` | `backend/` | `dotnet restore` + `dotnet build` (Release) trên `ParkingBuildingManagement.slnx` |
+
+**Cách dùng hàng ngày**
+
+1. Làm việc trên nhánh feature (ví dụ `feature/auth-api`).
+2. Push lên GitHub và mở PR vào `main` hoặc `dev`.
+3. Đợi CI xanh (✓) trên PR — cả 2 job phải pass.
+4. Nếu đỏ (✗), bấm vào job lỗi → xem log step fail → sửa code → push thêm commit (CI chạy lại).
+
+**Chạy giống CI trên máy local**
+
+```bash
+# Frontend
+cd frontend
+npm ci
+npm run lint --if-present
+npm run build
+
+# Backend
+cd backend
+dotnet restore ParkingBuildingManagement.slnx
+dotnet build ParkingBuildingManagement.slnx --configuration Release --no-restore
+```
+
+> **Lưu ý:** CI backend chỉ **build**, không chạy `dotnet test` (chưa có test project). Khi đã có project test, thêm bước test vào `.github/workflows/ci.yml`.
+
+### 2. Security Scan (`security-scan.yml`)
+
+Quét secret lộ trong code / lịch sử Git (Gitleaks): `.env`, API key, JWT, mật khẩu DB, token, private key, v.v.
+
+| Job | Mô tả |
+|-----|--------|
+| `secret-scan` | Checkout full history (`fetch-depth: 0`) → chạy `gitleaks/gitleaks-action@v2` |
+
+**Nếu workflow fail**
+
+- Không commit file `.env`, `secrets.json`, key thật.
+- Dùng placeholder trong `appsettings.example.json` / `.env.example`.
+- Nếu secret đã từng commit: xóa khỏi repo, **đổi/rotate** secret đó, cân nhắc dọn Git history.
+
+### Checklist trước khi merge PR
+
+- [ ] CI: `frontend-build` ✓
+- [ ] CI: `backend-build` ✓
+- [ ] Security Scan: `secret-scan` ✓
+- [ ] Không có file nhạy cảm trong diff (`.env`, mật khẩu thật, key)
+
+### Thêm nhánh `dev` (nếu chưa có)
+
+```bash
+git checkout -b dev
+git push -u origin dev
+```
+
+Workflow đã cấu hình sẵn cho `main` và `dev`; push/PR vào hai nhánh này đều kích hoạt Actions.
+
 ## Ghi chú bảo mật
 
 - Không commit `.env`, mật khẩu SQL thật, hay `appsettings.Local.json`
