@@ -1,0 +1,42 @@
+# Environment files
+.env
+.env.*
+!.env.example
+!.env.template
+
+# .NET local configuration
+**/appsettings.Local.json
+appsettings.Production.json
+secrets.json
+
+# Keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+
+# Database backups and local databases
+*.bak
+*.dump
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Logs and build artifacts
+*.log
+bin/
+obj/
+node_modules/
+dist/
+build/
+
+# IDE/system files
+.vscode/
+.idea/
+.DS_Store
+
+# Cursor local config and security rules (local only, never push)
+.cursor/
+cursor-pre-push-security-rules.mdc
