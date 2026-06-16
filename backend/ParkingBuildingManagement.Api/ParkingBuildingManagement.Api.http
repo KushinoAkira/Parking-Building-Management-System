@@ -9,7 +9,7 @@ Content-Type: application/json
 
 {
   "email": "admin@pbms.local",
-  "password": "your_password"
+  "password": "{{PBMS_ADMIN_PASSWORD}}"
 }
 
 ### Slots
