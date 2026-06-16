@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxfile host="app.diagrams.net" agent="PBMS" version="24.0.0" type="device">
+  <diagram id="pbms_arch" name="System Architecture">
+    <mxGraphModel dx="1400" dy="900" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1400" pageHeight="900" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Title -->
+        <mxCell id="title" value="PBMS — System Architecture" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontStyle=1;fontSize=20;fontColor=#1a1a1a;" vertex="1" parent="1">
+          <mxGeometry x="40" y="24" width="500" height="36" as="geometry"/>
+        </mxCell>
+        <mxCell id="subtitle" value="Parking Building Management System · SWP391 · React + ASP.NET Core + SQL Server" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=12;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="40" y="58" width="700" height="24" as="geometry"/>
+        </mxCell>
+
+        <!-- Actors -->
+        <mxCell id="actor_mgr" value="Manager" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="60" y="140" width="40" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor_staff" value="Staff" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="140" y="140" width="40" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor_driver" value="Driver" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="220" y="140" width="40" height="80" as="geometry"/>
+        </mxCell>
+        <mxCell id="actor_admin" value="Admin" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="300" y="140" width="40" height="80" as="geometry"/>
+        </mxCell>
+
+        <!-- Frontend layer -->
+        <mxCell id="fe_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#E8F4FD;strokeColor=#6c8ebf;strokeWidth=2;dashed=0;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="40" y="280" width="420" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe_label" value="Frontend — React + Vite" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;fontColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="56" y="288" width="260" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe_port" value="localhost:5173" style="text;html=1;strokeColor=none;fillColor=none;align=right;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="300" y="288" width="140" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe_view" value="View&#xa;pages/ · components/ · layouts/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="60" y="326" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe_ctrl" value="Controller&#xa;hooks/ · contexts/ · routes/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="190" y="326" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe_model" value="Model&#xa;services/api · models/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#6c8ebf;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="320" y="326" width="120" height="60" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe_note" value="Vite proxy: /api → backend:5122" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="400" width="380" height="20" as="geometry"/>
+        </mxCell>
+        <mxCell id="fe_modules" value="Modules: Dashboard · Slot Mgmt · Reservations · Sessions · Pricing · Reports · Admin" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="60" y="420" width="380" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Backend layer -->
+        <mxCell id="be_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF4E6;strokeColor=#d79b00;strokeWidth=2;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="520" y="280" width="420" height="280" as="geometry"/>
+        </mxCell>
+        <mxCell id="be_label" value="Backend — ASP.NET Core Web API" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;fontColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="536" y="288" width="300" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="be_port" value="localhost:5122" style="text;html=1;strokeColor=none;fillColor=none;align=right;fontSize=10;fontColor=#888888;" vertex="1" parent="1">
+          <mxGeometry x="780" y="288" width="140" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="be_api" value="Presentation Layer&#xa;Controllers&#xa;REST · Auth · Validation · CORS" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="540" y="326" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="be_bll" value="Business Layer&#xa;Services&#xa;Pricing · Session · Reservation · Report" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="740" y="326" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="be_dal" value="Data Access Layer&#xa;EF Core · ApplicationDbContext&#xa;Repositories · Migrations" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="540" y="416" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="be_domain" value="Domain Layer&#xa;14 Entities · Enums · DTOs" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#d79b00;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="740" y="416" width="180" height="70" as="geometry"/>
+        </mxCell>
+        <mxCell id="be_endpoints" value="API: /api/health · /api/parkingslots · (Auth, Sessions, Payments…)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="540" y="500" width="380" height="40" as="geometry"/>
+        </mxCell>
+
+        <!-- Database -->
+        <mxCell id="db_cyl" value="SQL Server&#xa;ParkingBuildingManagement&#xa;14 Tables · EF Migrations" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#D5E8D4;strokeColor=#82b366;fontSize=11;fontStyle=0;" vertex="1" parent="1">
+          <mxGeometry x="600" y="620" width="260" height="120" as="geometry"/>
+        </mxCell>
+
+        <!-- CI/CD -->
+        <mxCell id="ci_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#F5F5F5;strokeColor=#666666;strokeWidth=1;dashed=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="980" y="280" width="340" height="200" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci_label" value="GitHub Actions (CI/CD)" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="996" y="288" width="260" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci_job1" value="ci.yml&#xa;frontend-build (npm ci + build)&#xa;backend-build (dotnet build)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="996" y="326" width="300" height="56" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci_job2" value="security-scan.yml&#xa;Gitleaks — secret detection" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#666666;fontSize=10;align=left;spacingLeft=8;" vertex="1" parent="1">
+          <mxGeometry x="996" y="394" width="300" height="48" as="geometry"/>
+        </mxCell>
+        <mxCell id="ci_trigger" value="Trigger: push / PR → main, dev" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontSize=9;fontColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="996" y="452" width="300" height="20" as="geometry"/>
+        </mxCell>
+
+        <!-- Repo structure -->
+        <mxCell id="repo_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FAFAFA;strokeColor=#CCCCCC;strokeWidth=1;arcSize=6;" vertex="1" parent="1">
+          <mxGeometry x="980" y="520" width="340" height="220" as="geometry"/>
+        </mxCell>
+        <mxCell id="repo_label" value="Monorepo Structure" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontStyle=1;fontSize=13;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="996" y="528" width="260" height="24" as="geometry"/>
+        </mxCell>
+        <mxCell id="repo_tree" value="Parking-Building-Management-System/&#xa;├── frontend/     React + Vite&#xa;├── backend/      .NET Web API&#xa;├── database/     pbms-schema.dbml&#xa;│                 pbms-erd-final.drawio&#xa;└── .github/workflows/  CI + Security" style="text;html=1;strokeColor=none;fillColor=none;align=left;fontFamily=Courier New;fontSize=10;fontColor=#333333;" vertex="1" parent="1">
+          <mxGeometry x="996" y="560" width="320" height="160" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" style="endArrow=block;html=1;strokeColor=#6c8ebf;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.25;entryY=0;" edge="1" parent="1" source="actor_mgr" target="fe_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e2" style="endArrow=block;html=1;strokeColor=#6c8ebf;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.4;entryY=0;" edge="1" parent="1" source="actor_staff" target="fe_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e3" style="endArrow=block;html=1;strokeColor=#6c8ebf;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.6;entryY=0;" edge="1" parent="1" source="actor_driver" target="fe_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e4" style="endArrow=block;html=1;strokeColor=#6c8ebf;strokeWidth=2;exitX=0.5;exitY=1;entryX=0.8;entryY=0;" edge="1" parent="1" source="actor_admin" target="fe_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e5" value="HTTPS / JSON&#xa;/api/*" style="endArrow=block;html=1;strokeColor=#333333;strokeWidth=2;fontSize=10;" edge="1" parent="1" source="fe_box" target="be_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e6" value="EF Core&#xa;ADO.NET" style="endArrow=block;html=1;strokeColor=#82b366;strokeWidth=2;fontSize=10;" edge="1" parent="1" source="be_box" target="db_cyl">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e7" style="endArrow=open;dashed=1;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="ci_box" target="fe_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e8" style="endArrow=open;dashed=1;html=1;strokeColor=#999999;strokeWidth=1;" edge="1" parent="1" source="ci_box" target="be_box">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <!-- Internal FE arrows -->
+        <mxCell id="e_fe1" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1" source="fe_view" target="fe_ctrl">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+        <mxCell id="e_fe2" style="endArrow=classic;startArrow=classic;html=1;strokeColor=#6c8ebf;strokeWidth=1;" edge="1" parent="1" source="fe_ctrl" target="fe_model">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Car, Lock, User, Eye, EyeOff, CheckCircle2, XCircle, ShieldCheck, Check, Circle } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { motion, AnimatePresence } from "motion/react";
+import { apiPost } from "../lib/api";
 
 const DEMO_ACCOUNTS = [
   {
@@ -34,6 +35,16 @@ const DEMO_ACCOUNTS = [
     route: "/user-web",
   },
 ];
+
+function getStorageAuth() {
+  const raw = localStorage.getItem("pbms_auth") ?? sessionStorage.getItem("pbms_auth");
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as { roleName: string };
+  } catch {
+    return null;
+  }
+}
 
 function ValidationItem({ isValid, text, isShield = false }: { isValid: boolean; text: string; isShield?: boolean }) {
   const isStrongActive = isShield && isValid;
@@ -86,6 +97,16 @@ export function Login() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [remember, setRemember] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    const auth = getStorageAuth();
+    if (!auth) return;
+    const role = auth.roleName.toLowerCase();
+    if (role === "staff") navigate("/staff-dashboard");
+    else if (role === "driver") navigate("/user-web");
+    else navigate("/manager");
+  }, [navigate]);
 
   // Validation Logic
   const isEmailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -115,9 +136,10 @@ export function Login() {
     progressColor = "bg-[#ECC94B]";
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setSuccess("");
 
     if (!isLogin) {
       if (!isEmailValid || !isStrong) {
@@ -130,25 +152,56 @@ export function Login() {
         setSuccess("");
         return;
       }
-      setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
-      setIsLogin(true);
-      setEmail("");
-      setPassword("");
-      setConfirmPassword("");
+      try {
+        setIsSubmitting(true);
+        await apiPost("/api/auth/register", {
+          fullName: email.split("@")[0] || "Driver Demo",
+          email,
+          password,
+          phone: null,
+        });
+        setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
+        setIsLogin(true);
+        setPassword("");
+        setConfirmPassword("");
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Đăng ký thất bại.");
+      } finally {
+        setIsSubmitting(false);
+      }
       return;
     }
 
-    const matched = DEMO_ACCOUNTS.find(
-      (a) => a.email.toLowerCase() === email.toLowerCase() && a.password === password
-    );
+    try {
+      setIsSubmitting(true);
+      const auth = await apiPost<{
+        token: string;
+        userId: number;
+        fullName: string;
+        email: string;
+        roleName: string;
+        expiresAt: string;
+      }>("/api/auth/login", { email, password });
 
-    if (!matched) {
-      setError("Email hoặc mật khẩu không đúng.");
-      return;
+      if (remember) {
+        localStorage.setItem("pbms_auth", JSON.stringify(auth));
+      } else {
+        sessionStorage.setItem("pbms_auth", JSON.stringify(auth));
+      }
+
+      const role = auth.roleName.toLowerCase();
+      if (role === "staff") {
+        navigate("/staff-dashboard");
+      } else if (role === "driver") {
+        navigate("/user-web");
+      } else {
+        navigate("/manager");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Email hoặc mật khẩu không đúng.");
+    } finally {
+      setIsSubmitting(false);
     }
-
-    const route = matched.role === "user" ? "/user-web" : matched.route;
-    navigate(route);
   };
 
   const fillDemo = (acc: (typeof DEMO_ACCOUNTS)[number]) => {
@@ -403,9 +456,10 @@ export function Login() {
               {/* Submit Button */}
               <button
                 type="submit"
-                className="w-full py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 mt-4"
+                disabled={isSubmitting}
+                className="w-full py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 mt-4 disabled:opacity-60"
               >
-                {isLogin ? "Đăng nhập" : "Đăng ký"}
+                {isSubmitting ? "Đang xử lý..." : isLogin ? "Đăng nhập" : "Đăng ký"}
               </button>
 
               <AnimatePresence>

@@ -1,6 +1,41 @@
 @ParkingBuildingManagement.Api_HostAddress = http://localhost:5122
 
-GET {{ParkingBuildingManagement.Api_HostAddress}}/weatherforecast/
-Accept: application/json
+### Health
+GET {{ParkingBuildingManagement.Api_HostAddress}}/api/health
 
-###
+### Auth
+POST {{ParkingBuildingManagement.Api_HostAddress}}/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "admin@pbms.local",
+  "password": "{{PBMS_ADMIN_PASSWORD}}"
+}
+
+### Slots
+GET {{ParkingBuildingManagement.Api_HostAddress}}/api/slots
+GET {{ParkingBuildingManagement.Api_HostAddress}}/api/slots/map
+
+### Check-in
+POST {{ParkingBuildingManagement.Api_HostAddress}}/api/parking-sessions/check-in
+Content-Type: application/json
+
+{
+  "licensePlate": "51A-12345",
+  "vehicleTypeId": 2,
+  "entryStaffId": 1,
+  "entryGate": "Gate-A"
+}
+
+### Check-out
+POST {{ParkingBuildingManagement.Api_HostAddress}}/api/parking-sessions/1/check-out
+Content-Type: application/json
+
+{
+  "paymentMethod": "Cash",
+  "exitStaffId": 1,
+  "exitGate": "Gate-A"
+}
+
+### Dashboard
+GET {{ParkingBuildingManagement.Api_HostAddress}}/api/reports/dashboard

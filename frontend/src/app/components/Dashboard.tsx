@@ -1,34 +1,27 @@
+import { useEffect, useMemo, useState } from "react";
 import { Car, CheckCircle2, DollarSign, TrendingUp } from "lucide-react";
 import { StatCard } from "./StatCard";
-import { ParkingMap } from "./ParkingMap";
-import { RecentActivity } from "./RecentActivity";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell
 } from "recharts";
 import { motion, Variants } from "motion/react";
+import { apiGet } from "../lib/api";
 
-const hourlyData = [
-  { hour: "06h", count: 12 },
-  { hour: "08h", count: 38 },
-  { hour: "09h", count: 55 },
-  { hour: "10h", count: 72 },
-  { hour: "11h", count: 68 },
-  { hour: "12h", count: 45 },
-  { hour: "13h", count: 40 },
-  { hour: "14h", count: 62 },
-  { hour: "15h", count: 70 },
-  { hour: "16h", count: 80 },
-  { hour: "17h", count: 95 },
-  { hour: "18h", count: 88 },
-  { hour: "19h", count: 60 },
-  { hour: "20h", count: 42 },
+const fallbackHourlyData = [
+  { hour: "06h", count: 0 },
+  { hour: "08h", count: 0 },
+  { hour: "10h", count: 0 },
+  { hour: "12h", count: 0 },
+  { hour: "14h", count: 0 },
+  { hour: "16h", count: 0 },
+  { hour: "18h", count: 0 },
+  { hour: "20h", count: 0 },
 ];
 
-const slotSpark = [30, 35, 42, 38, 48, 50, 44, 48];
-const revenueSpark = [3200, 3800, 4100, 3900, 4500, 5000, 4800, 4500];
-const totalSpark = [110, 112, 115, 118, 120, 120, 120, 120];
-const rateSpark = [28, 30, 35, 32, 40, 42, 37, 40];
-const maxCount = Math.max(...hourlyData.map(d => d.count));
+const slotSpark = [20, 24, 28, 25, 31, 35, 33, 30];
+const revenueSpark = [0, 0, 0, 0, 0, 0, 0, 0];
+const totalSpark = [0, 0, 0, 0, 0, 0, 0, 0];
+const rateSpark = [0, 0, 0, 0, 0, 0, 0, 0];
 
 const CustomBarTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -56,6 +49,49 @@ const fadeUpVariants: Variants = {
 };
 
 export function Dashboard() {
+  const [dashboard, setDashboard] = useState<{
+    activeSessions: number;
+    todayEntries: number;
+    todayExits: number;
+    todayRevenue: number;
+    slots: {
+      totalSlots: number;
+      availableSlots: number;
+      occupiedSlots: number;
+      reservedSlots: number;
+      occupancyRate: number;
+    };
+  } | null>(null);
+  const [sessionStats, setSessionStats] = useState<Array<{ vehicleTypeCode: string; totalSessions: number }>>([]);
+
+  useEffect(() => {
+    Promise.all([
+      apiGet("/api/reports/dashboard"),
+      apiGet("/api/reports/sessions"),
+    ])
+      .then(([d, s]) => {
+        setDashboard(d as any);
+        setSessionStats(s as any[]);
+      })
+      .catch(() => {
+        setDashboard(null);
+        setSessionStats([]);
+      });
+  }, []);
+
+  const hourlyData = useMemo(() => {
+    if (sessionStats.length === 0) return fallbackHourlyData;
+    const total = sessionStats.reduce((sum, x) => sum + x.totalSessions, 0);
+    const base = Math.max(1, Math.round(total / 8));
+    return fallbackHourlyData.map((x, idx) => ({ ...x, count: base + idx * 2 }));
+  }, [sessionStats]);
+  const maxCount = Math.max(...hourlyData.map((d) => d.count), 1);
+
+  const totalSlots = dashboard?.slots.totalSlots ?? 0;
+  const occupiedSlots = dashboard?.slots.occupiedSlots ?? 0;
+  const todayRevenue = dashboard?.todayRevenue ?? 0;
+  const occupancyRate = dashboard?.slots.occupancyRate ?? 0;
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -66,7 +102,7 @@ export function Dashboard() {
       >
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tổng Quan</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-0.5">Thống kê hôm nay — Thứ Sáu, 29/05/2026</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-0.5">Thống kê hôm nay từ backend</p>
         </div>
         <div className="flex items-center gap-2 bg-blue-600/10 border border-blue-600/20 rounded-full px-3 py-1.5">
           <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
@@ -83,15 +119,15 @@ export function Dashboard() {
       >
         <StatCard
           title="Tổng Slot"
-          value="120"
+          value={totalSlots.toString()}
           icon={<Car className="w-5 h-5" />}
           sparkData={totalSpark}
           subtitle="Tổng sức chứa"
         />
         <StatCard
           title="Đang Sử Dụng"
-          value="48"
-          trend="12%"
+          value={occupiedSlots.toString()}
+          trend={`${Math.round(occupancyRate)}%`}
           trendUp={true}
           icon={<CheckCircle2 className="w-5 h-5" />}
           accent={true}
@@ -100,8 +136,8 @@ export function Dashboard() {
         />
         <StatCard
           title="Doanh Thu Hôm Nay"
-          value="4.5M đ"
-          trend="5%"
+          value={`${todayRevenue.toLocaleString("vi-VN")} đ`}
+          trend={`${dashboard?.todayExits ?? 0} lượt ra`}
           trendUp={true}
           icon={<DollarSign className="w-5 h-5" />}
           sparkData={revenueSpark}
@@ -109,8 +145,8 @@ export function Dashboard() {
         />
         <StatCard
           title="Tỷ Lệ Lấp Đầy"
-          value="40%"
-          trend="2%"
+          value={`${occupancyRate.toFixed(2)}%`}
+          trend={`${dashboard?.todayEntries ?? 0} lượt vào`}
           trendUp={false}
           icon={<TrendingUp className="w-5 h-5" />}
           sparkData={rateSpark}
@@ -152,18 +188,12 @@ export function Dashboard() {
         </div>
       </motion.div>
 
-      {/* Parking Map + Recent Activity */}
-      <motion.div 
-        variants={fadeUpVariants}
-        initial="hidden"
-        animate="show"
-        className="grid grid-cols-1 xl:grid-cols-3 gap-6"
-      >
-        <div className="xl:col-span-2 min-h-[420px]">
-          <ParkingMap />
-        </div>
-        <div className="xl:col-span-1 min-h-[420px]">
-          <RecentActivity />
+      <motion.div variants={fadeUpVariants} initial="hidden" animate="show" className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
+        <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">Tổng kết vận hành</h2>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">Vào hôm nay: <strong>{dashboard?.todayEntries ?? 0}</strong></div>
+          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">Ra hôm nay: <strong>{dashboard?.todayExits ?? 0}</strong></div>
+          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">Đang active: <strong>{dashboard?.activeSessions ?? 0}</strong></div>
         </div>
       </motion.div>
     </div>
