@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { Car, Search, Filter, Info, AlertTriangle, CheckCircle, Clock } from "lucide-react";
+import { Car, Bike, Search, Filter, Info, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 const generateSlots = (floor: number, count: number) => {
+  const prefix = String.fromCharCode(64 + floor);
+  const type = floor <= 2 ? "Xe máy" : "Ô tô";
   return Array.from({ length: count }, (_, i) => {
     const rand = Math.random();
     let status = "free";
@@ -11,19 +13,19 @@ const generateSlots = (floor: number, count: number) => {
 
     return {
       id: `F${floor}-${i + 1}`,
-      name: `A-${(i + 1).toString().padStart(2, '0')}`,
+      name: `${prefix}-${(i + 1).toString().padStart(2, '0')}`,
       status, // "free" | "occupied" | "violation"
-      type: i % 10 === 0 ? "VIP" : "Standard",
-      plate: status !== "free" ? `30A-${Math.floor(100 + Math.random() * 899)}.${Math.floor(10 + Math.random() * 89)}` : null,
+      type,
+      plate: status !== "free" ? (type === "Ô tô" ? `30A-${Math.floor(100 + Math.random() * 899)}.${Math.floor(10 + Math.random() * 89)}` : `29-H1 ${Math.floor(100 + Math.random() * 899)}.${Math.floor(10 + Math.random() * 89)}`) : null,
       checkIn: status !== "free" ? `${Math.floor(6 + Math.random() * 6)}:${Math.floor(10 + Math.random() * 49)} AM` : null,
     };
   });
 };
 
 const floors = [
-  { id: 1, name: "Tầng 1 (VIP & Tiêu chuẩn)", slots: generateSlots(1, 60) },
-  { id: 2, name: "Tầng 2 (Tiêu chuẩn)", slots: generateSlots(2, 60) },
-  { id: 3, name: "Tầng 3 (Tiêu chuẩn)", slots: generateSlots(3, 60) },
+  { id: 1, name: "Tầng 1 (Xe máy)", slots: generateSlots(1, 60) },
+  { id: 2, name: "Tầng 2 (Xe máy)", slots: generateSlots(2, 60) },
+  { id: 3, name: "Tầng 3 (Ô tô)", slots: generateSlots(3, 30) },
 ];
 
 export function SlotManagement() {
@@ -140,7 +142,7 @@ export function SlotManagement() {
           </div>
 
           {/* Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
+          <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
             <motion.div 
               key={activeFloor.id + filter + searchQuery}
               initial={{ opacity: 0 }}
@@ -155,6 +157,7 @@ export function SlotManagement() {
                   onClick={() => setSelectedSlot(slot)}
                   className={`
                     relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all cursor-pointer min-h-[96px]
+                    ${slot.type === 'Ô tô' ? 'col-span-2' : ''}
                     ${selectedSlot?.id === slot.id ? 'ring-2 ring-blue-600 ring-offset-2 ring-offset-white dark:ring-offset-[#1A1A1A] scale-105 z-10' : ''}
                     ${slot.status === 'occupied'
                       ? "border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-500 hover:border-red-300 dark:hover:border-red-500/50"
@@ -164,12 +167,16 @@ export function SlotManagement() {
                     }
                   `}
                 >
-                  {slot.type === "VIP" && (
-                    <span className="absolute top-1.5 right-1.5 text-[8px] font-bold bg-gray-900/10 dark:bg-white/10 px-1 rounded">VIP</span>
+                  {slot.type === "Ô tô" && (
+                    <span className="absolute top-1.5 right-1.5 text-[8px] font-bold bg-gray-900/10 dark:bg-white/10 px-1 rounded">Ô TÔ</span>
                   )}
                   <div className="text-xs font-bold opacity-90">{slot.name}</div>
                   <div className="flex-1 flex items-center justify-center min-h-[32px]">
-                    <Car className={`w-6 h-6 transition-all duration-300 ${slot.status !== 'free' ? "opacity-100 scale-100" : "opacity-30 scale-90"}`} />
+                    {slot.type === "Xe máy" ? (
+                      <Bike className={`w-6 h-6 transition-all duration-300 ${slot.status !== 'free' ? "opacity-100 scale-100" : "opacity-30 scale-90"}`} />
+                    ) : (
+                      <Car className={`w-6 h-6 transition-all duration-300 ${slot.status !== 'free' ? "opacity-100 scale-100" : "opacity-30 scale-90"}`} />
+                    )}
                   </div>
                   <div className="h-[18px] flex items-center justify-center mt-0.5">
                     {slot.plate && (
@@ -219,9 +226,7 @@ export function SlotManagement() {
                     <div className="text-3xl font-bold text-gray-900 dark:text-white">{selectedSlot.name}</div>
                     <div className="text-sm text-gray-400 dark:text-gray-500 mt-1">Mã: {selectedSlot.id}</div>
                   </div>
-                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
-                    selectedSlot.type === 'VIP' ? 'bg-yellow-50 dark:bg-yellow-500/15 text-yellow-600 dark:text-yellow-400' : 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400'
-                  }`}>
+                  <span className={`px-2.5 py-1 rounded-lg text-xs font-bold bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400`}>
                     {selectedSlot.type}
                   </span>
                 </div>
@@ -256,6 +261,27 @@ export function SlotManagement() {
                       </div>
                     </>
                   )}
+                </div>
+
+                <div className="bg-blue-50/50 dark:bg-blue-900/10 rounded-xl p-4 border border-blue-100 dark:border-blue-900/30 space-y-3">
+                  <h4 className="font-semibold text-sm text-blue-900 dark:text-blue-400 mb-2 flex items-center gap-2">
+                    ✨ Cấu hình AI Optimization
+                  </h4>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 text-xs font-medium">Khoảng cách cửa (m)</span>
+                    <input type="number" defaultValue={Math.floor(Math.random() * 50) + 10} className="w-16 bg-white dark:bg-[#1A1A1A] border border-blue-200 dark:border-blue-800 rounded-lg px-2 py-1 text-xs text-right text-gray-900 dark:text-white focus:outline-none focus:border-blue-500" />
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600 dark:text-gray-400 text-xs font-medium">Mức độ ưu tiên</span>
+                    <select className="w-24 bg-white dark:bg-[#1A1A1A] border border-blue-200 dark:border-blue-800 rounded-lg px-2 py-1 text-xs text-gray-900 dark:text-white focus:outline-none focus:border-blue-500">
+                      <option>Cao</option>
+                      <option selected>Trung bình</option>
+                      <option>Thấp</option>
+                    </select>
+                  </div>
+                  <button className="w-full text-blue-600 bg-white dark:bg-gray-800 text-xs font-bold py-1.5 border border-blue-200 dark:border-blue-800 rounded-lg hover:bg-blue-50 dark:hover:bg-gray-700 transition-colors shadow-sm">
+                    Lưu cấu hình AI
+                  </button>
                 </div>
 
                 <div className="mt-auto pt-4 space-y-3">

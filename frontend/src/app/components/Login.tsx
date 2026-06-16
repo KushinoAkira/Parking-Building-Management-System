@@ -6,6 +6,13 @@ import { motion, AnimatePresence } from "motion/react";
 
 const DEMO_ACCOUNTS = [
   {
+    label: "Admin",
+    email: "admin@parking.com",
+    password: "Admin@123",
+    role: "admin",
+    route: "/admin",
+  },
+  {
     label: "Quản lý",
     email: "manager@parking.com",
     password: "Manager@123",
@@ -151,7 +158,7 @@ export function Login() {
   };
 
   return (
-    <div className="flex min-h-screen bg-[#0A0F1C]">
+    <div className="flex h-screen overflow-hidden bg-[#0A0F1C]">
       {/* Left Column - Image Background */}
       <div className="hidden lg:block lg:w-[55%] relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-r from-transparent to-[#0A0F1C] z-10" />
@@ -173,21 +180,21 @@ export function Login() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="w-full max-w-[380px] bg-white dark:bg-[#1A1A1A] rounded-[28px] p-6 shadow-2xl shadow-black/20"
+            className="w-full max-w-[380px] bg-white dark:bg-[#1A1A1A] rounded-[24px] px-6 py-4 shadow-2xl shadow-black/20"
           >
             {/* Header */}
-            <div className="flex flex-col items-center mb-5">
-              <div className="w-10 h-10 bg-blue-600 rounded-2xl flex items-center justify-center mb-3">
-                <Car className="w-5 h-5 text-white" />
+            <div className="flex flex-col items-center mb-3">
+              <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center mb-2">
+                <Car className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-0.5">ParkingPro</h1>
-              <p className="text-gray-500 dark:text-gray-400 text-[11px]">
-                Hệ thống Quản lý Bãi đỗ xe Doanh nghiệp
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white mb-0.5">ParkingPro</h1>
+              <p className="text-gray-500 dark:text-gray-400 text-[10px]">
+                Hệ thống Quản lý Bãi đỗ xe
               </p>
             </div>
 
             {/* Tab Switcher */}
-            <div className="flex bg-gray-100 dark:bg-[#121212] p-1 rounded-xl mb-5 relative">
+            <div className="flex bg-gray-100 dark:bg-[#121212] p-1 rounded-xl mb-2 relative">
               <button
                 onClick={() => { setIsLogin(true); setError(""); setSuccess(""); setConfirmPassword(""); }}
                 className={`relative flex-1 py-2 text-sm font-bold rounded-lg transition-colors z-10 ${
@@ -212,7 +219,7 @@ export function Login() {
               />
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-2">
               {/* Email Input */}
               <div>
                 <label className="block text-xs font-bold text-gray-900 dark:text-gray-200 mb-1.5">
@@ -227,7 +234,7 @@ export function Login() {
                     type="text"
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); setSuccess(""); }}
-                    className="block w-full pl-14 pr-4 py-2.5 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
+                    className="block w-full pl-14 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
                     placeholder="Nhập email"
                   />
                 </div>
@@ -259,7 +266,7 @@ export function Login() {
                     type={showPassword ? "text" : "password"}
                     value={password}
                     onChange={(e) => { setPassword(e.target.value); setError(""); setSuccess(""); }}
-                    className="block w-full pl-14 pr-12 py-2.5 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
+                    className="block w-full pl-14 pr-12 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
                     placeholder="••••••••"
                   />
                   <button
@@ -336,7 +343,7 @@ export function Login() {
                           type={showConfirmPassword ? "text" : "password"}
                           value={confirmPassword}
                           onChange={(e) => { setConfirmPassword(e.target.value); setError(""); setSuccess(""); }}
-                          className="block w-full pl-14 pr-12 py-2.5 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
+                          className="block w-full pl-14 pr-12 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
                           placeholder="••••••••"
                         />
                         <button
@@ -353,23 +360,34 @@ export function Login() {
               </div>
 
               {/* Remember Me & Forgot Password */}
-              <div className="flex items-center justify-between pt-2">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <div className="relative flex items-center justify-center">
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                      className="peer w-4 h-4 rounded appearance-none border border-gray-300 dark:border-gray-600 checked:bg-blue-600 checked:border-blue-600 transition-colors cursor-pointer"
-                    />
-                    <CheckCircle2 className="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100" />
-                  </div>
-                  <span className="text-xs font-bold text-gray-900 dark:text-gray-300">Ghi nhớ đăng nhập</span>
-                </label>
-                <a href="#" className="text-xs font-bold text-blue-600 hover:underline">
-                  Quên mật khẩu?
-                </a>
-              </div>
+              <AnimatePresence>
+                {isLogin && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between pt-2">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <div className="relative flex items-center justify-center">
+                          <input
+                            type="checkbox"
+                            checked={remember}
+                            onChange={(e) => setRemember(e.target.checked)}
+                            className="peer w-4 h-4 rounded appearance-none border border-gray-300 dark:border-gray-600 checked:bg-blue-600 checked:border-blue-600 transition-colors cursor-pointer"
+                          />
+                          <CheckCircle2 className="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100" />
+                        </div>
+                        <span className="text-xs font-bold text-gray-900 dark:text-gray-300">Ghi nhớ đăng nhập</span>
+                      </label>
+                      <a href="#" className="text-xs font-bold text-blue-600 hover:underline">
+                        Quên mật khẩu?
+                      </a>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
               {error && (
                 <div className="text-xs text-red-500 font-medium text-center bg-red-50 dark:bg-red-500/10 py-2 rounded-lg border border-red-200 dark:border-red-500/20">
@@ -390,44 +408,65 @@ export function Login() {
                 {isLogin ? "Đăng nhập" : "Đăng ký"}
               </button>
 
-              <div className="relative flex items-center py-3">
-                <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
-                <span className="flex-shrink-0 mx-4 text-xs text-gray-400">hoặc</span>
-                <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
-              </div>
+              <AnimatePresence>
+                {isLogin && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="relative flex items-center py-2">
+                      <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
+                      <span className="flex-shrink-0 mx-4 text-xs text-gray-400">hoặc</span>
+                      <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
+                    </div>
 
-              <button
-                type="button"
-                className="w-full py-2 rounded-xl bg-white dark:bg-[#121212] text-gray-700 dark:text-gray-300 font-bold text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors flex items-center justify-center gap-2"
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                </svg>
-                Đăng nhập với Google
-              </button>
+                    <button
+                      type="button"
+                      className="w-full py-2 rounded-xl bg-white dark:bg-[#121212] text-gray-700 dark:text-gray-300 font-bold text-sm border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-[#1A1A1A] transition-colors flex items-center justify-center gap-2"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                      </svg>
+                      Đăng nhập với Google
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </form>
 
-            <div className="mt-4">
-               <div className="flex flex-col gap-1.5">
-                 {DEMO_ACCOUNTS.map((acc, idx) => (
-                   <button
-                     key={acc.role}
-                     type="button"
-                     onClick={() => fillDemo(acc)}
-                     className="text-xs text-gray-400 hover:text-blue-600 transition-colors text-left"
-                   >
-                     👉 {acc.label}: {acc.email} / {acc.password}
-                   </button>
-                 ))}
-               </div>
-            </div>
+            <AnimatePresence>
+              {isLogin && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                  animate={{ opacity: 1, height: "auto", marginTop: 8 }}
+                  exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="grid grid-cols-2 gap-2">
+                    {DEMO_ACCOUNTS.map((acc, idx) => (
+                      <button
+                        key={acc.role}
+                        type="button"
+                        onClick={() => fillDemo(acc)}
+                        className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left bg-gray-50 dark:bg-[#121212] p-1.5 rounded-lg border border-gray-200 dark:border-gray-800"
+                      >
+                        <div className="font-bold">{acc.label}</div>
+                        <div className="truncate opacity-80">{acc.email}</div>
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         </div>
 
-        <div className="w-full text-center py-6 text-xs text-gray-500 dark:text-gray-400 font-medium z-20">
+        <div className="w-full text-center py-2 text-[10px] text-gray-500 dark:text-gray-400 font-medium z-20">
           © 2024 ParkingPro. All rights reserved.
         </div>
       </div>
