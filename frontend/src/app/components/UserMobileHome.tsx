@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Car, MapPin, Clock, CreditCard, ChevronRight, Bell, Search, QrCode, Home, Ticket, Info, X, CheckCircle2, Wallet, History, Tag, ScanLine, Image as ImageIcon, Settings, AlertTriangle, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Car, Bike, MapPin, Clock, CreditCard, ChevronRight, Bell, Search, QrCode, Home, Ticket, Info, X, CheckCircle2, Wallet, History, Tag, ScanLine, Image as ImageIcon, Settings, AlertTriangle, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence, Variants } from "motion/react";
 
 const parkingFloors = [
-  { name: "Tầng 1", type: "Ô tô & Xe máy", description: "Dành cho khách vãng lai", total: 120, free: 45, price: "15k/h" },
-  { name: "Tầng 2", type: "Ô tô", description: "Dành cho thẻ tháng", total: 120, free: 12, price: "20k/h" },
-  { name: "Tầng 3", type: "Xe máy", description: "Dành cho thẻ tháng", total: 120, free: 78, price: "5k/h" },
+  { name: "Tầng 1", type: "Xe máy", description: "Dành cho khách vãng lai", total: 120, free: 45, price: "5k/h" },
+  { name: "Tầng 2", type: "Xe máy", description: "Dành cho thẻ tháng", total: 120, free: 12, price: "5k/h" },
+  { name: "Tầng 3", type: "Ô tô", description: "Dành cho thẻ tháng", total: 60, free: 18, price: "20k/h" },
 ];
 
 const ticketsData = [
@@ -48,6 +48,14 @@ export function UserMobileHome() {
   const [customAmount, setCustomAmount] = useState<string>("");
   const [selectedBank, setSelectedBank] = useState<string>("Thanh toán qua PayOS (VietQR)");
   const [historyFilter, setHistoryFilter] = useState<string>("Tất cả");
+
+  const [bookingVehicle, setBookingVehicle] = useState("30A-123.45");
+  const [bookingDuration, setBookingDuration] = useState("");
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  const [feedbackType, setFeedbackType] = useState("Sự cố slot đỗ");
+  const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackSuccess, setFeedbackSuccess] = useState(false);
 
   const notifications = [
     { id: 1, title: "Đặt chỗ thành công", desc: "Bạn đã đặt slot A-42 tại Tầng 1.", time: "2 giờ trước", unread: true, icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-600/10" },
@@ -216,11 +224,12 @@ export function UserMobileHome() {
                 {/* Quick Actions */}
                 <div className="px-6 mb-6">
                   <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-widest">Tiện ích</h2>
-                  <div className="grid grid-cols-3 gap-3">
+                  <div className="grid grid-cols-4 gap-2">
                     {[
+                      { id: "book", icon: <Clock className="w-5 h-5" />, label: "Đặt chỗ", color: "text-green-500 bg-green-50 dark:bg-green-500/10" },
                       { id: "topup", icon: <CreditCard className="w-5 h-5" />, label: "Nạp tiền", color: "text-blue-500 bg-blue-50 dark:bg-blue-500/10" },
-                      { id: "history", icon: <History className="w-5 h-5" />, label: "Lịch sử GD", color: "text-orange-500 bg-orange-50 dark:bg-orange-500/10" },
                       { id: "vehicles", icon: <Car className="w-5 h-5" />, label: "Xe của tôi", color: "text-purple-500 bg-purple-50 dark:bg-purple-500/10" },
+                      { id: "feedback", icon: <AlertTriangle className="w-5 h-5" />, label: "Phản hồi", color: "text-orange-500 bg-orange-50 dark:bg-orange-500/10" },
                     ].map((action) => (
                       <motion.button 
                         whileTap={{ scale: 0.95 }}
@@ -578,6 +587,104 @@ export function UserMobileHome() {
 
         {/* Utility Screens */}
         <AnimatePresence>
+          {/* Đặt chỗ Panel */}
+          {utilityScreen === 'book' && (
+            <motion.div 
+              variants={screenVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="absolute inset-0 bg-gray-50 dark:bg-[#121212] z-50 flex flex-col rounded-[36px]"
+            >
+              <div className="pt-12 pb-4 px-6 bg-white dark:bg-[#1A1A1A] border-b border-gray-100 dark:border-gray-800 flex items-center gap-4 shadow-sm shrink-0">
+                <button onClick={() => { setUtilityScreen(null); setBookingSuccess(false); }} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400">
+                  <ChevronRight className="w-5 h-5 rotate-180" />
+                </button>
+                <h2 className="font-bold text-xl text-gray-900 dark:text-white">Đặt chỗ trước</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarWidth: 'none' }}>
+                {bookingSuccess ? (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-10 gap-4">
+                    <div className="w-20 h-20 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center text-green-600">
+                      <CheckCircle2 className="w-10 h-10" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Đặt chỗ thành công!</h3>
+                    <p className="text-center text-gray-500 dark:text-gray-400">Hệ thống đã phân bổ Slot A-12 (Tầng 1) dựa trên thời gian đỗ dự kiến của bạn.</p>
+                    <button onClick={() => { setUtilityScreen(null); setBookingSuccess(false); }} className="mt-4 w-full bg-blue-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-blue-600/25">Trở về</button>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Chọn xe</label>
+                      <select value={bookingVehicle} onChange={e => setBookingVehicle(e.target.value)} className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-600 outline-none transition-colors">
+                        <option value="30A-123.45">30A-123.45 (Ô tô)</option>
+                        <option value="59A1-234.56">59A1-234.56 (Xe máy)</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Thời gian đỗ dự kiến (Giờ)</label>
+                      <input type="number" placeholder="VD: 2" value={bookingDuration} onChange={e => setBookingDuration(e.target.value)} className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-600 outline-none transition-colors" />
+                      <p className="text-xs text-gray-500 mt-2 font-medium">AI sẽ tự động sắp xếp slot phù hợp nhất dựa trên thời gian đỗ dự kiến để tối ưu cho bạn.</p>
+                    </div>
+                    <motion.button whileTap={{ scale: 0.98 }} onClick={() => setBookingSuccess(true)} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-600/25 mt-4">
+                      Xác nhận đặt chỗ
+                    </motion.button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+          {/* Phản hồi Panel */}
+          {utilityScreen === 'feedback' && (
+            <motion.div 
+              variants={screenVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="absolute inset-0 bg-gray-50 dark:bg-[#121212] z-50 flex flex-col rounded-[36px]"
+            >
+              <div className="pt-12 pb-4 px-6 bg-white dark:bg-[#1A1A1A] border-b border-gray-100 dark:border-gray-800 flex items-center gap-4 shadow-sm shrink-0">
+                <button onClick={() => { setUtilityScreen(null); setFeedbackSuccess(false); }} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400">
+                  <ChevronRight className="w-5 h-5 rotate-180" />
+                </button>
+                <h2 className="font-bold text-xl text-gray-900 dark:text-white">Gửi phản hồi</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarWidth: 'none' }}>
+                {feedbackSuccess ? (
+                  <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center py-10 gap-4">
+                    <div className="w-20 h-20 bg-green-100 dark:bg-green-500/20 rounded-full flex items-center justify-center text-green-600">
+                      <CheckCircle2 className="w-10 h-10" />
+                    </div>
+                    <h3 className="text-xl font-bold text-gray-900 dark:text-white">Gửi thành công!</h3>
+                    <p className="text-center text-gray-500 dark:text-gray-400">Cảm ơn bạn đã phản hồi. BQL sẽ kiểm tra và xử lý sớm nhất có thể.</p>
+                    <button onClick={() => { setUtilityScreen(null); setFeedbackSuccess(false); }} className="mt-4 w-full bg-blue-600 text-white font-bold py-3.5 rounded-2xl shadow-lg shadow-blue-600/25">Trở về</button>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Vấn đề gặp phải</label>
+                      <select value={feedbackType} onChange={e => setFeedbackType(e.target.value)} className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-600 outline-none transition-colors">
+                        <option value="Sự cố slot đỗ">Slot đã có xe chiếm</option>
+                        <option value="Khó tìm xe">Không tìm thấy xe/slot</option>
+                        <option value="Sai phí">Phí thanh toán sai</option>
+                        <option value="Mất thẻ/Mã QR">Mất thẻ/Mã QR</option>
+                        <option value="Khác">Khác</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">Mô tả chi tiết</label>
+                      <textarea placeholder="Vui lòng mô tả chi tiết..." value={feedbackContent} onChange={e => setFeedbackContent(e.target.value)} className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white focus:border-blue-600 outline-none transition-colors h-32 resize-none" />
+                    </div>
+                    <motion.button whileTap={{ scale: 0.98 }} onClick={() => setFeedbackSuccess(true)} className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl shadow-lg shadow-blue-600/25 mt-4">
+                      Gửi phản hồi
+                    </motion.button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
           {/* Nạp tiền Panel */}
           {utilityScreen === 'topup' && (
             <motion.div 
@@ -747,9 +854,9 @@ export function UserMobileHome() {
                       </div>
                     )}
                     <div className="flex justify-between items-start mb-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${vehicle.isParking ? 'bg-blue-600/10 text-blue-600' : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'}`}>
-                          <Car className="w-6 h-6" />
+                      <div className="flex items-center gap-4 mb-4">
+                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${vehicle.isParking ? "bg-blue-600/10 text-blue-600" : "bg-gray-100 dark:bg-gray-800 text-gray-500"}`}>
+                          {vehicle.type === "Xe máy" ? <Bike className="w-6 h-6" /> : <Car className="w-6 h-6" />}
                         </div>
                         <div>
                           <h3 className="font-mono text-lg font-bold text-gray-900 dark:text-white">{vehicle.plate}</h3>

@@ -12,13 +12,16 @@ export function StaffDashboard() {
   
   // Control State
   const [plate, setPlate] = useState("");
+  const [duration, setDuration] = useState("");
   const [isScanning, setIsScanning] = useState(false);
-  const [scanResult, setScanResult] = useState<{ plate: string; type: "in" | "out"; time: string; slot?: string } | null>(null);
+  const [scanResult, setScanResult] = useState<{ plate: string; type: "in" | "out"; time: string; slot?: string; isAiRecommended?: boolean } | null>(null);
   const [currentTime, setCurrentTime] = useState(new Date());
   
   type SlotStatus = 'free' | 'occupied' | 'violation';
-  const generateFloorSlots = (floorId: number) => 
-    Array.from({ length: 120 }, (_, i) => {
+  const generateFloorSlots = (floorId: number) => {
+    const type = floorId <= 2 ? "Xe máy" : "Ô tô";
+    const count = floorId <= 2 ? 120 : 60;
+    return Array.from({ length: count }, (_, i) => {
       const r = Math.random();
       let status: SlotStatus = 'free';
       if (r > 0.9) status = 'violation';
@@ -27,15 +30,17 @@ export function StaffDashboard() {
         id: i + 1, 
         floorId, 
         status,
-        plate: status !== 'free' ? `30A-${Math.floor(100 + Math.random() * 899)}.${Math.floor(10 + Math.random() * 89)}` : undefined,
+        type,
+        plate: status !== 'free' ? (type === "Ô tô" ? `30A-${Math.floor(100 + Math.random() * 899)}.${Math.floor(10 + Math.random() * 89)}` : `29-H1 ${Math.floor(100 + Math.random() * 899)}.${Math.floor(10 + Math.random() * 89)}`) : undefined,
         checkIn: status !== 'free' ? `${Math.floor(6 + Math.random() * 6)}:${Math.floor(10 + Math.random() * 49)}` : undefined
       };
     });
+  };
 
   const [floors] = useState([
-    { id: 1, name: 'Tầng 1', slots: generateFloorSlots(1) },
-    { id: 2, name: 'Tầng 2', slots: generateFloorSlots(2) },
-    { id: 3, name: 'Tầng 3', slots: generateFloorSlots(3) }
+    { id: 1, name: 'Tầng 1 (Xe máy)', slots: generateFloorSlots(1) },
+    { id: 2, name: 'Tầng 2 (Xe máy)', slots: generateFloorSlots(2) },
+    { id: 3, name: 'Tầng 3 (Ô tô)', slots: generateFloorSlots(3) }
   ]);
   const [activeFloorId, setActiveFloorId] = useState(1);
   const activeFloor = floors.find(f => f.id === activeFloorId)!;
@@ -67,28 +72,36 @@ export function StaffDashboard() {
     setTimeout(() => {
       setIsScanning(false);
       const isOut = Math.random() > 0.5;
+      const floorId = Math.floor(1 + Math.random() * 3);
+      const prefix = String.fromCharCode(64 + floorId);
       const slotNum = Math.floor(1 + Math.random() * 119);
       setScanResult({
         plate: `30A-${Math.floor(100 + Math.random() * 899)}.${Math.floor(10 + Math.random() * 89)}`,
         type: isOut ? "out" : "in",
         time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-        slot: isOut ? undefined : `A${slotNum}`,
+        slot: isOut ? undefined : `${prefix}-${slotNum}`,
+        isAiRecommended: !isOut,
       });
       setPlate("");
+      setDuration("");
     }, 1800);
   };
 
   const handleManualEntry = (e: React.FormEvent) => {
     e.preventDefault();
     if (!plate) return;
+    const floorId = Math.floor(1 + Math.random() * 3);
+    const prefix = String.fromCharCode(64 + floorId);
     const slotNum = Math.floor(1 + Math.random() * 119);
     setScanResult({
       plate,
       type: "in",
       time: new Date().toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      slot: `A${slotNum}`,
+      slot: `${prefix}-${slotNum}`,
+      isAiRecommended: true,
     });
     setPlate("");
+    setDuration("");
   };
 
   const handleViolationSubmit = (e: React.FormEvent) => {
@@ -171,25 +184,31 @@ export function StaffDashboard() {
           onClick={() => setActiveTab("control")}
           className={`px-4 py-2 font-semibold text-sm rounded-lg transition-colors relative ${activeTab === 'control' ? 'text-white' : 'bg-white dark:bg-[#1A1A1A] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800'}`}
         >
-          {activeTab === 'control' && <motion.div layoutId="staff-tab" className="absolute inset-0 bg-blue-600 rounded-lg -z-10" />}
-          <Camera className="w-4 h-4 inline-block mr-2" />
-          Kiểm Soát Xe
+          {activeTab === 'control' && <motion.div layoutId="staff-tab" className="absolute inset-0 bg-blue-600 rounded-lg" style={{ zIndex: 0 }} />}
+          <div className="relative z-10 flex items-center">
+            <Camera className="w-4 h-4 mr-2" />
+            Kiểm Soát Xe
+          </div>
         </button>
         <button
           onClick={() => setActiveTab("violations")}
           className={`px-4 py-2 font-semibold text-sm rounded-lg transition-colors relative ${activeTab === 'violations' ? 'text-white' : 'bg-white dark:bg-[#1A1A1A] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800'}`}
         >
-          {activeTab === 'violations' && <motion.div layoutId="staff-tab" className="absolute inset-0 bg-blue-600 rounded-lg -z-10" />}
-          <ShieldAlert className="w-4 h-4 inline-block mr-2" />
-          Bãi Xe Vi Phạm
+          {activeTab === 'violations' && <motion.div layoutId="staff-tab" className="absolute inset-0 bg-blue-600 rounded-lg" style={{ zIndex: 0 }} />}
+          <div className="relative z-10 flex items-center">
+            <ShieldAlert className="w-4 h-4 mr-2" />
+            Bãi Xe Vi Phạm
+          </div>
         </button>
         <button
           onClick={() => setActiveTab("history")}
           className={`px-4 py-2 font-semibold text-sm rounded-lg transition-colors relative ${activeTab === 'history' ? 'text-white' : 'bg-white dark:bg-[#1A1A1A] text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-800'}`}
         >
-          {activeTab === 'history' && <motion.div layoutId="staff-tab" className="absolute inset-0 bg-blue-600 rounded-lg -z-10" />}
-          <List className="w-4 h-4 inline-block mr-2" />
-          Lịch Sử Ra Vào
+          {activeTab === 'history' && <motion.div layoutId="staff-tab" className="absolute inset-0 bg-blue-600 rounded-lg" style={{ zIndex: 0 }} />}
+          <div className="relative z-10 flex items-center">
+            <List className="w-4 h-4 mr-2" />
+            Lịch Sử Ra Vào
+          </div>
         </button>
       </div>
 
@@ -256,22 +275,29 @@ export function StaffDashboard() {
                 {/* Manual Entry */}
                 <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
                   <h2 className="font-bold text-gray-900 dark:text-white mb-3">Nhập Thủ Công</h2>
-                  <form onSubmit={handleManualEntry} className="flex gap-3">
+                  <form onSubmit={handleManualEntry} className="flex flex-col gap-3">
                     <input
                       type="text"
                       placeholder="VD: 30A-123.45"
                       value={plate}
                       onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                      className="flex-1 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-mono text-base uppercase transition-colors"
+                      className="w-full bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-mono text-base uppercase transition-colors"
+                    />
+                    <input
+                      type="number"
+                      placeholder="Giờ đỗ (dự kiến)"
+                      value={duration}
+                      onChange={(e) => setDuration(e.target.value)}
+                      className="w-full bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 font-mono text-base transition-colors"
                     />
                     <motion.button
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
                       type="submit"
                       disabled={!plate}
-                      className="bg-blue-600 hover:bg-blue-600/90 text-white px-5 rounded-xl font-semibold transition-all disabled:opacity-40 shadow-md shadow-blue-600/20"
+                      className="w-full bg-blue-600 hover:bg-blue-600/90 text-white px-5 py-3 rounded-xl font-semibold transition-all disabled:opacity-40 shadow-md shadow-blue-600/20 mt-1"
                     >
-                      Ghi
+                      Ghi & Phân Bổ Slot
                     </motion.button>
                   </form>
                 </div>
@@ -333,7 +359,7 @@ export function StaffDashboard() {
                           </span>
                           {scanResult.slot && (
                             <span className="bg-blue-600/10 text-blue-600 font-bold px-3 py-1.5 rounded-lg text-sm border border-blue-600/20">
-                              Slot: {scanResult.slot}
+                              Slot: {scanResult.slot} {scanResult.isAiRecommended && "✨ (AI Đề xuất)"}
                             </span>
                           )}
                         </div>
@@ -412,7 +438,7 @@ export function StaffDashboard() {
                       </div>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto pr-1">
+                  <div className="flex-1 overflow-y-auto overflow-x-hidden pr-1">
                     <motion.div 
                       key={activeFloorId}
                       initial={{ opacity: 0 }}
@@ -424,7 +450,9 @@ export function StaffDashboard() {
                           whileHover={{ scale: 1.1 }}
                           key={slot.id}
                           onClick={() => setSelectedSlot(slot)}
-                          className={`aspect-square rounded-lg flex items-center justify-center text-xs font-bold cursor-pointer select-none ${
+                          className={`rounded-lg flex items-center justify-center text-xs font-bold cursor-pointer select-none ${
+                            slot.type === 'Ô tô' ? 'col-span-2 aspect-[2/1]' : 'aspect-square'
+                          } ${
                             slot.status === 'occupied'
                               ? 'bg-red-50 dark:bg-red-500/10 border border-red-200 dark:border-red-500/30 text-red-500'
                               : slot.status === 'violation'
@@ -432,7 +460,7 @@ export function StaffDashboard() {
                               : 'bg-blue-600/5 dark:bg-blue-600/10 border border-blue-600/25 text-blue-600'
                           }`}
                         >
-                          A{slot.id}
+                          {String.fromCharCode(64 + activeFloorId)}-{slot.id}
                         </motion.div>
                       ))}
                     </motion.div>

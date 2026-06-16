@@ -1,20 +1,22 @@
 import { useState } from "react";
-import { Car } from "lucide-react";
+import { Car, Bike } from "lucide-react";
 
 // Mock data generation for slots
 const generateSlots = (floor: number, count: number) => {
+  const prefix = String.fromCharCode(64 + floor);
+  const type = floor <= 2 ? "Xe máy" : "Ô tô";
   return Array.from({ length: count }, (_, i) => ({
     id: `F${floor}-${i + 1}`,
-    name: `A-${(i + 1).toString().padStart(2, '0')}`,
+    name: `${prefix}-${(i + 1).toString().padStart(2, '0')}`,
     isOccupied: Math.random() > 0.6, // 40% occupied roughly
-    type: i % 5 === 0 ? "VIP" : "Standard",
+    type,
   }));
 };
 
 const floors = [
-  { id: 1, name: "Tầng 1", slots: generateSlots(1, 40) },
-  { id: 2, name: "Tầng 2", slots: generateSlots(2, 40) },
-  { id: 3, name: "Tầng 3", slots: generateSlots(3, 40) },
+  { id: 1, name: "Tầng 1 (Xe máy)", slots: generateSlots(1, 40) },
+  { id: 2, name: "Tầng 2 (Xe máy)", slots: generateSlots(2, 40) },
+  { id: 3, name: "Tầng 3 (Ô tô)", slots: generateSlots(3, 20) },
 ];
 
 export function ParkingMap() {
@@ -57,13 +59,14 @@ export function ParkingMap() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
-        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-8 gap-3 min-w-[600px] p-1">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden">
+        <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-8 gap-3 p-1">
           {activeFloor.slots.map((slot) => (
             <div
               key={slot.id}
               className={`
                 relative flex flex-col items-center justify-center p-3 rounded-lg border-2 transition-all cursor-pointer group
+                ${slot.type === 'Ô tô' ? 'col-span-2' : ''}
                 ${
                   slot.isOccupied
                     ? "border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:border-red-300 dark:hover:border-red-500/40"
@@ -71,10 +74,19 @@ export function ParkingMap() {
                 }
               `}
             >
+              {slot.type === "Ô tô" && (
+                <span className="absolute top-1.5 right-1.5 text-[8px] font-bold bg-gray-900/10 dark:bg-white/10 px-1 rounded">Ô TÔ</span>
+              )}
               <div className="text-xs font-bold mb-1 opacity-75">{slot.name}</div>
-              <Car 
-                className={`w-6 h-6 transition-transform duration-300 ${slot.isOccupied ? "opacity-100 scale-100" : "opacity-30 dark:opacity-20 scale-90"}`} 
-              />
+              {slot.type === "Xe máy" ? (
+                <Bike 
+                  className={`w-6 h-6 transition-transform duration-300 ${slot.isOccupied ? "opacity-100 scale-100" : "opacity-30 dark:opacity-20 scale-90"}`} 
+                />
+              ) : (
+                <Car 
+                  className={`w-6 h-6 transition-transform duration-300 ${slot.isOccupied ? "opacity-100 scale-100" : "opacity-30 dark:opacity-20 scale-90"}`} 
+                />
+              )}
               
               {/* Tooltip on hover */}
               <div className="absolute opacity-0 group-hover:opacity-100 bottom-full left-1/2 -translate-x-1/2 mb-2 bg-gray-900 border border-gray-700 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10 pointer-events-none transition-opacity">

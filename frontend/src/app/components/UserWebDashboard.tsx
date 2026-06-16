@@ -3,7 +3,7 @@ import {
   Car, MapPin, Clock, CreditCard, ChevronRight, Bell, Search, QrCode,
   Home, Ticket, Wallet, History, Tag, ScanLine, Settings, AlertTriangle,
   Plus, ArrowUpRight, ArrowDownLeft, CheckCircle2, X, LogOut, Menu,
-  Image as ImageIcon, LayoutDashboard, Shield,
+  Image as ImageIcon, LayoutDashboard, Shield, Bike,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useNavigate } from "react-router";
@@ -11,9 +11,9 @@ import { motion, AnimatePresence, Variants } from "motion/react";
 
 // ── Data ──────────────────────────────────────────────────────────────────────
 const parkingFloors = [
-  { name: "Tầng 1", type: "Ô tô & Xe máy", description: "Dành cho khách vãng lai", total: 120, free: 45, price: "15.000 đ/h" },
-  { name: "Tầng 2", type: "Ô tô", description: "Dành cho thẻ tháng", total: 120, free: 12, price: "20.000 đ/h" },
-  { name: "Tầng 3", type: "Xe máy", description: "Dành cho thẻ tháng", total: 120, free: 78, price: "5.000 đ/h" },
+  { name: "Tầng 1", type: "Xe máy", description: "Dành cho khách vãng lai", total: 120, free: 45, price: "5.000 đ/h" },
+  { name: "Tầng 2", type: "Xe máy", description: "Dành cho thẻ tháng", total: 120, free: 12, price: "5.000 đ/h" },
+  { name: "Tầng 3", type: "Ô tô", description: "Dành cho thẻ tháng", total: 60, free: 18, price: "20.000 đ/h" },
 ];
 
 const ticketsData = [
@@ -501,7 +501,7 @@ function VehiclesContent() {
             )}
             <div className="flex items-center gap-4 mb-4">
               <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${vehicle.isParking ? "bg-blue-600/10 text-blue-600" : "bg-gray-100 dark:bg-gray-800 text-gray-500"}`}>
-                <Car className="w-6 h-6" />
+                {vehicle.type === "Xe máy" ? <Bike className="w-6 h-6" /> : <Car className="w-6 h-6" />}
               </div>
               <div>
                 <h3 className="font-mono text-xl font-black text-gray-900 dark:text-white">{vehicle.plate}</h3>
