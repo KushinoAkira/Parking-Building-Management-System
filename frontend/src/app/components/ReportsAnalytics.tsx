@@ -1,30 +1,16 @@
+import { useEffect, useMemo, useState } from "react";
 import { Download, Calendar, TrendingUp, TrendingDown, DollarSign, Users, Car } from "lucide-react";
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Legend, PieChart, Pie, Cell
 } from "recharts";
+import { apiGet } from "../lib/api";
 
-const revenueData = [
-  { name: "T2", value: 3200000 },
-  { name: "T3", value: 4100000 },
-  { name: "T4", value: 3800000 },
-  { name: "T5", value: 4500000 },
-  { name: "T6", value: 5200000 },
-  { name: "T7", value: 6500000 },
-  { name: "CN", value: 5800000 },
-];
+const revenueDataFallback = [{ name: "N/A", value: 0 }];
 
-const occupancyData = [
-  { name: "Tầng 1", VIP: 15, Standard: 45 },
-  { name: "Tầng 2", VIP: 0, Standard: 52 },
-  { name: "Tầng 3", VIP: 0, Standard: 38 },
-];
+const occupancyDataFallback = [{ name: "N/A", VIP: 0, Standard: 0 }];
 
-const vehicleTypeData = [
-  { name: "Ô tô TC", value: 58, color: "#00C853" },
-  { name: "Xe máy", value: 28, color: "#6366f1" },
-  { name: "Ô tô VIP", value: 14, color: "#EAB308" },
-];
+const vehicleTypeDataFallback = [{ name: "N/A", value: 100, color: "#9CA3AF" }];
 
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
@@ -58,9 +44,73 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
   );
 };
 
-const maxRevenue = Math.max(...revenueData.map(d => d.value));
-
 export function ReportsAnalytics() {
+  const [revenueData, setRevenueData] = useState<Array<{ name: string; value: number }>>(revenueDataFallback);
+  const [occupancyData, setOccupancyData] = useState<Array<{ name: string; VIP: number; Standard: number }>>(occupancyDataFallback);
+  const [vehicleTypeData, setVehicleTypeData] = useState<Array<{ name: string; value: number; color: string }>>(vehicleTypeDataFallback);
+  const [summary, setSummary] = useState<{ totalRevenue: number; totalSessions: number; busiestType: string }>({
+    totalRevenue: 0,
+    totalSessions: 0,
+    busiestType: "N/A",
+  });
+
+  useEffect(() => {
+    Promise.all([
+      apiGet<Array<{ date: string; total: number }>>("/api/reports/revenue"),
+      apiGet<Array<{ zoneCode: string; occupied: number; reserved: number }>>("/api/reports/occupancy"),
+      apiGet<Array<{ vehicleTypeCode: string; totalSessions: number; totalRevenue: number }>>("/api/reports/sessions"),
+    ]).then(([revenue, occupancy, sessions]) => {
+      setRevenueData(
+        revenue.length > 0
+          ? revenue.map((r) => ({
+              name: new Date(r.date).toLocaleDateString("vi-VN", { weekday: "short" }),
+              value: r.total,
+            }))
+          : revenueDataFallback,
+      );
+
+      setOccupancyData(
+        occupancy.length > 0
+          ? occupancy.map((o) => ({
+              name: o.zoneCode,
+              VIP: o.reserved,
+              Standard: o.occupied,
+            }))
+          : occupancyDataFallback,
+      );
+
+      const totalSessions = sessions.reduce((sum, s) => sum + s.totalSessions, 0);
+      const totalRevenue = sessions.reduce((sum, s) => sum + s.totalRevenue, 0);
+      const busiest = [...sessions].sort((a, b) => b.totalSessions - a.totalSessions)[0];
+
+      const colors = ["#00C853", "#6366f1", "#EAB308", "#ef4444"];
+      setVehicleTypeData(
+        sessions.length > 0
+          ? sessions.map((s, idx) => ({
+              name: s.vehicleTypeCode,
+              value: totalSessions > 0 ? Math.round((s.totalSessions / totalSessions) * 100) : 0,
+              color: colors[idx % colors.length],
+            }))
+          : vehicleTypeDataFallback,
+      );
+
+      setSummary({
+        totalRevenue,
+        totalSessions,
+        busiestType: busiest?.vehicleTypeCode ?? "N/A",
+      });
+    }).catch(() => {
+      setRevenueData(revenueDataFallback);
+      setOccupancyData(occupancyDataFallback);
+      setVehicleTypeData(vehicleTypeDataFallback);
+    });
+  }, []);
+
+  const maxRevenue = useMemo(
+    () => Math.max(...revenueData.map((d) => d.value), 1),
+    [revenueData],
+  );
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -91,9 +141,11 @@ export function ReportsAnalytics() {
             <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">Tổng doanh thu tuần</h3>
           </div>
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-bold text-gray-900 dark:text-white">33.1M đ</span>
+            <span className="text-3xl font-bold text-gray-900 dark:text-white">
+              {summary.totalRevenue.toLocaleString("vi-VN")} đ
+            </span>
             <span className="text-sm font-semibold text-blue-700 dark:text-emerald-400 flex items-center gap-1 mb-1">
-              <TrendingUp className="w-4 h-4" /> +15.2%
+              <TrendingUp className="w-4 h-4" /> từ dữ liệu thật
             </span>
           </div>
         </div>
@@ -105,9 +157,9 @@ export function ReportsAnalytics() {
             <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">Lượt đỗ trung bình</h3>
           </div>
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-bold text-gray-900 dark:text-white">452</span>
+            <span className="text-3xl font-bold text-gray-900 dark:text-white">{summary.totalSessions}</span>
             <span className="text-sm font-semibold text-blue-700 dark:text-emerald-400 flex items-center gap-1 mb-1">
-              <TrendingUp className="w-4 h-4" /> +5.4%
+              <TrendingUp className="w-4 h-4" /> đã đồng bộ
             </span>
           </div>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Lượt/ngày</p>
@@ -120,7 +172,7 @@ export function ReportsAnalytics() {
             <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">Tỷ lệ trống cao nhất</h3>
           </div>
           <div className="flex items-end gap-3">
-            <span className="text-3xl font-bold text-gray-900 dark:text-white">Thứ 4</span>
+            <span className="text-3xl font-bold text-gray-900 dark:text-white">{summary.busiestType}</span>
             <span className="text-sm font-semibold text-red-500 flex items-center gap-1 mb-1">
               <TrendingDown className="w-4 h-4" /> Thấp nhất
             </span>
