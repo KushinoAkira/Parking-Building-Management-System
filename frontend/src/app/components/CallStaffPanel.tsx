@@ -19,12 +19,12 @@ export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: 
         {callingContact ? (
           <div className="flex flex-col items-center py-8 text-center animate-in zoom-in-95 duration-200">
             <div className="relative mb-6">
-              <div className="absolute inset-0 bg-[#00C853] rounded-full animate-ping opacity-20" />
-              <div className="w-24 h-24 bg-green-50 dark:bg-[#00C853]/20 rounded-full flex items-center justify-center relative z-10 border-4 border-white dark:border-[#1A1A1A]">
+              <div className="absolute inset-0 bg-blue-600 rounded-full animate-ping opacity-20" />
+              <div className="w-24 h-24 bg-green-50 dark:bg-blue-600/20 rounded-full flex items-center justify-center relative z-10 border-4 border-white dark:border-[#1A1A1A]">
                 {callingContact.avatar ? (
                   <img src={callingContact.avatar} alt={callingContact.name} className="w-full h-full rounded-full object-cover" />
                 ) : (
-                  <PhoneCall className="w-10 h-10 text-[#00C853]" />
+                  <PhoneCall className="w-10 h-10 text-blue-600" />
                 )}
               </div>
             </div>
@@ -60,12 +60,12 @@ export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: 
                       {staff.avatar ? (
                         <img src={staff.avatar} alt={staff.name} className="w-10 h-10 rounded-full object-cover bg-white dark:bg-gray-800" />
                       ) : (
-                        <div className="w-10 h-10 rounded-full bg-[#00C853]/10 flex items-center justify-center text-[#00C853]">
+                        <div className="w-10 h-10 rounded-full bg-blue-600/10 flex items-center justify-center text-blue-600">
                           <User className="w-5 h-5" />
                         </div>
                       )}
                       {staff.status === 'online' ? (
-                        <Circle className="w-3 h-3 text-[#00C853] fill-[#00C853] absolute bottom-0 right-0 ring-2 ring-white dark:ring-[#121212] rounded-full" />
+                        <Circle className="w-3 h-3 text-blue-600 fill-blue-600 absolute bottom-0 right-0 ring-2 ring-white dark:ring-[#121212] rounded-full" />
                       ) : (
                         <Circle className="w-3 h-3 text-gray-400 fill-gray-400 absolute bottom-0 right-0 ring-2 ring-white dark:ring-[#121212] rounded-full" />
                       )}
@@ -80,7 +80,7 @@ export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: 
                   <button 
                     onClick={() => setCallingContact(staff)}
                     disabled={staff.status === 'offline'}
-                    className="p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-green-50 text-[#00C853] hover:bg-[#00C853] hover:text-white dark:bg-[#00C853]/10 dark:hover:bg-[#00C853] dark:hover:text-white shadow-sm"
+                    className="p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-green-50 text-blue-600 hover:bg-blue-600 hover:text-white dark:bg-blue-600/10 dark:hover:bg-blue-600 dark:hover:text-white shadow-sm"
                     title="Gọi ngay"
                   >
                     <Phone className="w-4 h-4" />

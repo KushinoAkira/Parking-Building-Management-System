@@ -1,5 +1,6 @@
 import { ReactNode, useId } from "react";
 import { ResponsiveContainer, AreaChart, Area } from "recharts";
+import { motion, Variants } from "motion/react";
 
 interface StatCardProps {
   title: string;
@@ -12,19 +13,28 @@ interface StatCardProps {
   subtitle?: string;
 }
 
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
+
 export function StatCard({ title, value, trend, trendUp, icon, accent, sparkData, subtitle }: StatCardProps) {
   const uid = useId();
   const gradientId = `spark-grad-${uid.replace(/:/g, '')}`;
   return (
-    <div className={`rounded-2xl p-5 border shadow-sm transition-all hover:shadow-md group ${
-      accent
-        ? 'bg-gradient-to-br from-[#00C853]/10 to-[#00C853]/5 dark:from-[#00C853]/20 dark:to-[#00C853]/5 border-[#00C853]/25 dark:border-[#00C853]/30'
-        : 'bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-gray-800'
-    }`}>
+    <motion.div 
+      variants={itemVariants}
+      whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      className={`rounded-2xl p-5 border shadow-sm transition-shadow hover:shadow-lg group ${
+        accent
+          ? 'bg-gradient-to-br from-blue-600/10 to-blue-600/5 dark:from-blue-600/20 dark:to-blue-600/5 border-blue-600/25 dark:border-blue-600/30'
+          : 'bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-gray-800'
+      }`}
+    >
       <div className="flex items-start justify-between mb-4">
         <div className={`p-2.5 rounded-xl transition-transform group-hover:scale-110 ${
           accent
-            ? 'bg-[#00C853]/15 dark:bg-[#00C853]/20 text-[#00C853]'
+            ? 'bg-blue-600/15 dark:bg-blue-600/20 text-blue-600'
             : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
         }`}>
           {icon}
@@ -32,7 +42,7 @@ export function StatCard({ title, value, trend, trendUp, icon, accent, sparkData
         {trend && (
           <span className={`text-xs font-semibold px-2 py-1 rounded-full ${
             trendUp
-              ? 'bg-emerald-50 dark:bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'
+              ? 'bg-emerald-50 dark:bg-blue-600/10 text-blue-700 dark:text-emerald-400'
               : 'bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400'
           }`}>
             {trendUp ? '↑' : '↓'} {trend}
@@ -41,7 +51,7 @@ export function StatCard({ title, value, trend, trendUp, icon, accent, sparkData
       </div>
 
       <div className="mb-1">
-        <p className={`text-3xl font-bold tracking-tight ${accent ? 'text-[#00C853]' : 'text-gray-900 dark:text-white'}`}>
+        <p className={`text-3xl font-bold tracking-tight ${accent ? 'text-blue-600' : 'text-gray-900 dark:text-white'}`}>
           {value}
         </p>
         {subtitle && <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{subtitle}</p>}
@@ -73,6 +83,6 @@ export function StatCard({ title, value, trend, trendUp, icon, accent, sparkData
           </ResponsiveContainer>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

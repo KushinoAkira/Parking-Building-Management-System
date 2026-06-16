@@ -11,8 +11,8 @@ const sampleNotifications = [
     time: "10 phút trước",
     unread: true,
     icon: CheckCircle2,
-    color: "text-[#00C853]",
-    bg: "bg-[#00C853]/10"
+    color: "text-blue-600",
+    bg: "bg-blue-600/10"
   },
   {
     id: 2,
@@ -79,7 +79,7 @@ export function NotificationDropdown() {
           <div className="flex items-center gap-2">
             <h3 className="font-bold text-gray-900 dark:text-white">Thông báo</h3>
             {unreadCount > 0 && (
-              <span className="bg-[#00C853] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+              <span className="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
                 {unreadCount} mới
               </span>
             )}
@@ -87,7 +87,7 @@ export function NotificationDropdown() {
           <button 
             onClick={markAllAsRead}
             disabled={unreadCount === 0}
-            className="text-xs font-medium text-gray-500 hover:text-[#00C853] dark:text-gray-400 dark:hover:text-[#00C853] disabled:opacity-50 disabled:hover:text-gray-500 transition-colors"
+            className="text-xs font-medium text-gray-500 hover:text-blue-600 dark:text-gray-400 dark:hover:text-blue-600 disabled:opacity-50 disabled:hover:text-gray-500 transition-colors"
           >
             Đánh dấu tất cả đã đọc
           </button>
@@ -104,7 +104,7 @@ export function NotificationDropdown() {
                     key={notification.id}
                     onClick={() => markAsRead(notification.id)}
                     className={`flex items-start gap-3 p-4 border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors cursor-pointer ${
-                      notification.unread ? 'bg-[#00C853]/5 dark:bg-[#00C853]/5' : ''
+                      notification.unread ? 'bg-blue-600/5 dark:bg-blue-600/5' : ''
                     }`}
                   >
                     <div className={`mt-0.5 p-2 rounded-xl shrink-0 ${notification.bg} ${notification.color}`}>
@@ -118,7 +118,7 @@ export function NotificationDropdown() {
                           {notification.title}
                         </p>
                         {notification.unread && (
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#00C853] shrink-0 mt-1.5" />
+                          <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0 mt-1.5" />
                         )}
                       </div>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">

@@ -29,7 +29,7 @@ export function Violations() {
               placeholder="Tìm biển số, mã vé..." 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-[#00C853] focus:ring-1 focus:ring-[#00C853] transition-colors"
+              className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
             />
           </div>
           <button className="flex items-center gap-2 px-4 py-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl text-sm font-medium hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors shrink-0">
@@ -43,7 +43,7 @@ export function Violations() {
         {[
           { label: "Tổng Số Vi Phạm", value: "142", trend: "+12%", bg: "bg-gray-50 dark:bg-gray-800/50" },
           { label: "Chưa Xử Lý", value: "18", trend: "+3", bg: "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400" },
-          { label: "Đã Nộp Phạt", value: "124", trend: "+24", bg: "bg-[#00C853]/10 text-[#00C853]" },
+          { label: "Đã Nộp Phạt", value: "124", trend: "+24", bg: "bg-blue-600/10 text-blue-600" },
         ].map(stat => (
           <div key={stat.label} className={`p-6 rounded-2xl border border-gray-100 dark:border-gray-800 ${stat.bg}`}>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{stat.label}</p>
@@ -98,7 +98,7 @@ export function Violations() {
                     <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
                       v.status === 'Chưa xử lý' 
                         ? 'bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20'
-                        : 'bg-[#00C853]/10 text-[#00C853] border-[#00C853]/20'
+                        : 'bg-blue-600/10 text-blue-600 border-blue-600/20'
                     }`}>
                       {v.status}
                     </span>

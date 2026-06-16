@@ -31,7 +31,7 @@ export function StaffManagement() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản Lý Nhân Viên</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Quản lý danh sách nhân sự, phân ca và quyền truy cập</p>
         </div>
-        <button className="flex items-center gap-2 bg-[#00C853] text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#00C853]/90 transition-colors w-full sm:w-auto justify-center shadow-md shadow-[#00C853]/20">
+        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600/90 transition-colors w-full sm:w-auto justify-center shadow-md shadow-blue-600/20">
           <Plus className="w-4 h-4" />
           Thêm Nhân Viên
         </button>
@@ -40,13 +40,13 @@ export function StaffManagement() {
       {/* Summary pills */}
       <div className="flex items-center gap-3 flex-wrap">
         <div className="flex items-center gap-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-full px-4 py-2 text-sm shadow-sm">
-          <Users className="w-4 h-4 text-[#00C853]" />
+          <Users className="w-4 h-4 text-blue-600" />
           <span className="font-medium text-gray-900 dark:text-white">{initialStaff.length}</span>
           <span className="text-gray-500 dark:text-gray-400">nhân viên</span>
         </div>
-        <div className="flex items-center gap-2 bg-[#00C853]/5 dark:bg-[#00C853]/10 border border-[#00C853]/20 rounded-full px-4 py-2 text-sm">
-          <div className="w-2 h-2 rounded-full bg-[#00C853]" />
-          <span className="font-medium text-[#00C853]">{initialStaff.filter(s => s.status === 'active').length} đang làm việc</span>
+        <div className="flex items-center gap-2 bg-blue-600/5 dark:bg-blue-600/10 border border-blue-600/20 rounded-full px-4 py-2 text-sm">
+          <div className="w-2 h-2 rounded-full bg-blue-600" />
+          <span className="font-medium text-blue-600">{initialStaff.filter(s => s.status === 'active').length} đang làm việc</span>
         </div>
         <div className="flex items-center gap-2 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-full px-4 py-2 text-sm">
           <div className="w-2 h-2 rounded-full bg-gray-400" />
@@ -64,7 +64,7 @@ export function StaffManagement() {
               placeholder="Tìm kiếm theo tên hoặc mã nhân viên..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-[#00C853] transition-colors"
+              className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-600 transition-colors"
             />
           </div>
           <div className="hidden sm:flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
@@ -90,7 +90,7 @@ export function StaffManagement() {
                 <tr key={staff.id} className="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors group">
                   <td className="py-4 px-6">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00C853]/20 to-[#00C853]/10 flex items-center justify-center text-[#00C853] font-bold border border-[#00C853]/20">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-600/20 to-blue-600/10 flex items-center justify-center text-blue-600 font-bold border border-blue-600/20">
                         {staff.name.split(' ').pop()?.[0]}
                       </div>
                       <div>
@@ -115,7 +115,7 @@ export function StaffManagement() {
                   </td>
                   <td className="py-4 px-6">
                     {staff.status === 'active' ? (
-                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-[#00C853]/10 text-[#00C853] px-2.5 py-1 rounded-full border border-[#00C853]/20">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-blue-600/10 text-blue-600 px-2.5 py-1 rounded-full border border-blue-600/20">
                         <Check className="w-3.5 h-3.5" /> Đang làm việc
                       </span>
                     ) : (

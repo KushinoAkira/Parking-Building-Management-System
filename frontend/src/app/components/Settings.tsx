@@ -21,7 +21,7 @@ export function Settings() {
               onClick={() => setActiveTab("appearance")}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === "appearance"
-                  ? "bg-[#00C853]/10 text-[#00C853] shadow-sm"
+                  ? "bg-blue-600/10 text-blue-600 shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
@@ -32,7 +32,7 @@ export function Settings() {
               onClick={() => setActiveTab("account")}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === "account"
-                  ? "bg-[#00C853]/10 text-[#00C853] shadow-sm"
+                  ? "bg-blue-600/10 text-blue-600 shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
@@ -43,7 +43,7 @@ export function Settings() {
               onClick={() => setActiveTab("notifications")}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === "notifications"
-                  ? "bg-[#00C853]/10 text-[#00C853] shadow-sm"
+                  ? "bg-blue-600/10 text-blue-600 shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
@@ -54,7 +54,7 @@ export function Settings() {
               onClick={() => setActiveTab("security")}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === "security"
-                  ? "bg-[#00C853]/10 text-[#00C853] shadow-sm"
+                  ? "bg-blue-600/10 text-blue-600 shadow-sm"
                   : "text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-800/50 hover:text-gray-900 dark:hover:text-white"
               }`}
             >
@@ -76,11 +76,11 @@ export function Settings() {
                     onClick={() => setTheme("light")}
                     className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
                       theme === "light"
-                        ? "border-[#00C853] bg-[#00C853]/5"
-                        : "border-gray-200 dark:border-gray-700 hover:border-[#00C853]/50"
+                        ? "border-blue-600 bg-blue-600/5"
+                        : "border-gray-200 dark:border-gray-700 hover:border-blue-600/50"
                     }`}
                   >
-                    <div className={`p-3 rounded-full ${theme === 'light' ? 'bg-[#00C853] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                    <div className={`p-3 rounded-full ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
                       <Sun className="w-6 h-6" />
                     </div>
                     <div>
@@ -94,11 +94,11 @@ export function Settings() {
                     onClick={() => setTheme("dark")}
                     className={`flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
                       theme === "dark"
-                        ? "border-[#00C853] bg-[#00C853]/5"
-                        : "border-gray-200 dark:border-gray-700 hover:border-[#00C853]/50"
+                        ? "border-blue-600 bg-blue-600/5"
+                        : "border-gray-200 dark:border-gray-700 hover:border-blue-600/50"
                     }`}
                   >
-                    <div className={`p-3 rounded-full ${theme === 'dark' ? 'bg-[#00C853] text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
+                    <div className={`p-3 rounded-full ${theme === 'dark' ? 'bg-blue-600 text-white' : 'bg-gray-100 dark:bg-gray-800 text-gray-500'}`}>
                       <Moon className="w-6 h-6" />
                     </div>
                     <div>
@@ -117,7 +117,7 @@ export function Settings() {
                     <p className="font-medium text-gray-900 dark:text-white">Tiếng Việt</p>
                     <p className="text-sm text-gray-500 dark:text-gray-400">Ngôn ngữ mặc định của hệ thống</p>
                   </div>
-                  <button className="text-sm font-medium text-[#00C853] opacity-50 cursor-not-allowed">Đổi</button>
+                  <button className="text-sm font-medium text-blue-600 opacity-50 cursor-not-allowed">Đổi</button>
                 </div>
               </div>
             </div>
@@ -128,7 +128,7 @@ export function Settings() {
               <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Thông tin cá nhân</h2>
               
               <div className="flex items-center gap-6 mb-6">
-                <div className="w-20 h-20 bg-[#00C853] rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
+                <div className="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg">
                   M
                 </div>
                 <div>
@@ -141,15 +141,15 @@ export function Settings() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Họ và tên</label>
-                  <input type="text" defaultValue="Manager Admin" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-[#00C853]" />
+                  <input type="text" defaultValue="Manager Admin" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-600" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
-                  <input type="email" defaultValue="admin@parkingpro.vn" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-[#00C853]" />
+                  <input type="email" defaultValue="admin@parkingpro.vn" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-600" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Số điện thoại</label>
-                  <input type="tel" defaultValue="0987654321" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-[#00C853]" />
+                  <input type="tel" defaultValue="0987654321" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white focus:outline-none focus:border-blue-600" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Vai trò</label>
@@ -158,7 +158,7 @@ export function Settings() {
               </div>
               
               <div className="pt-4 flex justify-end">
-                <button className="px-6 py-2 bg-[#00C853] text-white rounded-lg font-medium hover:bg-[#00C853]/90 transition-colors shadow-sm">
+                <button className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-600/90 transition-colors shadow-sm">
                   Lưu thay đổi
                 </button>
               </div>
@@ -175,7 +175,7 @@ export function Settings() {
               {/* Master Toggle */}
               <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#121212] rounded-xl border border-gray-200 dark:border-gray-800">
                 <div className="flex items-center gap-3">
-                  <div className="p-2 bg-[#00C853]/10 rounded-lg text-[#00C853]">
+                  <div className="p-2 bg-blue-600/10 rounded-lg text-blue-600">
                     <Bell className="w-5 h-5" />
                   </div>
                   <div>
@@ -185,7 +185,7 @@ export function Settings() {
                 </div>
                 <label className="relative inline-flex items-center cursor-pointer">
                   <input type="checkbox" className="sr-only peer" defaultChecked />
-                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-[#00C853]"></div>
+                  <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                 </label>
               </div>
 
@@ -207,7 +207,7 @@ export function Settings() {
                       </div>
                       <label className="relative inline-flex items-center cursor-pointer shrink-0 mt-1">
                         <input type="checkbox" className="sr-only peer" defaultChecked={item.defaultChecked} />
-                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-[#00C853]"></div>
+                        <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-gray-600 peer-checked:bg-blue-600"></div>
                       </label>
                     </div>
                   ))}
@@ -215,7 +215,7 @@ export function Settings() {
               </div>
 
               <div className="pt-4 flex justify-end">
-                <button className="px-6 py-2 bg-[#00C853] text-white rounded-lg font-medium hover:bg-[#00C853]/90 transition-colors shadow-sm">
+                <button className="px-6 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-600/90 transition-colors shadow-sm">
                   Lưu cài đặt
                 </button>
               </div>
@@ -240,9 +240,9 @@ export function Settings() {
                     <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">Mật khẩu nên có ít nhất 8 ký tự, bao gồm chữ và số.</p>
                     
                     <div className="space-y-3 max-w-md">
-                      <input type="password" placeholder="Mật khẩu hiện tại" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-[#00C853] text-gray-900 dark:text-white" />
-                      <input type="password" placeholder="Mật khẩu mới" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-[#00C853] text-gray-900 dark:text-white" />
-                      <input type="password" placeholder="Nhập lại mật khẩu mới" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-[#00C853] text-gray-900 dark:text-white" />
+                      <input type="password" placeholder="Mật khẩu hiện tại" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-blue-600 text-gray-900 dark:text-white" />
+                      <input type="password" placeholder="Mật khẩu mới" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-blue-600 text-gray-900 dark:text-white" />
+                      <input type="password" placeholder="Nhập lại mật khẩu mới" className="w-full px-4 py-2 bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-lg text-sm focus:outline-none focus:border-blue-600 text-gray-900 dark:text-white" />
                       <button className="px-4 py-2 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-lg text-sm font-medium hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors">
                         Cập nhật mật khẩu
                       </button>
@@ -278,12 +278,12 @@ export function Settings() {
                 </div>
                 
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#121212] border border-[#00C853]/30 rounded-xl">
+                  <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#121212] border border-blue-600/30 rounded-xl">
                     <div className="flex items-center gap-3">
                       <Monitor className="w-8 h-8 text-gray-400" />
                       <div>
                         <p className="text-sm font-bold text-gray-900 dark:text-white">Windows PC - Chrome</p>
-                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><span className="w-1.5 h-1.5 rounded-full bg-[#00C853]" /> Đang hoạt động (Thiết bị này)</p>
+                        <p className="text-xs text-gray-500 flex items-center gap-1 mt-0.5"><span className="w-1.5 h-1.5 rounded-full bg-blue-600" /> Đang hoạt động (Thiết bị này)</p>
                       </div>
                     </div>
                   </div>

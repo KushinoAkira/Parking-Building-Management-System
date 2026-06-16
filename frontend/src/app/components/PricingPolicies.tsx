@@ -48,11 +48,11 @@ const colorMap: Record<string, { badge: string; icon: string; border: string; fe
     accent: "text-blue-600 dark:text-blue-400",
   },
   green: {
-    badge: "bg-[#00C853]/10 text-[#00C853]",
-    icon: "bg-[#00C853]/10 text-[#00C853]",
-    border: "border-[#00C853]/30",
-    featuredBorder: "border-[#00C853]/50",
-    accent: "text-[#00C853]",
+    badge: "bg-blue-600/10 text-blue-600",
+    icon: "bg-blue-600/10 text-blue-600",
+    border: "border-blue-600/30",
+    featuredBorder: "border-blue-600/50",
+    accent: "text-blue-600",
   },
   yellow: {
     badge: "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
@@ -72,7 +72,7 @@ export function PricingPolicies() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bảng Giá & Chính Sách</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Cấu hình giá vé và các quy định cho bãi đỗ xe</p>
         </div>
-        <button className="flex items-center gap-2 bg-[#00C853] text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#00C853]/90 transition-colors shadow-md shadow-[#00C853]/20">
+        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600/90 transition-colors shadow-md shadow-blue-600/20">
           <Plus className="w-4 h-4" />
           Thêm Bảng Giá
         </button>
@@ -91,7 +91,7 @@ export function PricingPolicies() {
             >
               {plan.featured && (
                 <div className={`absolute top-0 inset-x-0 flex justify-center`}>
-                  <span className="bg-[#00C853] text-white px-4 py-1 rounded-b-xl text-xs font-bold tracking-wide">
+                  <span className="bg-blue-600 text-white px-4 py-1 rounded-b-xl text-xs font-bold tracking-wide">
                     PHỔ BIẾN NHẤT
                   </span>
                 </div>
@@ -103,7 +103,7 @@ export function PricingPolicies() {
                     {plan.icon}
                   </div>
                   <div>
-                    <h3 className={`text-lg font-bold ${plan.featured ? 'text-[#00C853]' : 'text-gray-900 dark:text-white'}`}>{plan.title}</h3>
+                    <h3 className={`text-lg font-bold ${plan.featured ? 'text-blue-600' : 'text-gray-900 dark:text-white'}`}>{plan.title}</h3>
                     <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{plan.subtitle}</p>
                   </div>
                 </div>
@@ -122,7 +122,7 @@ export function PricingPolicies() {
 
                 <button className={`mt-5 w-full flex justify-center items-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${
                   plan.featured
-                    ? 'border-[#00C853]/30 bg-[#00C853]/10 text-[#00C853] hover:bg-[#00C853]/20'
+                    ? 'border-blue-600/30 bg-blue-600/10 text-blue-600 hover:bg-blue-600/20'
                     : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
                 }`}>
                   <Edit2 className="w-4 h-4" /> Chỉnh sửa
@@ -137,15 +137,15 @@ export function PricingPolicies() {
       <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-[#121212]/40">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-[#00C853]/10 rounded-xl">
-              <ShieldAlert className="w-5 h-5 text-[#00C853]" />
+            <div className="p-2 bg-blue-600/10 rounded-xl">
+              <ShieldAlert className="w-5 h-5 text-blue-600" />
             </div>
             <div>
               <h2 className="text-base font-bold text-gray-900 dark:text-white">Quy Định Chung</h2>
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">3 quy định đang áp dụng</p>
             </div>
           </div>
-          <button className="text-sm font-medium text-[#00C853] hover:text-[#00C853]/80 transition-colors px-3 py-1.5 rounded-lg hover:bg-[#00C853]/10">
+          <button className="text-sm font-medium text-blue-600 hover:text-blue-600/80 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-600/10">
             Chỉnh sửa
           </button>
         </div>
@@ -166,8 +166,8 @@ export function PricingPolicies() {
               },
             ].map((rule) => (
               <li key={rule.title} className="flex gap-4">
-                <div className="w-6 h-6 rounded-full bg-[#00C853]/10 flex items-center justify-center shrink-0 mt-0.5">
-                  <Check className="w-3.5 h-3.5 text-[#00C853]" />
+                <div className="w-6 h-6 rounded-full bg-blue-600/10 flex items-center justify-center shrink-0 mt-0.5">
+                  <Check className="w-3.5 h-3.5 text-blue-600" />
                 </div>
                 <div>
                   <strong className="text-gray-900 dark:text-white block mb-1 text-sm">{rule.title}</strong>

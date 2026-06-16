@@ -11,6 +11,7 @@ import { UserMobileHome } from "./components/UserMobileHome";
 import { UserWebDashboard } from "./components/UserWebDashboard";
 import { Settings } from "./components/Settings";
 import { Violations } from "./components/Violations";
+import { VehicleHistory } from "./components/VehicleHistory";
 
 export const router = createBrowserRouter([
   {
@@ -52,6 +53,7 @@ export const router = createBrowserRouter([
       { path: "reports", Component: ReportsAnalytics },
       { path: "staff", Component: StaffManagement },
       { path: "violations", Component: Violations },
+      { path: "history", Component: VehicleHistory },
       { path: "settings", Component: Settings },
     ],
   },

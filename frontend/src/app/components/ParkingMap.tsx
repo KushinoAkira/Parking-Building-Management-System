@@ -48,7 +48,7 @@ export function ParkingMap() {
 
       <div className="flex items-center gap-4 mb-6 text-sm">
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-[#00C853] shadow-[0_0_8px_rgba(0,200,83,0.5)]"></div>
+          <div className="w-3 h-3 rounded-full bg-blue-600 shadow-[0_0_8px_rgba(0,200,83,0.5)]"></div>
           <span className="text-gray-600 dark:text-gray-300">Trống</span>
         </div>
         <div className="flex items-center gap-2">
@@ -67,7 +67,7 @@ export function ParkingMap() {
                 ${
                   slot.isOccupied
                     ? "border-red-200 dark:border-red-500/20 bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400 hover:border-red-300 dark:hover:border-red-500/40"
-                    : "border-[#00C853]/20 bg-[#00C853]/5 dark:bg-[#00C853]/10 text-[#00C853] hover:border-[#00C853]/40 hover:bg-[#00C853]/10 dark:hover:bg-[#00C853]/20"
+                    : "border-blue-600/20 bg-blue-600/5 dark:bg-blue-600/10 text-blue-600 hover:border-blue-600/40 hover:bg-blue-600/10 dark:hover:bg-blue-600/20"
                 }
               `}
             >

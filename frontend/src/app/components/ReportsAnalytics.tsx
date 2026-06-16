@@ -74,7 +74,7 @@ export function ReportsAnalytics() {
             <Calendar className="w-4 h-4" />
             Tuần này
           </button>
-          <button className="flex items-center justify-center gap-2 bg-[#00C853] text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-[#00C853]/90 transition-colors flex-1 sm:flex-none shadow-md shadow-[#00C853]/20">
+          <button className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600/90 transition-colors flex-1 sm:flex-none shadow-md shadow-blue-600/20">
             <Download className="w-4 h-4" />
             Xuất Báo Cáo
           </button>
@@ -85,14 +85,14 @@ export function ReportsAnalytics() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
-            <div className="p-2 rounded-xl bg-[#00C853]/10 text-[#00C853]">
+            <div className="p-2 rounded-xl bg-blue-600/10 text-blue-600">
               <DollarSign className="w-5 h-5" />
             </div>
             <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">Tổng doanh thu tuần</h3>
           </div>
           <div className="flex items-end gap-3">
             <span className="text-3xl font-bold text-gray-900 dark:text-white">33.1M đ</span>
-            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mb-1">
+            <span className="text-sm font-semibold text-blue-700 dark:text-emerald-400 flex items-center gap-1 mb-1">
               <TrendingUp className="w-4 h-4" /> +15.2%
             </span>
           </div>
@@ -106,7 +106,7 @@ export function ReportsAnalytics() {
           </div>
           <div className="flex items-end gap-3">
             <span className="text-3xl font-bold text-gray-900 dark:text-white">452</span>
-            <span className="text-sm font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 mb-1">
+            <span className="text-sm font-semibold text-blue-700 dark:text-emerald-400 flex items-center gap-1 mb-1">
               <TrendingUp className="w-4 h-4" /> +5.4%
             </span>
           </div>
@@ -227,7 +227,7 @@ export function ReportsAnalytics() {
                       }}
                     />
                   </div>
-                  <span className={`w-24 text-sm font-bold text-right ${isMax ? 'text-[#00C853]' : 'text-gray-700 dark:text-gray-300'}`}>
+                  <span className={`w-24 text-sm font-bold text-right ${isMax ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300'}`}>
                     {new Intl.NumberFormat('vi-VN').format(day.value / 1000)}k đ
                   </span>
                 </div>

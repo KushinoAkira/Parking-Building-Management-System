@@ -5,6 +5,7 @@ import { RecentActivity } from "./RecentActivity";
 import {
   ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, CartesianGrid, Cell
 } from "recharts";
+import { motion, Variants } from "motion/react";
 
 const hourlyData = [
   { hour: "06h", count: 12 },
@@ -34,30 +35,52 @@ const CustomBarTooltip = ({ active, payload, label }: any) => {
     return (
       <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg shadow-xl text-sm">
         <p className="text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="font-bold text-[#00C853]">{payload[0].value} lượt</p>
+        <p className="font-bold text-blue-600">{payload[0].value} lượt</p>
       </div>
     );
   }
   return null;
 };
 
+const containerVariants: Variants = {
+  hidden: { opacity: 0 },
+  show: {
+    opacity: 1,
+    transition: { staggerChildren: 0.1 }
+  }
+};
+
+const fadeUpVariants: Variants = {
+  hidden: { opacity: 0, y: 20 },
+  show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
+};
+
 export function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex items-center justify-between"
+      >
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tổng Quan</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-0.5">Thống kê hôm nay — Thứ Sáu, 29/05/2026</p>
         </div>
-        <div className="flex items-center gap-2 bg-[#00C853]/10 border border-[#00C853]/20 rounded-full px-3 py-1.5">
-          <div className="w-2 h-2 rounded-full bg-[#00C853] animate-pulse" />
-          <span className="text-xs font-semibold text-[#00C853]">Cập nhật tự động</span>
+        <div className="flex items-center gap-2 bg-blue-600/10 border border-blue-600/20 rounded-full px-3 py-1.5">
+          <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
+          <span className="text-xs font-semibold text-blue-600">Cập nhật tự động</span>
         </div>
-      </div>
+      </motion.div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <motion.div 
+        variants={containerVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
         <StatCard
           title="Tổng Slot"
           value="120"
@@ -93,10 +116,15 @@ export function Dashboard() {
           sparkData={rateSpark}
           subtitle="Mục tiêu: 75%"
         />
-      </div>
+      </motion.div>
 
       {/* Hourly Activity Bar Chart */}
-      <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
+      <motion.div 
+        variants={fadeUpVariants}
+        initial="hidden"
+        animate="show"
+        className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm"
+      >
         <div className="flex items-center justify-between mb-5">
           <div>
             <h2 className="text-base font-bold text-gray-900 dark:text-white">Lưu Lượng Theo Giờ</h2>
@@ -111,7 +139,7 @@ export function Dashboard() {
               <XAxis key="xaxis" dataKey="hour" stroke="rgba(150,150,150,0.5)" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
               <YAxis key="yaxis" stroke="rgba(150,150,150,0.5)" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
               <Tooltip key="tooltip" content={<CustomBarTooltip />} cursor={{ fill: 'rgba(0,200,83,0.05)' }} />
-              <Bar key="bar" dataKey="count" radius={[6, 6, 2, 2]}>
+              <Bar key="bar" dataKey="count" radius={[6, 6, 2, 2]} isAnimationActive={true}>
                 {hourlyData.map((entry, index) => (
                   <Cell
                     key={`hourly-cell-${index}`}
@@ -122,17 +150,22 @@ export function Dashboard() {
             </BarChart>
           </ResponsiveContainer>
         </div>
-      </div>
+      </motion.div>
 
       {/* Parking Map + Recent Activity */}
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <motion.div 
+        variants={fadeUpVariants}
+        initial="hidden"
+        animate="show"
+        className="grid grid-cols-1 xl:grid-cols-3 gap-6"
+      >
         <div className="xl:col-span-2 min-h-[420px]">
           <ParkingMap />
         </div>
         <div className="xl:col-span-1 min-h-[420px]">
           <RecentActivity />
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

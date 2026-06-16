@@ -16,7 +16,7 @@ export function RecentActivity() {
           <h2 className="text-base font-bold text-gray-900 dark:text-white">Hoạt Động Gần Đây</h2>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Xe vào/ra cập nhật liên tục</p>
         </div>
-        <button className="text-xs font-semibold text-[#00C853] hover:text-[#00C853]/80 flex items-center gap-1 transition-colors">
+        <button className="text-xs font-semibold text-blue-600 hover:text-blue-600/80 flex items-center gap-1 transition-colors">
           Xem tất cả <ArrowRightLeft className="w-3.5 h-3.5" />
         </button>
       </div>
@@ -58,7 +58,7 @@ export function RecentActivity() {
             <div className="text-right shrink-0">
               <p className="text-sm font-semibold text-gray-700 dark:text-gray-300">{activity.time}</p>
               {activity.fee ? (
-                <p className="text-xs font-semibold text-[#00C853] mt-0.5">{activity.fee}</p>
+                <p className="text-xs font-semibold text-blue-600 mt-0.5">{activity.fee}</p>
               ) : (
                 <span className="text-xs text-gray-400 dark:text-gray-500">—</span>
               )}
