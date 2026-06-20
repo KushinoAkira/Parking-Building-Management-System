@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
@@ -8,6 +9,7 @@ using ParkingBuildingManagement.Api.Models;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.AdminOnly)]
 [Route("api/users")]
 public class UsersController(ApplicationDbContext db) : ControllerBase
 {
@@ -85,6 +87,20 @@ public class UsersController(ApplicationDbContext db) : ControllerBase
         user.Role = await db.Roles.FirstAsync(r => r.RoleId == user.RoleId, ct);
 
         return Ok(ToDto(user));
+    }
+
+    [HttpPost("{id:int}/reset-password")]
+    public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest request, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(request.NewPassword) || request.NewPassword.Length < 8)
+            throw new BusinessException("New password must be at least 8 characters.");
+
+        var user = await db.Users.FirstOrDefaultAsync(u => u.UserId == id, ct)
+            ?? throw new BusinessException("User not found.", 404);
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        await db.SaveChangesAsync(ct);
+        return Ok(new { message = "Password reset successfully." });
     }
 
     private static UserDto ToDto(User u) =>

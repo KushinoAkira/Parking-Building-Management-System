@@ -1,6 +1,5 @@
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router";
 import {
-  LayoutDashboard,
   Users,
   Settings,
   Search,
@@ -9,14 +8,14 @@ import {
   PhoneCall,
   ShieldAlert,
   ShieldCheck,
-  ServerCog
+  ServerCog,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationDropdown } from "./NotificationDropdown";
-
 import { CallStaffPanel } from "./CallStaffPanel";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { getAuth, clearAuth } from "../lib/auth";
 
 const navigation = [
   { name: "Quản Lý Người Dùng", href: "/admin/users", icon: Users },
@@ -28,6 +27,15 @@ export function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [isCallPanelOpen, setIsCallPanelOpen] = useState(false);
+  const auth = getAuth();
+  const displayName = auth?.fullName ?? "System Admin";
+  const displayEmail = auth?.email ?? "admin@parking.vn";
+  const avatarLetter = displayName.charAt(0).toUpperCase();
+
+  function handleLogout() {
+    clearAuth();
+    navigate("/login", { replace: true });
+  }
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-white overflow-hidden font-sans transition-colors duration-200">
@@ -62,15 +70,15 @@ export function AdminLayout() {
           <div className="flex items-center gap-2.5">
             <div className="flex items-center gap-2 cursor-pointer group">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center text-white font-bold text-sm shadow-md shadow-red-600/25">
-                A
+                {avatarLetter}
               </div>
               <div className="hidden sm:block">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-red-600 transition-colors leading-tight">System Admin</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-red-600 transition-colors leading-tight">{displayName}</p>
                 <p className="text-xs text-gray-400 dark:text-gray-500">Quản trị viên</p>
               </div>
             </div>
             <button
-              onClick={() => navigate('/login')}
+              onClick={handleLogout}
               className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-xl transition-colors"
               title="Đăng xuất"
             >
@@ -121,11 +129,11 @@ export function AdminLayout() {
             </button>
             <div className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-[#121212] border border-gray-100 dark:border-gray-800 hover:bg-gray-100 dark:hover:bg-gray-800/80 transition-colors cursor-pointer">
               <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-red-600 to-red-700 flex items-center justify-center text-white font-bold text-sm shadow-sm shrink-0">
-                A
+                {avatarLetter}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">System Admin</p>
-                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">admin@parkingpro.vn</p>
+                <p className="text-sm font-semibold text-gray-900 dark:text-white truncate">{displayName}</p>
+                <p className="text-xs text-gray-400 dark:text-gray-500 truncate">{displayEmail}</p>
               </div>
             </div>
           </div>

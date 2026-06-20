@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
@@ -7,6 +8,7 @@ using ParkingBuildingManagement.Api.Models;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/facility")]
 public class FacilityController(ApplicationDbContext db) : ControllerBase
 {
@@ -18,6 +20,7 @@ public class FacilityController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Create([FromBody] ParkingFacility request, CancellationToken ct)
     {
         if (await db.ParkingFacilities.AnyAsync(ct))
@@ -29,6 +32,7 @@ public class FacilityController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Update(int id, [FromBody] ParkingFacility request, CancellationToken ct)
     {
         var facility = await db.ParkingFacilities.FirstOrDefaultAsync(f => f.FacilityId == id, ct)

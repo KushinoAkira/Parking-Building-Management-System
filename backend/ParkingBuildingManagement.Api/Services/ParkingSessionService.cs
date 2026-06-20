@@ -51,9 +51,14 @@ public class ParkingSessionService(
         if (slot.Status is not ("Available" or "Reserved"))
             throw new BusinessException($"Slot '{slot.SlotId}' is not available.");
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (db.Database.SupportsTransactions())
+            tx = await db.Database.BeginTransactionAsync(ct);
 
-        var session = new ParkingSession
+        ParkingSession session;
+        try
+        {
+        session = new ParkingSession
         {
             TicketCode = TicketCodeGenerator.Generate(),
             UserId = request.UserId ?? reservation?.UserId,
@@ -78,7 +83,12 @@ public class ParkingSessionService(
             reservation.Status = "CheckedIn";
 
         await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
+        }
 
         return await MapSessionAsync(session.SessionId, ct)
             ?? throw new BusinessException("Failed to load session after check-in.", 500);
@@ -103,9 +113,14 @@ public class ParkingSessionService(
             .SumAsync(i => i.PenaltyFee, ct);
         totalFee += penaltyFee;
 
-        await using var tx = await db.Database.BeginTransactionAsync(ct);
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (db.Database.SupportsTransactions())
+            tx = await db.Database.BeginTransactionAsync(ct);
 
-        var payment = new Payment
+        Payment payment;
+        try
+        {
+        payment = new Payment
         {
             SessionId = sessionId,
             Amount = totalFee,
@@ -124,7 +139,12 @@ public class ParkingSessionService(
 
         db.Payments.Add(payment);
         await db.SaveChangesAsync(ct);
-        await tx.CommitAsync(ct);
+        if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
+        }
 
         var dto = await MapSessionAsync(sessionId, ct)
             ?? throw new BusinessException("Failed to load session after check-out.", 500);

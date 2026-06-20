@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
@@ -7,8 +8,8 @@ using ParkingBuildingManagement.Api.Models;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/slots")]
-[Route("api/parkingslots")]
 public class ParkingSlotsController(ApplicationDbContext db) : ControllerBase
 {
     [HttpGet]
@@ -82,6 +83,7 @@ public class ParkingSlotsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Create([FromBody] ParkingSlot request, CancellationToken ct)
     {
         if (await db.ParkingSlots.AnyAsync(s => s.SlotId == request.SlotId, ct))
@@ -96,6 +98,7 @@ public class ParkingSlotsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{slotId}/status")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> UpdateStatus(string slotId, [FromBody] UpdateSlotStatusRequest request, CancellationToken ct)
     {
         var slot = await db.ParkingSlots.FirstOrDefaultAsync(s => s.SlotId == slotId, ct)

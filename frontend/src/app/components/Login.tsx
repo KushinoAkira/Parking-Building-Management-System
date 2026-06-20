@@ -4,6 +4,7 @@ import { Car, Lock, User, Eye, EyeOff, CheckCircle2, XCircle, ShieldCheck, Check
 import { ThemeToggle } from "./ThemeToggle";
 import { motion, AnimatePresence } from "motion/react";
 import { apiPost } from "../lib/api";
+import { getAuth, saveAuth, getRoleHomePath, type AuthPayload } from "../lib/auth";
 
 const DEMO_ACCOUNTS = [
   {
@@ -89,6 +90,7 @@ function ValidationItem({ isValid, text, isShield = false }: { isValid: boolean;
 export function Login() {
   const navigate = useNavigate();
   const [isLogin, setIsLogin] = useState(true);
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -100,12 +102,9 @@ export function Login() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    const auth = getStorageAuth();
+    const auth = getAuth();
     if (!auth) return;
-    const role = auth.roleName.toLowerCase();
-    if (role === "staff") navigate("/staff-dashboard");
-    else if (role === "driver") navigate("/user-web");
-    else navigate("/manager");
+    navigate(getRoleHomePath(auth.roleName), { replace: true });
   }, [navigate]);
 
   // Validation Logic
@@ -142,6 +141,11 @@ export function Login() {
     setSuccess("");
 
     if (!isLogin) {
+      const trimmedFullName = fullName.trim();
+      if (!trimmedFullName) {
+        setError("Vui lòng nhập họ và tên.");
+        return;
+      }
       if (!isEmailValid || !isStrong) {
         setError("Vui lòng kiểm tra lại điều kiện hợp lệ.");
         setSuccess("");
@@ -155,13 +159,14 @@ export function Login() {
       try {
         setIsSubmitting(true);
         await apiPost("/api/auth/register", {
-          fullName: email.split("@")[0] || "Driver Demo",
+          fullName: trimmedFullName,
           email,
           password,
           phone: null,
         });
         setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
         setIsLogin(true);
+        setFullName("");
         setPassword("");
         setConfirmPassword("");
       } catch (err) {
@@ -174,29 +179,9 @@ export function Login() {
 
     try {
       setIsSubmitting(true);
-      const auth = await apiPost<{
-        token: string;
-        userId: number;
-        fullName: string;
-        email: string;
-        roleName: string;
-        expiresAt: string;
-      }>("/api/auth/login", { email, password });
-
-      if (remember) {
-        localStorage.setItem("pbms_auth", JSON.stringify(auth));
-      } else {
-        sessionStorage.setItem("pbms_auth", JSON.stringify(auth));
-      }
-
-      const role = auth.roleName.toLowerCase();
-      if (role === "staff") {
-        navigate("/staff-dashboard");
-      } else if (role === "driver") {
-        navigate("/user-web");
-      } else {
-        navigate("/manager");
-      }
+      const auth = await apiPost<AuthPayload>("/api/auth/login", { email, password });
+      saveAuth(auth, remember);
+      navigate(getRoleHomePath(auth.roleName), { replace: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Email hoặc mật khẩu không đúng.");
     } finally {
@@ -249,7 +234,7 @@ export function Login() {
             {/* Tab Switcher */}
             <div className="flex bg-gray-100 dark:bg-[#121212] p-1 rounded-xl mb-2 relative">
               <button
-                onClick={() => { setIsLogin(true); setError(""); setSuccess(""); setConfirmPassword(""); }}
+                onClick={() => { setIsLogin(true); setError(""); setSuccess(""); setConfirmPassword(""); setFullName(""); }}
                 className={`relative flex-1 py-2 text-sm font-bold rounded-lg transition-colors z-10 ${
                   isLogin ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
                 }`}
@@ -273,6 +258,35 @@ export function Login() {
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-2">
+              {/* Full Name Input (Register only) */}
+              <AnimatePresence>
+                {!isLogin && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="overflow-hidden"
+                  >
+                    <label className="block text-xs font-bold text-gray-900 dark:text-gray-200 mb-1.5">
+                      Họ và Tên
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <User className="h-[18px] w-[18px] text-gray-400" />
+                        <div className="h-[22px] w-[1.5px] bg-gray-300 dark:bg-gray-600 mx-3" />
+                      </div>
+                      <input
+                        type="text"
+                        value={fullName}
+                        onChange={(e) => { setFullName(e.target.value); setError(""); setSuccess(""); }}
+                        className="block w-full pl-14 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
+                        placeholder="Nhập họ và tên đầy đủ"
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Email Input */}
               <div>
                 <label className="block text-xs font-bold text-gray-900 dark:text-gray-200 mb-1.5">

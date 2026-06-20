@@ -17,6 +17,16 @@ import { Violations } from "./components/Violations";
 import { VehicleHistory } from "./components/VehicleHistory";
 import { RequireAuth } from "./components/RequireAuth";
 import { RequireGuest } from "./components/RequireGuest";
+import { getAuth, getRoleHomePath } from "./lib/auth";
+
+function SettingsRedirect() {
+  const auth = getAuth();
+  if (!auth?.token) return <Navigate to="/login" replace />;
+  const role = auth.roleName.toLowerCase();
+  if (role === "admin") return <Navigate to="/admin/settings" replace />;
+  if (role === "manager") return <Navigate to="/manager/settings" replace />;
+  return <Navigate to={getRoleHomePath(auth.roleName)} replace />;
+}
 
 export const router = createBrowserRouter([
   {
@@ -55,7 +65,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: <RequireAuth roles={["Manager", "Admin"]} />,
+    element: <RequireAuth roles={["Manager"]} />,
     children: [
       {
         path: "/manager",
@@ -82,31 +92,40 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    path: "/admin",
-    Component: AdminLayout,
-    errorElement: (
-      <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-white">
-        <h1 className="text-4xl font-bold mb-4 text-[#00C853]">Oops!</h1>
-        <p className="text-gray-500 dark:text-gray-400 mb-6">Đã xảy ra lỗi hoặc không tìm thấy trang.</p>
-        <a href="/login" className="px-4 py-2 bg-[#00C853] text-white rounded-lg font-medium hover:bg-[#00C853]/90 transition-colors">
-          Về màn hình Đăng Nhập
-        </a>
-      </div>
-    ),
+    element: <RequireAuth roles={["Admin"]} />,
     children: [
-      { index: true, Component: UserManagement },
-      { path: "users", Component: UserManagement },
-      { path: "roles", Component: RoleManagement },
-      { path: "config", Component: SystemConfig },
-      { path: "settings", Component: Settings },
+      {
+        path: "/admin",
+        Component: AdminLayout,
+        errorElement: (
+          <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-[#121212] text-gray-900 dark:text-white">
+            <h1 className="text-4xl font-bold mb-4 text-[#00C853]">Oops!</h1>
+            <p className="text-gray-500 dark:text-gray-400 mb-6">Đã xảy ra lỗi hoặc không tìm thấy trang.</p>
+            <a href="/login" className="px-4 py-2 bg-[#00C853] text-white rounded-lg font-medium hover:bg-[#00C853]/90 transition-colors">
+              Về màn hình Đăng Nhập
+            </a>
+          </div>
+        ),
+        children: [
+          { index: true, Component: UserManagement },
+          { path: "users", Component: UserManagement },
+          { path: "roles", Component: RoleManagement },
+          { path: "config", Component: SystemConfig },
+          { path: "settings", Component: Settings },
+        ],
+      },
     ],
   },
   {
     path: "/settings",
-    Component: () => <Navigate to="/manager/settings" replace />,
+    Component: SettingsRedirect,
   },
   {
     path: "*",
-    Component: () => <Navigate to="/login" replace />,
+    Component: () => {
+      const auth = getAuth();
+      if (auth?.token) return <Navigate to={getRoleHomePath(auth.roleName)} replace />;
+      return <Navigate to="/login" replace />;
+    },
   },
 ]);

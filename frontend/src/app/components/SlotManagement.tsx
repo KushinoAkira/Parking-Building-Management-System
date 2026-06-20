@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Car, Search, Filter, Info, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiGet } from "../lib/api";
+import { getAuth } from "../lib/auth";
 
 type SlotVm = {
   id: string;
@@ -21,7 +22,8 @@ export function SlotManagement() {
   const [selectedSlot, setSelectedSlot] = useState<SlotVm | null>(null);
 
   useEffect(() => {
-    apiGet<Array<{ zoneId: number; zoneName: string; slots: Array<{ slotId: string; status: string; activeSession?: { licensePlate: string; entryTime: string } }> }>>("/api/portal/staff/floors")
+    const auth = getAuth();
+    apiGet<Array<{ zoneId: number; zoneName: string; slots: Array<{ slotId: string; status: string; activeSession?: { licensePlate: string; entryTime: string } }> }>>("/api/portal/staff/floors", auth?.token)
       .then((data) => {
         const mapped: FloorVm[] = data.map((z) => ({
           id: z.zoneId,

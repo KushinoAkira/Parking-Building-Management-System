@@ -29,6 +29,12 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
 
+      - name: Typecheck frontend
+        run: npm run typecheck
+
+      - name: Test frontend
+        run: npm test
+
       - name: Lint frontend
         run: npm run lint --if-present
 
@@ -57,3 +63,6 @@ jobs:
 
       - name: Build backend
         run: dotnet build ParkingBuildingManagement.slnx --configuration Release --no-restore
+
+      - name: Test backend
+        run: dotnet test ParkingBuildingManagement.slnx --configuration Release --no-build --verbosity normal

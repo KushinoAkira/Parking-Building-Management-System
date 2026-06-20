@@ -31,30 +31,28 @@ public class SlotAllocationService(ApplicationDbContext db) : ISlotAllocationSer
         }
 
         var zoneQuery = db.ParkingZones
-            .AsNoTracking()
             .Where(z => z.VehicleTypeId == vehicleTypeId && z.Status == "Active");
 
         if (zoneId.HasValue)
             zoneQuery = zoneQuery.Where(z => z.ZoneId == zoneId.Value);
 
-        var zones = await zoneQuery.ToListAsync(ct);
-        if (zones.Count == 0)
-            throw new BusinessException("No active zones found for this vehicle type.", 404);
-
-        var bestZone = zones
+        // Single query: join zones with available slot counts, pick zone with most availability ratio
+        var bestZoneId = await zoneQuery
             .Select(z => new
             {
-                Zone = z,
-                AvailableCount = db.ParkingSlots.Count(s =>
-                    s.ZoneId == z.ZoneId && s.Status == "Available"),
+                z.ZoneId,
+                z.Capacity,
+                AvailableCount = z.ParkingSlots.Count(s => s.Status == "Available"),
             })
             .Where(x => x.AvailableCount > 0)
-            .OrderByDescending(x => (double)x.AvailableCount / x.Zone.Capacity)
-            .FirstOrDefault()
+            .OrderByDescending(x => (double)x.AvailableCount / x.Capacity)
+            .Select(x => (int?)x.ZoneId)
+            .FirstOrDefaultAsync(ct)
             ?? throw new BusinessException("No available slots for this vehicle type.", 404);
 
         var slot = await db.ParkingSlots
-            .FirstOrDefaultAsync(s => s.ZoneId == bestZone.Zone.ZoneId && s.Status == "Available", ct)
+            .Include(s => s.Zone)
+            .FirstOrDefaultAsync(s => s.ZoneId == bestZoneId && s.Status == "Available", ct)
             ?? throw new BusinessException("No available slots found.", 404);
 
         return slot;

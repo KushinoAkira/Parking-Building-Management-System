@@ -14,6 +14,7 @@ public interface IAuthService
 {
     Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct);
     Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken ct);
+    Task ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct);
 }
 
 public class AuthService(ApplicationDbContext db, IConfiguration config) : IAuthService
@@ -38,6 +39,10 @@ public class AuthService(ApplicationDbContext db, IConfiguration config) : IAuth
     public async Task<AuthResponse> RegisterAsync(RegisterRequest request, CancellationToken ct)
     {
         var email = request.Email.Trim().ToLowerInvariant();
+        var fullName = request.FullName?.Trim() ?? string.Empty;
+
+        if (string.IsNullOrEmpty(fullName))
+            throw new BusinessException("Full name is required.");
 
         if (await db.Users.AnyAsync(u => u.Email.ToLower() == email, ct))
             throw new BusinessException("Email already registered.");
@@ -47,10 +52,10 @@ public class AuthService(ApplicationDbContext db, IConfiguration config) : IAuth
 
         var user = new User
         {
-            FullName = request.FullName,
+            FullName = fullName,
             Email = email,
             PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.Password),
-            Phone = request.Phone,
+            Phone = request.Phone?.Trim(),
             RoleId = driverRole.RoleId,
             Status = "Active",
             CreatedAt = DateTime.UtcNow,
@@ -61,6 +66,21 @@ public class AuthService(ApplicationDbContext db, IConfiguration config) : IAuth
 
         user.Role = driverRole;
         return CreateToken(user);
+    }
+
+    public async Task ChangePasswordAsync(int userId, ChangePasswordRequest request, CancellationToken ct)
+    {
+        var user = await db.Users.FirstOrDefaultAsync(u => u.UserId == userId, ct)
+            ?? throw new BusinessException("User not found.", 404);
+
+        if (!BCrypt.Net.BCrypt.Verify(request.CurrentPassword, user.PasswordHash))
+            throw new BusinessException("Current password is incorrect.", 400);
+
+        if (request.NewPassword.Length < 8)
+            throw new BusinessException("New password must be at least 8 characters.");
+
+        user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(request.NewPassword);
+        await db.SaveChangesAsync(ct);
     }
 
     private AuthResponse CreateToken(User user)

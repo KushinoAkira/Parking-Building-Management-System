@@ -1,18 +1,23 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize]
 [Route("api/system-configs")]
 public class SystemConfigsController(ApplicationDbContext db) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
     public async Task<IActionResult> GetAll(CancellationToken ct) =>
         Ok(await db.SystemConfigs.AsNoTracking().OrderBy(c => c.ConfigKey).ToListAsync(ct));
 
     [HttpGet("{key}")]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
     public async Task<IActionResult> GetByKey(string key, CancellationToken ct)
     {
         var config = await db.SystemConfigs.AsNoTracking()
@@ -22,6 +27,7 @@ public class SystemConfigsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{key}")]
+    [Authorize(Roles = RoleNames.AdminOnly)]
     public async Task<IActionResult> Upsert(string key, [FromBody] UpsertConfigRequest request, CancellationToken ct)
     {
         var config = await db.SystemConfigs.FirstOrDefaultAsync(c => c.ConfigKey == key, ct);

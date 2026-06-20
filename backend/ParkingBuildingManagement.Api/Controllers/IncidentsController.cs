@@ -1,16 +1,22 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
+using ParkingBuildingManagement.Api.Dtos;
+using ParkingBuildingManagement.Api.Services;
+
 using ParkingBuildingManagement.Api.Models;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/incidents")]
 public class IncidentsController(ApplicationDbContext db) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetAll(
         [FromQuery] string? status,
         [FromQuery] int? sessionId,
@@ -48,6 +54,7 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpGet("{id:int}")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         var item = await db.Incidents.AsNoTracking()
@@ -58,16 +65,26 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Incident request, CancellationToken ct)
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
+    public async Task<IActionResult> Create([FromBody] CreateIncidentRequest request, CancellationToken ct)
     {
-        request.CreatedAt = DateTime.UtcNow;
-        request.Status = "Open";
-        db.Incidents.Add(request);
+        var incident = new Incident
+        {
+            SessionId = request.SessionId,
+            ReportedById = request.ReportedById ?? User.GetUserId(),
+            IncidentType = request.IncidentType,
+            Description = request.Description,
+            PenaltyFee = request.PenaltyFee,
+            Status = "Open",
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.Incidents.Add(incident);
         await db.SaveChangesAsync(ct);
-        return CreatedAtAction(nameof(GetById), new { id = request.IncidentId }, request);
+        return CreatedAtAction(nameof(GetById), new { id = incident.IncidentId }, incident);
     }
 
     [HttpPost("{id:int}/resolve")]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Resolve(int id, CancellationToken ct)
     {
         var incident = await db.Incidents.FirstOrDefaultAsync(i => i.IncidentId == id, ct)
@@ -83,6 +100,7 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost("{id:int}/cancel")]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Cancel(int id, CancellationToken ct)
     {
         var incident = await db.Incidents.FirstOrDefaultAsync(i => i.IncidentId == id, ct)
@@ -94,3 +112,10 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
         return Ok(incident);
     }
 }
+
+public record CreateIncidentRequest(
+    int? SessionId,
+    int? ReportedById,
+    string IncidentType,
+    string? Description,
+    decimal PenaltyFee = 0m);

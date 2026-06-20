@@ -1,139 +1,216 @@
-import { Banknote, Check, Plus, Edit2, ShieldAlert, Bike, Car, Star } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { Banknote, Check, Plus, Edit2, ShieldAlert, Bike, Car, Star, Loader2, X } from "lucide-react";
+import { apiGet, apiPost, apiPut } from "../lib/api";
+import { getAuth } from "../lib/auth";
 
-const pricingPlans = [
-  {
-    icon: <Bike className="w-6 h-6" />,
-    title: "Xe Máy",
-    subtitle: "Áp dụng cho mọi loại xe máy 2 bánh.",
-    color: "blue",
-    featured: false,
-    items: [
-      { label: "Theo lượt (Ngày)", value: "5,000 đ" },
-      { label: "Theo lượt (Đêm)", value: "10,000 đ" },
-      { label: "Vé tháng", value: "120,000 đ", accent: true },
-    ],
-  },
-  {
-    icon: <Car className="w-6 h-6" />,
-    title: "Ô Tô Tiêu Chuẩn",
-    subtitle: "Slot thông thường, dưới 9 chỗ ngồi.",
-    color: "green",
-    featured: true,
-    items: [
-      { label: "Block đầu (2h)", value: "30,000 đ" },
-      { label: "Mỗi giờ tiếp theo", value: "+10,000 đ" },
-      { label: "Vé tháng", value: "1,500,000 đ", accent: true },
-    ],
-  },
-  {
-    icon: <Star className="w-6 h-6" />,
-    title: "Ô Tô VIP",
-    subtitle: "Slot kích thước lớn, gần thang máy.",
-    color: "yellow",
-    featured: false,
-    items: [
-      { label: "Block đầu (2h)", value: "50,000 đ" },
-      { label: "Mỗi giờ tiếp theo", value: "+20,000 đ" },
-      { label: "Vé tháng", value: "2,500,000 đ", accent: true },
-    ],
-  },
-];
-
-const colorMap: Record<string, { badge: string; icon: string; border: string; featuredBorder: string; accent: string }> = {
-  blue: {
-    badge: "bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400",
-    icon: "bg-blue-50 dark:bg-blue-500/15 text-blue-500",
-    border: "border-gray-200 dark:border-gray-800",
-    featuredBorder: "border-blue-300 dark:border-blue-500/30",
-    accent: "text-blue-600 dark:text-blue-400",
-  },
-  green: {
-    badge: "bg-blue-600/10 text-blue-600",
-    icon: "bg-blue-600/10 text-blue-600",
-    border: "border-blue-600/30",
-    featuredBorder: "border-blue-600/50",
-    accent: "text-blue-600",
-  },
-  yellow: {
-    badge: "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-400",
-    icon: "bg-yellow-50 dark:bg-yellow-500/15 text-yellow-500",
-    border: "border-gray-200 dark:border-gray-800",
-    featuredBorder: "border-yellow-300 dark:border-yellow-500/30",
-    accent: "text-yellow-600 dark:text-yellow-500",
-  },
+type PricingPolicy = {
+  policyId: number;
+  vehicleTypeId: number;
+  vehicleTypeCode: string;
+  policyName: string;
+  pricePerHour: number;
+  dailyMaxFee: number | null;
+  lostTicketFee: number;
+  overtimeFee: number;
+  status: string;
 };
 
+type VehicleType = { vehicleTypeId: number; typeCode: string; typeName: string };
+
+const ICON_BY_CODE: Record<string, { icon: React.ReactNode; color: string }> = {
+  MOTORBIKE: { icon: <Bike className="w-6 h-6" />, color: "blue" },
+  CAR: { icon: <Car className="w-6 h-6" />, color: "green" },
+  EV: { icon: <Star className="w-6 h-6" />, color: "yellow" },
+};
+
+const colorMap: Record<string, { badge: string; icon: string; accent: string }> = {
+  blue: { badge: "bg-blue-50 dark:bg-blue-500/10 text-blue-600", icon: "bg-blue-50 dark:bg-blue-500/15 text-blue-500", accent: "text-blue-600" },
+  green: { badge: "bg-blue-600/10 text-blue-600", icon: "bg-blue-600/10 text-blue-600", accent: "text-blue-600" },
+  yellow: { badge: "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600", icon: "bg-yellow-50 dark:bg-yellow-500/15 text-yellow-500", accent: "text-yellow-600" },
+};
+
+function formatMoney(n: number) {
+  return `${n.toLocaleString("vi-VN")} đ`;
+}
+
 export function PricingPolicies() {
+  const [policies, setPolicies] = useState<PricingPolicy[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
+  const [configs, setConfigs] = useState<{ configKey: string; configValue: string; description?: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [editing, setEditing] = useState<PricingPolicy | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({
+    vehicleTypeId: 1,
+    policyName: "",
+    pricePerHour: 0,
+    dailyMaxFee: 0,
+    lostTicketFee: 0,
+    overtimeFee: 0,
+    status: "Active",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    const auth = getAuth();
+    setLoading(true);
+    setError("");
+    try {
+      const [p, vt, cfg] = await Promise.all([
+        apiGet<PricingPolicy[]>("/api/pricing-policies", auth?.token),
+        apiGet<VehicleType[]>("/api/vehicle-types", auth?.token),
+        apiGet<typeof configs>("/api/system-configs", auth?.token).catch(() => []),
+      ]);
+      setPolicies(p);
+      setVehicleTypes(vt);
+      setConfigs(cfg);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Không tải được bảng giá");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  function openCreate() {
+    setCreating(true);
+    setEditing(null);
+    setForm({
+      vehicleTypeId: vehicleTypes[0]?.vehicleTypeId ?? 1,
+      policyName: "",
+      pricePerHour: 10000,
+      dailyMaxFee: 100000,
+      lostTicketFee: 50000,
+      overtimeFee: 0,
+      status: "Active",
+    });
+  }
+
+  function openEdit(policy: PricingPolicy) {
+    setEditing(policy);
+    setCreating(false);
+    setForm({
+      vehicleTypeId: policy.vehicleTypeId,
+      policyName: policy.policyName,
+      pricePerHour: policy.pricePerHour,
+      dailyMaxFee: policy.dailyMaxFee ?? 0,
+      lostTicketFee: policy.lostTicketFee,
+      overtimeFee: policy.overtimeFee,
+      status: policy.status,
+    });
+  }
+
+  async function handleSave() {
+    const auth = getAuth();
+    setSaving(true);
+    setError("");
+    try {
+      const body = {
+        policyId: editing?.policyId ?? 0,
+        vehicleTypeId: form.vehicleTypeId,
+        policyName: form.policyName,
+        pricePerHour: form.pricePerHour,
+        dailyMaxFee: form.dailyMaxFee || null,
+        lostTicketFee: form.lostTicketFee,
+        overtimeFee: form.overtimeFee,
+        status: form.status,
+        createdAt: editing ? undefined : new Date().toISOString(),
+      };
+      if (editing) {
+        await apiPut(`/api/pricing-policies/${editing.policyId}`, body, auth?.token);
+      } else {
+        await apiPost("/api/pricing-policies", body, auth?.token);
+      }
+      setEditing(null);
+      setCreating(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Lưu bảng giá thất bại");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const policyRules = configs.filter((c) =>
+    ["GRACE_PERIOD_MINUTES", "RESERVATION_HOLD_MINUTES", "MAX_ACTIVE_RESERVATIONS", "DEFAULT_CURRENCY"].includes(c.configKey),
+  );
+
   return (
     <div className="space-y-8 max-w-7xl mx-auto">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bảng Giá & Chính Sách</h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">Cấu hình giá vé và các quy định cho bãi đỗ xe</p>
         </div>
-        <button className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600/90 transition-colors shadow-md shadow-blue-600/20">
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600/90 transition-colors shadow-md shadow-blue-600/20"
+        >
           <Plus className="w-4 h-4" />
           Thêm Bảng Giá
         </button>
       </div>
 
-      {/* Pricing Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {pricingPlans.map((plan) => {
-          const colors = colorMap[plan.color];
-          return (
-            <div
-              key={plan.title}
-              className={`relative bg-white dark:bg-[#1A1A1A] rounded-2xl border-2 overflow-hidden flex flex-col shadow-sm hover:shadow-md transition-shadow ${
-                plan.featured ? colors.featuredBorder : `border-gray-200 dark:border-gray-800`
-              }`}
-            >
-              {plan.featured && (
-                <div className={`absolute top-0 inset-x-0 flex justify-center`}>
-                  <span className="bg-blue-600 text-white px-4 py-1 rounded-b-xl text-xs font-bold tracking-wide">
-                    PHỔ BIẾN NHẤT
-                  </span>
-                </div>
-              )}
+      {error && (
+        <div className="p-3 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 text-sm border border-red-200 dark:border-red-500/20">
+          {error}
+        </div>
+      )}
 
-              <div className={`p-6 ${plan.featured ? 'pt-9' : ''} border-b border-gray-100 dark:border-gray-800`}>
-                <div className="flex items-center gap-3 mb-3">
-                  <div className={`p-2.5 rounded-xl ${colors.icon}`}>
-                    {plan.icon}
-                  </div>
-                  <div>
-                    <h3 className={`text-lg font-bold ${plan.featured ? 'text-blue-600' : 'text-gray-900 dark:text-white'}`}>{plan.title}</h3>
-                    <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{plan.subtitle}</p>
+      {loading ? (
+        <div className="flex justify-center py-16 text-gray-500">
+          <Loader2 className="w-6 h-6 animate-spin" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {policies.map((policy) => {
+            const meta = ICON_BY_CODE[policy.vehicleTypeCode] ?? ICON_BY_CODE.CAR;
+            const colors = colorMap[meta.color];
+            return (
+              <div
+                key={policy.policyId}
+                className="relative bg-white dark:bg-[#1A1A1A] rounded-2xl border-2 border-gray-200 dark:border-gray-800 overflow-hidden flex flex-col shadow-sm"
+              >
+                <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className={`p-2.5 rounded-xl ${colors.icon}`}>{meta.icon}</div>
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900 dark:text-white">{policy.policyName}</h3>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{policy.vehicleTypeCode} • {policy.status}</p>
+                    </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="p-6 flex-1 flex flex-col gap-0">
-                {plan.items.map((item, i) => (
-                  <div
-                    key={item.label}
-                    className={`flex justify-between items-center py-3.5 ${i < plan.items.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : ''}`}
+                <div className="p-6 flex-1 flex flex-col gap-0">
+                  {[
+                    { label: "Giá / giờ", value: formatMoney(policy.pricePerHour) },
+                    { label: "Trần ngày", value: policy.dailyMaxFee ? formatMoney(policy.dailyMaxFee) : "—" },
+                    { label: "Mất vé", value: formatMoney(policy.lostTicketFee), accent: true },
+                  ].map((item, i, arr) => (
+                    <div
+                      key={item.label}
+                      className={`flex justify-between items-center py-3.5 ${i < arr.length - 1 ? "border-b border-gray-100 dark:border-gray-800" : ""}`}
+                    >
+                      <span className="text-gray-500 dark:text-gray-400 text-sm">{item.label}</span>
+                      <span className={`font-bold text-base ${item.accent ? colors.accent : "text-gray-900 dark:text-white"}`}>{item.value}</span>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => openEdit(policy)}
+                    className="mt-5 w-full flex justify-center items-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
-                    <span className="text-gray-500 dark:text-gray-400 text-sm">{item.label}</span>
-                    <span className={`font-bold text-base ${item.accent ? colors.accent : 'text-gray-900 dark:text-white'}`}>{item.value}</span>
-                  </div>
-                ))}
-
-                <button className={`mt-5 w-full flex justify-center items-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 transition-colors ${
-                  plan.featured
-                    ? 'border-blue-600/30 bg-blue-600/10 text-blue-600 hover:bg-blue-600/20'
-                    : 'border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800'
-                }`}>
-                  <Edit2 className="w-4 h-4" /> Chỉnh sửa
-                </button>
+                    <Edit2 className="w-4 h-4" /> Chỉnh sửa
+                  </button>
+                </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
-      {/* Policies Section */}
       <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden shadow-sm">
         <div className="p-5 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center bg-gray-50 dark:bg-[#121212]/40">
           <div className="flex items-center gap-3">
@@ -141,43 +218,97 @@ export function PricingPolicies() {
               <ShieldAlert className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">Quy Định Chung</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">3 quy định đang áp dụng</p>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">Quy Định Hệ Thống</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Đọc từ SystemConfigs — chỉnh tại Cấu hình hệ thống (Admin)</p>
             </div>
           </div>
-          <button className="text-sm font-medium text-blue-600 hover:text-blue-600/80 transition-colors px-3 py-1.5 rounded-lg hover:bg-blue-600/10">
-            Chỉnh sửa
-          </button>
+          <Banknote className="w-5 h-5 text-gray-400" />
         </div>
         <div className="p-6">
           <ul className="space-y-5">
-            {[
-              {
-                title: "Thời gian quy định Ngày/Đêm",
-                desc: "Ban ngày tính từ 06:00 đến 18:00. Ban đêm tính từ 18:00 đến 06:00 sáng hôm sau.",
-              },
-              {
-                title: "Mất thẻ xe",
-                desc: "Phạt 50,000đ/thẻ đối với xe máy và 100,000đ/thẻ đối với ô tô, cộng thêm phí đỗ xe phát sinh.",
-              },
-              {
-                title: "Thời gian ân hạn (Grace period)",
-                desc: "Miễn phí 15 phút đầu tiên sau khi quẹt thẻ vào đối với mọi phương tiện.",
-              },
-            ].map((rule) => (
-              <li key={rule.title} className="flex gap-4">
+            {policyRules.length > 0 ? policyRules.map((rule) => (
+              <li key={rule.configKey} className="flex gap-4">
                 <div className="w-6 h-6 rounded-full bg-blue-600/10 flex items-center justify-center shrink-0 mt-0.5">
                   <Check className="w-3.5 h-3.5 text-blue-600" />
                 </div>
                 <div>
-                  <strong className="text-gray-900 dark:text-white block mb-1 text-sm">{rule.title}</strong>
-                  <p className="text-gray-500 dark:text-gray-400 text-sm leading-relaxed">{rule.desc}</p>
+                  <strong className="text-gray-900 dark:text-white block mb-1 text-sm">{rule.configKey}</strong>
+                  <p className="text-gray-500 dark:text-gray-400 text-sm">{rule.description ?? rule.configValue}</p>
+                  <p className="text-blue-600 font-semibold text-sm mt-1">{rule.configValue}</p>
                 </div>
               </li>
-            ))}
+            )) : (
+              <li className="text-gray-500 text-sm">Chưa có cấu hình quy định trong hệ thống.</li>
+            )}
           </ul>
         </div>
       </div>
+
+      {(editing || creating) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl w-full max-w-md p-6 shadow-xl">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-bold text-lg text-gray-900 dark:text-white">
+                {editing ? "Chỉnh sửa bảng giá" : "Thêm bảng giá"}
+              </h3>
+              <button onClick={() => { setEditing(null); setCreating(false); }} className="p-1 text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <input
+                placeholder="Tên chính sách"
+                value={form.policyName}
+                onChange={(e) => setForm({ ...form, policyName: e.target.value })}
+                className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
+              />
+              {!editing && (
+                <select
+                  value={form.vehicleTypeId}
+                  onChange={(e) => setForm({ ...form, vehicleTypeId: Number(e.target.value) })}
+                  className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
+                >
+                  {vehicleTypes.map((vt) => (
+                    <option key={vt.vehicleTypeId} value={vt.vehicleTypeId}>{vt.typeName} ({vt.typeCode})</option>
+                  ))}
+                </select>
+              )}
+              {[
+                { key: "pricePerHour" as const, label: "Giá / giờ" },
+                { key: "dailyMaxFee" as const, label: "Trần ngày" },
+                { key: "lostTicketFee" as const, label: "Phí mất vé" },
+                { key: "overtimeFee" as const, label: "Phí quá giờ" },
+              ].map((f) => (
+                <div key={f.key}>
+                  <label className="text-xs text-gray-500">{f.label}</label>
+                  <input
+                    type="number"
+                    value={form[f.key]}
+                    onChange={(e) => setForm({ ...form, [f.key]: Number(e.target.value) })}
+                    className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
+                  />
+                </div>
+              ))}
+              <select
+                value={form.status}
+                onChange={(e) => setForm({ ...form, status: e.target.value })}
+                className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
+              >
+                <option value="Active">Active</option>
+                <option value="Inactive">Inactive</option>
+              </select>
+            </div>
+            <button
+              onClick={handleSave}
+              disabled={saving || !form.policyName}
+              className="mt-4 w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-60 flex justify-center gap-2"
+            >
+              {saving && <Loader2 className="w-4 h-4 animate-spin" />}
+              Lưu
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

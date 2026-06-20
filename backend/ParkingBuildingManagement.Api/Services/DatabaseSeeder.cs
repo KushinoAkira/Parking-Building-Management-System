@@ -15,41 +15,7 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
     {
         await db.Database.MigrateAsync(ct);
 
-        if (!await db.Users.AnyAsync(ct))
-        {
-            var now = DateTime.UtcNow;
-            db.Users.AddRange(
-                new User
-                {
-                    FullName = "System Manager",
-                    Email = "manager@parking.com",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Manager@123"),
-                    Phone = "0900000001",
-                    RoleId = 2,
-                    Status = "Active",
-                    CreatedAt = now,
-                },
-                new User
-                {
-                    FullName = "Station Staff",
-                    Email = "staff@parking.com",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("Staff@123"),
-                    Phone = "0900000002",
-                    RoleId = 3,
-                    Status = "Active",
-                    CreatedAt = now,
-                },
-                new User
-                {
-                    FullName = "Driver Demo",
-                    Email = "user@parking.com",
-                    PasswordHash = BCrypt.Net.BCrypt.HashPassword("User@123"),
-                    Phone = "0900000003",
-                    RoleId = 4,
-                    Status = "Active",
-                    CreatedAt = now,
-                });
-        }
+        await EnsureDemoUsersAsync(ct);
 
         if (!await db.ParkingFacilities.AnyAsync(ct))
         {
@@ -136,9 +102,61 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
             db.SystemConfigs.AddRange(
                 new SystemConfig { ConfigKey = "DEFAULT_CURRENCY", ConfigValue = "VND", Description = "Default currency" },
                 new SystemConfig { ConfigKey = "MAX_ACTIVE_RESERVATIONS", ConfigValue = "2", Description = "Per driver reservation limit" },
-                new SystemConfig { ConfigKey = "RESERVATION_HOLD_MINUTES", ConfigValue = "15", Description = "Auto release reservation in minutes" });
+                new SystemConfig { ConfigKey = "RESERVATION_HOLD_MINUTES", ConfigValue = "15", Description = "Auto release reservation in minutes" },
+                new SystemConfig { ConfigKey = "GRACE_PERIOD_MINUTES", ConfigValue = "15", Description = "Free minutes after entry" },
+                new SystemConfig { ConfigKey = "SYSTEM_STATUS", ConfigValue = "Active", Description = "System operational status" },
+                new SystemConfig { ConfigKey = "OCCUPANCY_WARNING_PERCENT", ConfigValue = "90", Description = "Occupancy alert threshold" },
+                new SystemConfig { ConfigKey = "AI_SLOT_SUGGESTION", ConfigValue = "true", Description = "Enable AI slot suggestion" },
+                new SystemConfig { ConfigKey = "AI_WEIGHT_MODE", ConfigValue = "balanced", Description = "AI weight mode" });
+        }
+        else
+        {
+            await EnsureConfigAsync("GRACE_PERIOD_MINUTES", "15", "Free minutes after entry", ct);
+            await EnsureConfigAsync("SYSTEM_STATUS", "Active", "System operational status", ct);
+            await EnsureConfigAsync("OCCUPANCY_WARNING_PERCENT", "90", "Occupancy alert threshold", ct);
+            await EnsureConfigAsync("AI_SLOT_SUGGESTION", "true", "Enable AI slot suggestion", ct);
+            await EnsureConfigAsync("AI_WEIGHT_MODE", "balanced", "AI weight mode", ct);
         }
 
         await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureDemoUsersAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var demos = new[]
+        {
+            ("admin@parking.com", "System Admin", "Admin@123", 1, "0900000000"),
+            ("manager@parking.com", "System Manager", "Manager@123", 2, "0900000001"),
+            ("staff@parking.com", "Station Staff", "Staff@123", 3, "0900000002"),
+            ("user@parking.com", "Driver Demo", "User@123", 4, "0900000003"),
+        };
+
+        foreach (var (email, fullName, password, roleId, phone) in demos)
+        {
+            var normalized = email.ToLowerInvariant();
+            var existing = await db.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalized, ct);
+            if (existing is null)
+            {
+                db.Users.Add(new User
+                {
+                    FullName = fullName,
+                    Email = normalized,
+                    PasswordHash = BCrypt.Net.BCrypt.HashPassword(password),
+                    Phone = phone,
+                    RoleId = roleId,
+                    Status = "Active",
+                    CreatedAt = now,
+                });
+            }
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureConfigAsync(string key, string value, string description, CancellationToken ct)
+    {
+        if (await db.SystemConfigs.AnyAsync(c => c.ConfigKey == key, ct)) return;
+        db.SystemConfigs.Add(new SystemConfig { ConfigKey = key, ConfigValue = value, Description = description });
     }
 }

@@ -23,3 +23,7 @@ public record UpdateUserRequest(
     string? Phone,
     int RoleId,
     string Status);
+
+public record ResetPasswordRequest(string NewPassword);
+
+public record ChangePasswordRequest(string CurrentPassword, string NewPassword);
