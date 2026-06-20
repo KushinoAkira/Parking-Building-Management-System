@@ -1,10 +1,13 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.AdminOnly)]
 [Route("api/system-configs")]
 public class SystemConfigsController(ApplicationDbContext db) : ControllerBase
 {

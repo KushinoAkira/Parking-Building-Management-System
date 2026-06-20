@@ -1,14 +1,18 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/portal")]
 public class PortalController(ApplicationDbContext db) : ControllerBase
 {
     [HttpGet("staff/overview")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetStaffOverview(CancellationToken ct)
     {
         var activeSessions = await db.ParkingSessions.CountAsync(s => s.Status == "Active", ct);
@@ -27,6 +31,7 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpGet("staff/floors")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetStaffFloors(CancellationToken ct)
     {
         var floors = await db.ParkingZones
@@ -57,6 +62,7 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpGet("staff/violations")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetStaffViolations(CancellationToken ct)
     {
         var incidents = await db.Incidents
@@ -82,6 +88,7 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpGet("staff/history")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetStaffHistory(
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
@@ -112,9 +119,49 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
         return Ok(sessions);
     }
 
+    [HttpGet("staff/reservations")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
+    public async Task<IActionResult> GetStaffReservations(
+        [FromQuery] string? status,
+        CancellationToken ct)
+    {
+        var query = db.Reservations.AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.VehicleType)
+            .Include(r => r.Zone)
+            .AsQueryable();
+
+        if (!string.IsNullOrWhiteSpace(status))
+            query = query.Where(r => r.Status == status);
+        else
+            query = query.Where(r => r.Status == "Confirmed" || r.Status == "Pending");
+
+        var items = await query
+            .OrderBy(r => r.ReservedFrom)
+            .Take(50)
+            .Select(r => new
+            {
+                r.ReservationId,
+                r.UserId,
+                userName = r.User.FullName,
+                r.LicensePlate,
+                vehicleType = r.VehicleType.TypeCode,
+                zoneCode = r.Zone != null ? r.Zone.ZoneCode : null,
+                r.SlotId,
+                r.ReservedFrom,
+                r.ReservedTo,
+                r.Status,
+            })
+            .ToListAsync(ct);
+
+        return Ok(items);
+    }
+
     [HttpGet("driver/{userId:int}/home")]
     public async Task<IActionResult> GetDriverHome(int userId, CancellationToken ct)
     {
+        if (!User.CanAccessUserData(userId)) return Forbid();
+
         var user = await db.Users.AsNoTracking()
             .FirstOrDefaultAsync(u => u.UserId == userId, ct);
         if (user is null) return NotFound();
@@ -159,6 +206,8 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
     [HttpGet("driver/{userId:int}/tickets")]
     public async Task<IActionResult> GetDriverTickets(int userId, CancellationToken ct)
     {
+        if (!User.CanAccessUserData(userId)) return Forbid();
+
         var tickets = await db.ParkingSessions
             .AsNoTracking()
             .Where(s => s.UserId == userId)
@@ -184,6 +233,8 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
     [HttpGet("driver/{userId:int}/transactions")]
     public async Task<IActionResult> GetDriverTransactions(int userId, CancellationToken ct)
     {
+        if (!User.CanAccessUserData(userId)) return Forbid();
+
         var transactions = await db.Payments
             .AsNoTracking()
             .Where(p => p.Session.UserId == userId)
@@ -203,5 +254,106 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
             .ToListAsync(ct);
 
         return Ok(transactions);
+    }
+
+    [HttpGet("manager/dashboard")]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    public async Task<IActionResult> GetManagerDashboard(CancellationToken ct)
+    {
+        var today = DateTime.UtcNow.Date;
+        var startOfMonth = new DateTime(today.Year, today.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        var activeSessions = await db.ParkingSessions.CountAsync(s => s.Status == "Active", ct);
+
+        var revenueToday = await db.Payments
+            .Where(p => p.Status == "Completed" && p.PaymentTime >= today)
+            .SumAsync(p => p.Amount, ct);
+
+        var revenueMonth = await db.Payments
+            .Where(p => p.Status == "Completed" && p.PaymentTime >= startOfMonth)
+            .SumAsync(p => p.Amount, ct);
+
+        var openIncidents = await db.Incidents.CountAsync(i => i.Status == "Open", ct);
+
+        var totalSlots = await db.ParkingSlots.CountAsync(ct);
+        var occupiedSlots = await db.ParkingSlots.CountAsync(s => s.Status == "Occupied", ct);
+        var occupancyRate = totalSlots > 0 ? (double)occupiedSlots / totalSlots : 0;
+
+        var recentTransactions = await db.Payments
+            .AsNoTracking()
+            .Where(p => p.Status == "Completed")
+            .OrderByDescending(p => p.PaymentTime)
+            .Take(5)
+            .Select(p => new
+            {
+                p.PaymentId,
+                p.Session.TicketCode,
+                p.Amount,
+                p.PaymentTime
+            })
+            .ToListAsync(ct);
+
+        var recentIncidents = await db.Incidents
+            .AsNoTracking()
+            .OrderByDescending(i => i.CreatedAt)
+            .Take(5)
+            .Select(i => new
+            {
+                i.IncidentId,
+                i.IncidentType,
+                i.Status,
+                i.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        return Ok(new
+        {
+            activeSessions,
+            revenueToday,
+            revenueMonth,
+            openIncidents,
+            occupancyRate,
+            recentTransactions,
+            recentIncidents
+        });
+    }
+
+    [HttpGet("driver/{userId:int}/notifications")]
+    public async Task<IActionResult> GetDriverNotifications(int userId, CancellationToken ct)
+    {
+        if (!User.CanAccessUserData(userId)) return Forbid();
+
+        var notifications = new List<object>();
+
+        var activeSession = await db.ParkingSessions
+            .Include(s => s.Zone)
+            .Where(s => s.UserId == userId && s.Status == "Active")
+            .OrderByDescending(s => s.EntryTime)
+            .FirstOrDefaultAsync(ct);
+
+        if (activeSession != null)
+        {
+            notifications.Add(new
+            {
+                id = 1,
+                title = "Đang đỗ xe",
+                desc = $"Bạn đang đỗ xe tại {activeSession.Zone?.ZoneCode ?? "bãi"} - Slot {activeSession.SlotId}. Biển số {activeSession.LicensePlate}.",
+                time = activeSession.EntryTime,
+                unread = true,
+                type = "session"
+            });
+        }
+
+        notifications.Add(new
+        {
+            id = 2,
+            title = "Giảm 20% phí đỗ xe",
+            desc = "Áp dụng cho lần thanh toán tiếp theo qua ví.",
+            time = DateTime.UtcNow.AddDays(-1),
+            unread = false,
+            type = "promotion"
+        });
+
+        return Ok(notifications);
     }
 }

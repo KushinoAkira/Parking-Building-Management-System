@@ -6,6 +6,7 @@ import {
 } from "recharts";
 import { motion, Variants } from "motion/react";
 import { apiGet } from "../lib/api";
+import { getAuth } from "../lib/auth";
 
 const fallbackHourlyData = [
   { hour: "06h", count: 0 },
@@ -65,9 +66,10 @@ export function Dashboard() {
   const [sessionStats, setSessionStats] = useState<Array<{ vehicleTypeCode: string; totalSessions: number }>>([]);
 
   useEffect(() => {
+    const auth = getAuth();
     Promise.all([
-      apiGet("/api/reports/dashboard"),
-      apiGet("/api/reports/sessions"),
+      apiGet("/api/reports/dashboard", auth?.token),
+      apiGet("/api/reports/sessions", auth?.token),
     ])
       .then(([d, s]) => {
         setDashboard(d as any);

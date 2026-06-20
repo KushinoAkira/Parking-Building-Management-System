@@ -1,33 +1,10 @@
 import { Navigate, Outlet } from "react-router";
-
-type AuthPayload = {
-  token: string;
-  userId: number;
-  roleName: string;
-};
-
-function getAuth(): AuthPayload | null {
-  const raw = localStorage.getItem("pbms_auth") ?? sessionStorage.getItem("pbms_auth");
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AuthPayload;
-  } catch {
-    return null;
-  }
-}
-
-function getRedirectPath(roleName: string): string {
-  const role = roleName.toLowerCase();
-  if (role === "staff") return "/staff-dashboard";
-  if (role === "driver") return "/user-web";
-  return "/manager";
-}
+import { getAuth, getRoleHomePath } from "../lib/auth";
 
 export function RequireGuest() {
   const auth = getAuth();
   if (auth?.token) {
-    return <Navigate to={getRedirectPath(auth.roleName)} replace />;
+    return <Navigate to={getRoleHomePath(auth.roleName)} replace />;
   }
   return <Outlet />;
 }
-

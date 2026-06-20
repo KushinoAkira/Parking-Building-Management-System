@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
@@ -7,10 +8,12 @@ using ParkingBuildingManagement.Api.Models;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/feedbacks")]
 public class FeedbacksController(ApplicationDbContext db) : ControllerBase
 {
     [HttpGet]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetAll(
         [FromQuery] int? userId,
         [FromQuery] string? status,
@@ -46,16 +49,28 @@ public class FeedbacksController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] Feedback request, CancellationToken ct)
+    public async Task<IActionResult> Create([FromBody] CreateFeedbackRequest request, CancellationToken ct)
     {
-        request.CreatedAt = DateTime.UtcNow;
-        request.Status = "New";
-        db.Feedbacks.Add(request);
+        var userId = User.GetRoleName() == RoleNames.Driver
+            ? User.GetUserId()
+            : request.UserId;
+
+        var feedback = new Feedback
+        {
+            UserId = userId,
+            SessionId = request.SessionId,
+            FeedbackType = request.FeedbackType,
+            Content = request.Content,
+            Status = "New",
+            CreatedAt = DateTime.UtcNow,
+        };
+        db.Feedbacks.Add(feedback);
         await db.SaveChangesAsync(ct);
-        return Ok(request);
+        return Ok(new { feedback.FeedbackId, feedback.UserId, feedback.FeedbackType, feedback.Content, feedback.Status, feedback.CreatedAt });
     }
 
     [HttpPut("{id:int}/status")]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateFeedbackStatusRequest request, CancellationToken ct)
     {
         var feedback = await db.Feedbacks.FirstOrDefaultAsync(f => f.FeedbackId == id, ct)
@@ -66,5 +81,11 @@ public class FeedbacksController(ApplicationDbContext db) : ControllerBase
         return Ok(feedback);
     }
 }
+
+public record CreateFeedbackRequest(
+    int? UserId,
+    int? SessionId,
+    string FeedbackType,
+    string? Content);
 
 public record UpdateFeedbackStatusRequest(string Status);

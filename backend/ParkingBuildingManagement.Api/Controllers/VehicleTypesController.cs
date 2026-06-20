@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
@@ -7,6 +8,7 @@ using ParkingBuildingManagement.Api.Models;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/vehicle-types")]
 public class VehicleTypesController(ApplicationDbContext db) : ControllerBase
 {
@@ -28,6 +30,7 @@ public class VehicleTypesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
     public async Task<IActionResult> Create([FromBody] VehicleType request, CancellationToken ct)
     {
         if (await db.VehicleTypes.AnyAsync(v => v.TypeCode == request.TypeCode, ct))
@@ -39,6 +42,7 @@ public class VehicleTypesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
     public async Task<IActionResult> Update(int id, [FromBody] VehicleType request, CancellationToken ct)
     {
         var item = await db.VehicleTypes.FirstOrDefaultAsync(v => v.VehicleTypeId == id, ct)

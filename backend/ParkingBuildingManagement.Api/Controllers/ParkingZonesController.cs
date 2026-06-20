@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
@@ -7,6 +8,7 @@ using ParkingBuildingManagement.Api.Models;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/zones")]
 public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
 {
@@ -53,6 +55,7 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
     public async Task<IActionResult> Create([FromBody] ParkingZone request, CancellationToken ct)
     {
         if (await db.ParkingZones.AnyAsync(z => z.ZoneCode == request.ZoneCode, ct))
@@ -64,6 +67,7 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
+    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
     public async Task<IActionResult> Update(int id, [FromBody] ParkingZone request, CancellationToken ct)
     {
         var zone = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneId == id, ct)

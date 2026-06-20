@@ -1,34 +1,20 @@
 import { useEffect, useMemo, useState } from "react";
-import { Car, MapPin, Clock, CreditCard, ChevronRight, Bell, Search, QrCode, Home, Ticket, Info, X, CheckCircle2, Wallet, History, Tag, ScanLine, Image as ImageIcon, Settings, AlertTriangle, Plus, ArrowUpRight, ArrowDownLeft } from "lucide-react";
+import { Car, MapPin, Clock, CreditCard, ChevronRight, Bell, Search, QrCode, Home, Ticket, Info, X, CheckCircle2, Wallet, History, Tag, ScanLine, Image as ImageIcon, Settings, AlertTriangle, Plus, ArrowUpRight, ArrowDownLeft, Calendar, MessageSquare, Loader2 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence, Variants } from "motion/react";
 import { apiGet, apiPost } from "../lib/api";
-
-type AuthPayload = { token: string; userId: number; roleName: string };
-
-function readAuth(): AuthPayload | null {
-  const raw = localStorage.getItem("pbms_auth") ?? sessionStorage.getItem("pbms_auth");
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as AuthPayload;
-  } catch {
-    return null;
-  }
-}
+import { clearAuth, getAuth } from "../lib/auth";
 
 function formatCurrency(amount?: number | null) {
   if (!amount) return "0 đ";
   return `${amount.toLocaleString("vi-VN")} đ`;
 }
 
-const banks = [
-  { id: "payos", name: "Thanh toán qua PayOS (VietQR)", color: "bg-blue-600", text: "PAY" },
-];
 
 export function UserMobileHome() {
   const navigate = useNavigate();
-  const auth = readAuth();
+  const auth = getAuth();
   const [activeTab, setActiveTab] = useState("home");
   const [showPayment, setShowPayment] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
@@ -37,10 +23,17 @@ export function UserMobileHome() {
   const [showSettings, setShowSettings] = useState(false);
   const [utilityScreen, setUtilityScreen] = useState<string | null>(null);
 
-  const [topupAmount, setTopupAmount] = useState<number | null>(null);
-  const [customAmount, setCustomAmount] = useState<string>("");
-  const [selectedBank, setSelectedBank] = useState<string>("Thanh toán qua PayOS (VietQR)");
   const [historyFilter, setHistoryFilter] = useState<string>("Tất cả");
+  const [bookPlate, setBookPlate] = useState("");
+  const [bookVehicleTypeId, setBookVehicleTypeId] = useState<number>(1);
+  const [bookZoneId, setBookZoneId] = useState<number | "">("");
+  const [bookSubmitting, setBookSubmitting] = useState(false);
+  const [bookMessage, setBookMessage] = useState("");
+  const [feedbackType, setFeedbackType] = useState("Suggestion");
+  const [feedbackContent, setFeedbackContent] = useState("");
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackMessage, setFeedbackMessage] = useState("");
+  const [vehicleTypes, setVehicleTypes] = useState<{ vehicleTypeId: number; typeName: string; typeCode: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [home, setHome] = useState<any>(null);
@@ -48,15 +41,11 @@ export function UserMobileHome() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [parkingFloors, setParkingFloors] = useState<any[]>([]);
 
-  const notifications = [
-    { id: 1, title: "Đặt chỗ thành công", desc: "Bạn đã đặt slot A-42 tại Tầng 1.", time: "2 giờ trước", unread: true, icon: CheckCircle2, color: "text-blue-600", bg: "bg-blue-600/10" },
-    { id: 2, title: "Cảnh báo vi phạm", desc: "Xe của bạn đã bị chuyển đến Bãi xe vi phạm do đỗ sai vị trí. Vui lòng liên hệ BQL.", time: "1 giờ trước", unread: true, icon: AlertTriangle, color: "text-red-500", bg: "bg-red-500/10" },
-    { id: 3, title: "Giảm 20% phí đỗ xe", desc: "Áp dụng cho lần thanh toán tiếp theo qua ví.", time: "Hôm qua", unread: false, icon: Tag, color: "text-purple-500", bg: "bg-purple-500/10" },
-  ];
+  const [notifications, setNotifications] = useState<any[]>([]);
 
   const activeSession = home?.activeSession;
   const userName = home?.user?.fullName ?? "Driver";
-  const displayedBalance = useMemo(
+  const totalSpent = useMemo(
     () => transactions.reduce((sum, tx) => sum + (tx.amount ?? 0), 0),
     [transactions],
   );
@@ -107,16 +96,23 @@ export function UserMobileHome() {
   }, [tickets]);
 
   async function loadData(token: string, userId: number) {
-    const [homeRes, ticketsRes, txRes, floorsRes] = await Promise.all([
+    const [homeRes, ticketsRes, txRes, floorsRes, notifsRes, vtRes] = await Promise.all([
       apiGet(`/api/portal/driver/${userId}/home`, token),
       apiGet(`/api/portal/driver/${userId}/tickets`, token),
       apiGet(`/api/portal/driver/${userId}/transactions`, token),
       apiGet("/api/portal/staff/floors", token),
+      apiGet(`/api/portal/driver/${userId}/notifications`, token).catch(() => []),
+      apiGet<{ vehicleTypeId: number; typeName: string; typeCode: string }[]>("/api/vehicle-types", token).catch(() => []),
     ]);
     setHome(homeRes);
     setTickets(ticketsRes as any[]);
     setTransactions(txRes as any[]);
     setParkingFloors(Array.isArray(floorsRes) ? (floorsRes as any[]) : []);
+    setNotifications(Array.isArray(notifsRes) ? notifsRes : []);
+    setVehicleTypes(Array.isArray(vtRes) ? vtRes : []);
+    if (!bookPlate && (homeRes as any)?.activeSession?.licensePlate) {
+      setBookPlate((homeRes as any).activeSession.licensePlate);
+    }
   }
 
   useEffect(() => {
@@ -155,6 +151,84 @@ export function UserMobileHome() {
       setError(e instanceof Error ? e.message : "Checkout thất bại");
     }
   };
+
+  const parkingAreas = useMemo(() => {
+    return parkingFloors.map((zone) => {
+      const slots = zone.slots ?? [];
+      const total = slots.length || zone.capacity || 0;
+      const free = slots.filter((s: { status: string }) => s.status === "Available").length;
+      return {
+        zoneId: zone.zoneId,
+        zoneCode: zone.zoneCode,
+        floorName: zone.zoneName ?? zone.zoneCode,
+        vehicleTypeCode: zone.vehicleType ?? zone.vehicleTypeCode,
+        totalSlots: total,
+        availableSlots: free,
+      };
+    });
+  }, [parkingFloors]);
+
+  async function handleBookSlot() {
+    if (!auth || !bookPlate.trim()) {
+      setBookMessage("Vui lòng nhập biển số.");
+      return;
+    }
+    setBookSubmitting(true);
+    setBookMessage("");
+    try {
+      const from = new Date();
+      from.setHours(from.getHours() + 1);
+      const to = new Date(from);
+      to.setHours(to.getHours() + 2);
+      const created = await apiPost<{ reservationId: number }>(
+        "/api/reservations",
+        {
+          userId: auth.userId,
+          vehicleTypeId: bookVehicleTypeId,
+          zoneId: bookZoneId || null,
+          slotId: null,
+          licensePlate: bookPlate.trim(),
+          reservedFrom: from.toISOString(),
+          reservedTo: to.toISOString(),
+        },
+        auth.token,
+      );
+      await apiPost(`/api/reservations/${created.reservationId}/confirm`, {}, auth.token);
+      setBookMessage("Đặt chỗ thành công! Slot đã được giữ.");
+      await loadData(auth.token, auth.userId);
+    } catch (e) {
+      setBookMessage(e instanceof Error ? e.message : "Đặt chỗ thất bại");
+    } finally {
+      setBookSubmitting(false);
+    }
+  }
+
+  async function handleSendFeedback() {
+    if (!auth || !feedbackContent.trim()) {
+      setFeedbackMessage("Vui lòng nhập nội dung phản hồi.");
+      return;
+    }
+    setFeedbackSubmitting(true);
+    setFeedbackMessage("");
+    try {
+      await apiPost(
+        "/api/feedbacks",
+        {
+          userId: auth.userId,
+          sessionId: activeSession?.sessionId ?? null,
+          feedbackType: feedbackType,
+          content: feedbackContent.trim(),
+        },
+        auth.token,
+      );
+      setFeedbackContent("");
+      setFeedbackMessage("Cảm ơn! Phản hồi đã được gửi.");
+    } catch (e) {
+      setFeedbackMessage(e instanceof Error ? e.message : "Gửi phản hồi thất bại");
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  }
 
   const screenVariants: Variants = {
     hidden: { x: "100%", opacity: 0 },
@@ -227,7 +301,7 @@ export function UserMobileHome() {
             {/* Balance pill */}
             <div className="mt-3 inline-flex items-center gap-2 bg-white dark:bg-gray-800 border border-gray-100 dark:border-gray-700 rounded-full px-4 py-1.5 shadow-sm">
               <Wallet className="w-4 h-4 text-blue-600" />
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">Số dư: <span className="text-blue-600">{formatCurrency(displayedBalance)}</span></span>
+              <span className="text-sm font-semibold text-gray-900 dark:text-white">Tổng chi tiêu: <span className="text-blue-600">{formatCurrency(totalSpent)}</span></span>
             </div>
           </div>
           {loading && <div className="px-6 mb-4 text-sm text-gray-500">Đang tải dữ liệu...</div>}
@@ -311,7 +385,8 @@ export function UserMobileHome() {
                   <h2 className="text-xs font-bold text-gray-500 dark:text-gray-400 mb-3 uppercase tracking-widest">Tiện ích</h2>
                   <div className="grid grid-cols-3 gap-3">
                     {[
-                      { id: "topup", icon: <CreditCard className="w-5 h-5" />, label: "Nạp tiền", color: "text-blue-500 bg-blue-50 dark:bg-blue-500/10" },
+                      { id: "book", icon: <Calendar className="w-5 h-5" />, label: "Đặt chỗ", color: "text-green-500 bg-green-50 dark:bg-green-500/10" },
+                      { id: "feedback", icon: <MessageSquare className="w-5 h-5" />, label: "Phản hồi", color: "text-pink-500 bg-pink-50 dark:bg-pink-500/10" },
                       { id: "history", icon: <History className="w-5 h-5" />, label: "Lịch sử GD", color: "text-orange-500 bg-orange-50 dark:bg-orange-500/10" },
                       { id: "vehicles", icon: <Car className="w-5 h-5" />, label: "Xe của tôi", color: "text-purple-500 bg-purple-50 dark:bg-purple-500/10" },
                     ].map((action) => (
@@ -337,7 +412,7 @@ export function UserMobileHome() {
                     <button className="text-blue-600 text-xs font-semibold">Xem tất cả</button>
                   </div>
                   <div className="space-y-3">
-                    {parkingFloors.map((park) => {
+                    {parkingAreas.map((park) => {
                       const total = park.totalSlots ?? 0;
                       const free = park.availableSlots ?? 0;
                       const pct = total > 0 ? free / total : 0;
@@ -650,7 +725,7 @@ export function UserMobileHome() {
               {/* Content */}
               <div className="flex-1 overflow-y-auto p-4 space-y-3" style={{ scrollbarWidth: 'none' }}>
                 {notifications.map((notif, i) => {
-                  const Icon = notif.icon;
+                  const Icon = notif.type === 'session' ? Car : (notif.type === 'promotion' ? Tag : Bell);
                   return (
                     <motion.div 
                       initial={{ opacity: 0, x: 20 }}
@@ -659,7 +734,7 @@ export function UserMobileHome() {
                       key={notif.id} 
                       className={`p-4 rounded-2xl border ${notif.unread ? 'bg-white dark:bg-[#1A1A1A] border-gray-100 dark:border-gray-800 shadow-sm' : 'bg-gray-50 dark:bg-[#121212] border-transparent'} flex gap-3`}
                     >
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${notif.bg} ${notif.color}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${notif.type === 'session' ? 'bg-blue-600/10 text-blue-600' : 'bg-purple-500/10 text-purple-500'}`}>
                         <Icon className="w-5 h-5" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -668,7 +743,7 @@ export function UserMobileHome() {
                           {notif.unread && <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 shrink-0" />}
                         </div>
                         <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{notif.desc}</p>
-                        <p className="text-[10px] text-gray-400 mt-2 font-medium">{notif.time}</p>
+                        <p className="text-[10px] text-gray-400 mt-2 font-medium">{new Date(notif.time).toLocaleString('vi-VN')}</p>
                       </div>
                     </motion.div>
                   );
@@ -680,9 +755,9 @@ export function UserMobileHome() {
 
         {/* Utility Screens */}
         <AnimatePresence>
-          {/* Nạp tiền Panel */}
-          {utilityScreen === 'topup' && (
-            <motion.div 
+          {/* Đặt chỗ Panel */}
+          {utilityScreen === 'book' && (
+            <motion.div
               variants={screenVariants}
               initial="hidden"
               animate="show"
@@ -693,67 +768,93 @@ export function UserMobileHome() {
                 <button onClick={() => setUtilityScreen(null)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400">
                   <ChevronRight className="w-5 h-5 rotate-180" />
                 </button>
-                <h2 className="font-bold text-xl text-gray-900 dark:text-white">Nạp tiền vào tài khoản</h2>
+                <h2 className="font-bold text-xl text-gray-900 dark:text-white">Đặt chỗ trước</h2>
               </div>
-              <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarWidth: 'none' }}>
-                <div className="bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-5 text-white mb-6 shadow-lg shadow-blue-600/20">
-                  <p className="text-white/80 text-sm mb-1">Số dư hiện tại</p>
-                  <h3 className="text-3xl font-bold">{formatCurrency(displayedBalance)}</h3>
-                </div>
-
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Chọn mệnh giá nạp</h4>
-                <div className="grid grid-cols-3 gap-3 mb-6">
-                  {[10000, 20000, 50000, 100000, 200000, 500000, 1000000].map(amount => (
-                    <motion.button
-                      whileTap={{ scale: 0.95 }}
-                      key={amount}
-                      onClick={() => { setTopupAmount(amount); setCustomAmount(""); }}
-                      className={`py-2 rounded-xl text-sm font-semibold border transition-all ${topupAmount === amount ? 'bg-blue-600/10 border-blue-600 text-blue-600' : 'bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-300 hover:border-blue-600/50'}`}
-                    >
-                      {(amount/1000).toLocaleString('vi-VN')}k
-                    </motion.button>
-                  ))}
-                </div>
-
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Hoặc nhập số tiền khác</h4>
-                <div className="mb-6 relative">
-                  <input
-                    type="text"
-                    placeholder="Nhập số tiền..."
-                    value={customAmount}
-                    onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "");
-                      setCustomAmount(val ? Number(val).toLocaleString('vi-VN') : "");
-                      setTopupAmount(null);
-                    }}
-                    className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white focus:outline-none focus:border-blue-600 transition-colors"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-500 font-semibold">VND</span>
-                </div>
-
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-3">Phương thức thanh toán</h4>
-                <div className="space-y-3 mb-8">
-                  {banks.map(bank => (
-                    <label key={bank.id} className={`flex items-center justify-between p-3 rounded-xl border cursor-pointer transition-all ${selectedBank === bank.name ? 'border-blue-600 bg-blue-600/5' : 'bg-white dark:bg-[#1A1A1A] border-gray-200 dark:border-gray-700'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-white font-bold text-[10px] ${bank.color}`}>
-                          {bank.text}
-                        </div>
-                        <span className="font-medium text-gray-900 dark:text-white">{bank.name}</span>
-                      </div>
-                      <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${selectedBank === bank.name ? 'border-blue-600' : 'border-gray-300 dark:border-gray-600'}`}>
-                        {selectedBank === bank.name && <motion.div layoutId="bank-select" className="w-2.5 h-2.5 rounded-full bg-blue-600" />}
-                      </div>
-                      <input type="radio" className="hidden" name="bank" checked={selectedBank === bank.name} onChange={() => setSelectedBank(bank.name)} />
-                    </label>
-                  ))}
-                </div>
-
-                <motion.button 
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl hover:bg-blue-600/90 transition-all shadow-lg shadow-blue-600/25"
+              <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ scrollbarWidth: 'none' }}>
+                <input
+                  placeholder="Biển số xe"
+                  value={bookPlate}
+                  onChange={(e) => setBookPlate(e.target.value.toUpperCase())}
+                  className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white"
+                />
+                <select
+                  value={bookVehicleTypeId}
+                  onChange={(e) => setBookVehicleTypeId(Number(e.target.value))}
+                  className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white"
                 >
-                  Xác nhận nạp tiền
+                  {vehicleTypes.map((vt) => (
+                    <option key={vt.vehicleTypeId} value={vt.vehicleTypeId}>{vt.typeName}</option>
+                  ))}
+                </select>
+                <select
+                  value={bookZoneId}
+                  onChange={(e) => setBookZoneId(e.target.value ? Number(e.target.value) : "")}
+                  className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white"
+                >
+                  <option value="">Tự động chọn khu</option>
+                  {parkingAreas.map((z) => (
+                    <option key={z.zoneId} value={z.zoneId}>{z.floorName} ({z.availableSlots} trống)</option>
+                  ))}
+                </select>
+                {bookMessage && (
+                  <p className={`text-sm ${bookMessage.includes("thành công") ? "text-green-600" : "text-red-500"}`}>{bookMessage}</p>
+                )}
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleBookSlot}
+                  disabled={bookSubmitting}
+                  className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl disabled:opacity-60 flex justify-center gap-2"
+                >
+                  {bookSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Xác nhận đặt chỗ
+                </motion.button>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Phản hồi Panel */}
+          {utilityScreen === 'feedback' && (
+            <motion.div
+              variants={screenVariants}
+              initial="hidden"
+              animate="show"
+              exit="exit"
+              className="absolute inset-0 bg-gray-50 dark:bg-[#121212] z-50 flex flex-col rounded-[36px]"
+            >
+              <div className="pt-12 pb-4 px-6 bg-white dark:bg-[#1A1A1A] border-b border-gray-100 dark:border-gray-800 flex items-center gap-4 shadow-sm shrink-0">
+                <button onClick={() => setUtilityScreen(null)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400">
+                  <ChevronRight className="w-5 h-5 rotate-180" />
+                </button>
+                <h2 className="font-bold text-xl text-gray-900 dark:text-white">Gửi phản hồi</h2>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ scrollbarWidth: 'none' }}>
+                <select
+                  value={feedbackType}
+                  onChange={(e) => setFeedbackType(e.target.value)}
+                  className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white"
+                >
+                  <option value="Suggestion">Góp ý</option>
+                  <option value="Complaint">Khiếu nại</option>
+                  <option value="Praise">Khen ngợi</option>
+                </select>
+                <textarea
+                  rows={5}
+                  placeholder="Nội dung phản hồi..."
+                  value={feedbackContent}
+                  onChange={(e) => setFeedbackContent(e.target.value)}
+                  className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white resize-none"
+                />
+                {feedbackMessage && (
+                  <p className={`text-sm ${feedbackMessage.includes("Cảm ơn") ? "text-green-600" : "text-red-500"}`}>{feedbackMessage}</p>
+                )}
+                <motion.button
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleSendFeedback}
+                  disabled={feedbackSubmitting}
+                  className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl disabled:opacity-60 flex justify-center gap-2"
+                >
+                  {feedbackSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  Gửi phản hồi
                 </motion.button>
               </div>
             </motion.div>
@@ -894,8 +995,7 @@ export function UserMobileHome() {
       {/* Demo back button */}
       <button
         onClick={() => {
-          localStorage.removeItem("pbms_auth");
-          sessionStorage.removeItem("pbms_auth");
+          clearAuth();
           navigate("/login");
         }}
         className="absolute top-8 left-8 bg-white dark:bg-gray-800 px-4 py-2 rounded-xl shadow-md font-medium text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"

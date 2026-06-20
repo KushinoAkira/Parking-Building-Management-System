@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Data;
@@ -5,6 +6,7 @@ using ParkingBuildingManagement.Api.Data;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[AllowAnonymous]
 [Route("api/[controller]")]
 public class HealthController(ApplicationDbContext db) : ControllerBase
 {
