@@ -70,7 +70,7 @@ public class FeedbacksController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}/status")]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateFeedbackStatusRequest request, CancellationToken ct)
     {
         var feedback = await db.Feedbacks.FirstOrDefaultAsync(f => f.FeedbackId == id, ct)

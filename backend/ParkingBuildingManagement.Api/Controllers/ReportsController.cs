@@ -7,7 +7,7 @@ using ParkingBuildingManagement.Api.Data;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = RoleNames.ManagerOrAdmin)]
+[Authorize(Roles = RoleNames.ManagerOnly)]
 [Route("api/reports")]
 public class ReportsController(ApplicationDbContext db) : ControllerBase
 {

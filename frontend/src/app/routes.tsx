@@ -17,6 +17,16 @@ import { Violations } from "./components/Violations";
 import { VehicleHistory } from "./components/VehicleHistory";
 import { RequireAuth } from "./components/RequireAuth";
 import { RequireGuest } from "./components/RequireGuest";
+import { getAuth, getRoleHomePath } from "./lib/auth";
+
+function SettingsRedirect() {
+  const auth = getAuth();
+  if (!auth?.token) return <Navigate to="/login" replace />;
+  const role = auth.roleName.toLowerCase();
+  if (role === "admin") return <Navigate to="/admin/settings" replace />;
+  if (role === "manager") return <Navigate to="/manager/settings" replace />;
+  return <Navigate to={getRoleHomePath(auth.roleName)} replace />;
+}
 
 export const router = createBrowserRouter([
   {
@@ -55,7 +65,7 @@ export const router = createBrowserRouter([
     ],
   },
   {
-    element: <RequireAuth roles={["Manager", "Admin"]} />,
+    element: <RequireAuth roles={["Manager"]} />,
     children: [
       {
         path: "/manager",
@@ -108,10 +118,14 @@ export const router = createBrowserRouter([
   },
   {
     path: "/settings",
-    Component: () => <Navigate to="/manager/settings" replace />,
+    Component: SettingsRedirect,
   },
   {
     path: "*",
-    Component: () => <Navigate to="/login" replace />,
+    Component: () => {
+      const auth = getAuth();
+      if (auth?.token) return <Navigate to={getRoleHomePath(auth.roleName)} replace />;
+      return <Navigate to="/login" replace />;
+    },
   },
 ]);

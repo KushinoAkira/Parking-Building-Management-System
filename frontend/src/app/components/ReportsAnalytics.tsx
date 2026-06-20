@@ -5,6 +5,7 @@ import {
   BarChart, Bar, Legend, PieChart, Pie, Cell
 } from "recharts";
 import { apiGet } from "../lib/api";
+import { getAuth } from "../lib/auth";
 
 const revenueDataFallback = [{ name: "N/A", value: 0 }];
 
@@ -55,10 +56,12 @@ export function ReportsAnalytics() {
   });
 
   useEffect(() => {
+    const auth = getAuth();
+    const token = auth?.token;
     Promise.all([
-      apiGet<Array<{ date: string; total: number }>>("/api/reports/revenue"),
-      apiGet<Array<{ zoneCode: string; occupied: number; reserved: number }>>("/api/reports/occupancy"),
-      apiGet<Array<{ vehicleTypeCode: string; totalSessions: number; totalRevenue: number }>>("/api/reports/sessions"),
+      apiGet<Array<{ date: string; total: number }>>("/api/reports/revenue", token),
+      apiGet<Array<{ zoneCode: string; occupied: number; reserved: number }>>("/api/reports/occupancy", token),
+      apiGet<Array<{ vehicleTypeCode: string; totalSessions: number; totalRevenue: number }>>("/api/reports/sessions", token),
     ]).then(([revenue, occupancy, sessions]) => {
       setRevenueData(
         revenue.length > 0

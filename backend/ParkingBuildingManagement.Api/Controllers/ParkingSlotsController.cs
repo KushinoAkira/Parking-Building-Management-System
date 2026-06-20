@@ -83,7 +83,7 @@ public class ParkingSlotsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Create([FromBody] ParkingSlot request, CancellationToken ct)
     {
         if (await db.ParkingSlots.AnyAsync(s => s.SlotId == request.SlotId, ct))

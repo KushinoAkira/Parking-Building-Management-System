@@ -9,7 +9,6 @@ import {
   ShieldAlert,
   ShieldCheck,
   ServerCog,
-  BarChart3,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationDropdown } from "./NotificationDropdown";
@@ -22,7 +21,6 @@ const navigation = [
   { name: "Quản Lý Người Dùng", href: "/admin/users", icon: Users },
   { name: "Phân Quyền Hệ Thống", href: "/admin/roles", icon: ShieldCheck },
   { name: "Cấu Hình Hệ Thống", href: "/admin/config", icon: ServerCog },
-  { name: "Bảng Quản Lý (Manager)", href: "/manager", icon: BarChart3 },
 ];
 
 export function AdminLayout() {

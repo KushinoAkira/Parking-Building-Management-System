@@ -257,7 +257,7 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpGet("manager/dashboard")]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> GetManagerDashboard(CancellationToken ct)
     {
         var today = DateTime.UtcNow.Date;

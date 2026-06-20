@@ -11,6 +11,9 @@ export class ApiError extends Error {
 
 function handleUnauthorized() {
   if (typeof window === "undefined") return;
+  const authRaw =
+    localStorage.getItem("pbms_auth") ?? sessionStorage.getItem("pbms_auth");
+  if (!authRaw) return;
   clearAuth();
   const path = window.location.pathname;
   if (path !== "/" && path !== "/login") {

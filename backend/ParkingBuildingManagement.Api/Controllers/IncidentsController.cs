@@ -84,7 +84,7 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost("{id:int}/resolve")]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Resolve(int id, CancellationToken ct)
     {
         var incident = await db.Incidents.FirstOrDefaultAsync(i => i.IncidentId == id, ct)
@@ -100,7 +100,7 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost("{id:int}/cancel")]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Cancel(int id, CancellationToken ct)
     {
         var incident = await db.Incidents.FirstOrDefaultAsync(i => i.IncidentId == id, ct)

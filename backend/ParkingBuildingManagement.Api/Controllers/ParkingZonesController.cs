@@ -55,7 +55,7 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Create([FromBody] ParkingZone request, CancellationToken ct)
     {
         if (await db.ParkingZones.AnyAsync(z => z.ZoneCode == request.ZoneCode, ct))
@@ -67,7 +67,7 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Update(int id, [FromBody] ParkingZone request, CancellationToken ct)
     {
         var zone = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneId == id, ct)

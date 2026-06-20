@@ -30,7 +30,7 @@ public class VehicleTypesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPost]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Create([FromBody] VehicleType request, CancellationToken ct)
     {
         if (await db.VehicleTypes.AnyAsync(v => v.TypeCode == request.TypeCode, ct))
@@ -42,7 +42,7 @@ public class VehicleTypesController(ApplicationDbContext db) : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = RoleNames.ManagerOrAdmin)]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Update(int id, [FromBody] VehicleType request, CancellationToken ct)
     {
         var item = await db.VehicleTypes.FirstOrDefaultAsync(v => v.VehicleTypeId == id, ct)

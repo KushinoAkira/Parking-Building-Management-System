@@ -8,6 +8,7 @@ public static class RoleNames
     public const string Driver = "Driver";
 
     public const string AdminOnly = Admin;
+    public const string ManagerOnly = Manager;
     public const string ManagerOrAdmin = $"{Manager},{Admin}";
     public const string StaffOrAbove = $"{Staff},{Manager},{Admin}";
     public const string DriverOrAbove = $"{Driver},{Staff},{Manager},{Admin}";

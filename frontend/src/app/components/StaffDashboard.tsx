@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Camera, Car, LogOut, ShieldAlert, List, Calendar } from "lucide-react";
+import { useEffect, useState } from "react";
+import { AlertTriangle, Camera, Car, CheckCircle, LogOut, ShieldAlert, List, Calendar, X } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 import { ThemeToggle } from "./ThemeToggle";
 import { NotificationDropdown } from "./NotificationDropdown";
+import { ParkingSlotMap } from "./ParkingSlotMap";
+import { PlateCameraScanner } from "./PlateCameraScanner";
 import { useNavigate } from "react-router";
 import { apiGet, apiPost } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
@@ -98,21 +101,6 @@ export function StaffDashboard() {
   const [reservations, setReservations] = useState<StaffReservation[]>([]);
 
   const auth = getAuth();
-
-  const activeFloor = useMemo(
-    () => floors.find((f) => f.zoneId === activeZoneId) ?? floors[0],
-    [activeZoneId, floors],
-  );
-
-  const counts = useMemo(() => {
-    const slots = activeFloor?.slots ?? [];
-    return {
-      total: slots.length,
-      available: slots.filter((s) => s.status === "Available").length,
-      occupied: slots.filter((s) => s.status === "Occupied").length,
-      reserved: slots.filter((s) => s.status === "Reserved").length,
-    };
-  }, [activeFloor]);
 
   async function loadFloors() {
     const data = await apiGet<Floor[]>("/api/portal/staff/floors", auth?.token);
@@ -332,128 +320,143 @@ export function StaffDashboard() {
           </button>
         </div>
 
-        {error && <div className="text-sm text-red-600 bg-red-50 p-3 rounded-lg">{error}</div>}
-        {result && <div className="text-sm text-green-700 bg-green-50 p-3 rounded-lg">{result}</div>}
+        {error && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg">{error}</div>}
+        {result && activeTab !== "control" && (
+          <div className="text-sm text-green-700 bg-green-50 dark:bg-green-500/10 p-3 rounded-lg">{result}</div>
+        )}
 
         {activeTab === "control" && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800 space-y-4">
-              <h2 className="font-semibold">Check-in / Check-out</h2>
-              <form
-                className="space-y-3"
-                onSubmit={async (e) => {
-                  e.preventDefault();
-                  await processPlate(plate);
-                }}
-              >
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    value={selectedVehicleType}
-                    onChange={(e) => setSelectedVehicleType(e.target.value ? Number(e.target.value) : "")}
-                    className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
-                    required
-                  >
-                    <option value="" disabled>Chọn loại xe...</option>
-                    {vehicleTypes.map(v => (
-                      <option key={v.vehicleTypeId} value={v.vehicleTypeId}>{v.typeName}</option>
-                    ))}
-                  </select>
-                  <select
-                    value={selectedGate}
-                    onChange={(e) => setSelectedGate(e.target.value)}
-                    className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
-                  >
-                    <option value="Gate-A">Cổng A (Vào/Ra)</option>
-                    <option value="Gate-B">Cổng B (Vào/Ra)</option>
-                    <option value="Gate-VIP">Cổng VIP</option>
-                  </select>
-                </div>
-                <input
-                  value={plate}
-                  onChange={(e) => setPlate(e.target.value.toUpperCase())}
-                  placeholder="Nhập biển số (VD: 30A-123.45)"
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
-                />
-                <div className="grid grid-cols-2 gap-3">
-                  <select
-                    value={paymentMethod}
-                    onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
-                    className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
-                  >
-                    {PAYMENT_METHODS.map((m) => (
-                      <option key={m} value={m}>{m}</option>
-                    ))}
-                  </select>
-                  <label className="flex items-center gap-2 text-sm px-2">
-                    <input type="checkbox" checked={lostTicket} onChange={(e) => setLostTicket(e.target.checked)} />
-                    Mất vé
-                  </label>
-                </div>
-                <button
-                  disabled={loadingAction || !plate.trim()}
-                  className="w-full bg-blue-600 text-white py-2 rounded-lg disabled:opacity-50"
+          <div className="flex flex-col lg:flex-row gap-6">
+            <div className="lg:w-[360px] shrink-0 space-y-4">
+              <PlateCameraScanner
+                disabled={loadingAction}
+                scanPlate={plate}
+                onScanPlateChange={setPlate}
+                onScan={processPlate}
+              />
+
+              <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <h2 className="font-bold text-gray-900 dark:text-white mb-3">Nhập thủ công</h2>
+                <form
+                  className="space-y-3"
+                  onSubmit={async (e) => {
+                    e.preventDefault();
+                    await processPlate(plate);
+                  }}
                 >
-                  {loadingAction ? "Đang xử lý..." : "Xử lý biển số"}
-                </button>
-              </form>
-              <div className="pt-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
-                <h3 className="text-sm font-semibold">Tra cứu mã vé</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={selectedVehicleType}
+                      onChange={(e) => setSelectedVehicleType(e.target.value ? Number(e.target.value) : "")}
+                      className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
+                      required
+                    >
+                      <option value="" disabled>Loại xe</option>
+                      {vehicleTypes.map((v) => (
+                        <option key={v.vehicleTypeId} value={v.vehicleTypeId}>{v.typeName}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={selectedGate}
+                      onChange={(e) => setSelectedGate(e.target.value)}
+                      className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
+                    >
+                      <option value="Gate-A">Cổng A</option>
+                      <option value="Gate-B">Cổng B</option>
+                      <option value="Gate-VIP">Cổng VIP</option>
+                    </select>
+                  </div>
+                  <input
+                    value={plate}
+                    onChange={(e) => setPlate(e.target.value.toUpperCase())}
+                    placeholder="VD: 30A-123.45"
+                    className="w-full bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 font-mono uppercase"
+                  />
+                  <div className="grid grid-cols-2 gap-2">
+                    <select
+                      value={paymentMethod}
+                      onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
+                      className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
+                    >
+                      {PAYMENT_METHODS.map((m) => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <label className="flex items-center gap-2 text-sm px-2 border border-gray-200 dark:border-gray-700 rounded-xl">
+                      <input type="checkbox" checked={lostTicket} onChange={(e) => setLostTicket(e.target.checked)} />
+                      Mất vé
+                    </label>
+                  </div>
+                  <button
+                    disabled={loadingAction || !plate.trim()}
+                    className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
+                  >
+                    {loadingAction ? "Đang xử lý..." : "Ghi biển số"}
+                  </button>
+                </form>
+              </div>
+
+              <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                <h3 className="font-bold text-gray-900 dark:text-white mb-3">Tra cứu mã vé</h3>
                 <div className="flex gap-2">
                   <input
                     value={ticketCode}
                     onChange={(e) => setTicketCode(e.target.value.toUpperCase())}
-                    placeholder="Mã vé (VD: TKT-...)"
-                    className="flex-1 border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
+                    placeholder="TKT-..."
+                    className="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm font-mono"
                   />
                   <button
                     type="button"
                     onClick={processTicketCode}
                     disabled={loadingAction || !ticketCode.trim()}
-                    className="px-3 py-2 bg-gray-800 text-white rounded-lg text-sm disabled:opacity-50"
+                    className="px-4 py-2 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
                   >
                     Tìm
                   </button>
                 </div>
               </div>
-            </section>
+            </div>
 
-            <section className="lg:col-span-2 bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="font-semibold">Sơ đồ zone/slot</h2>
-                <div className="text-xs text-gray-500">
-                  Tổng {counts.total} | Trống {counts.available} | Chiếm {counts.occupied} | Reserved {counts.reserved}
-                </div>
-              </div>
-              <div className="flex gap-2 mb-4 flex-wrap">
-                {floors.map((f) => (
-                  <button
-                    key={f.zoneId}
-                    onClick={() => setActiveZoneId(f.zoneId)}
-                    className={`px-3 py-1.5 rounded-lg text-sm ${activeFloor?.zoneId === f.zoneId ? "bg-blue-600 text-white" : "bg-gray-100 dark:bg-[#121212]"}`}
+            <div className="flex-1 min-w-0 flex flex-col gap-4">
+              <AnimatePresence mode="popLayout">
+                {result ? (
+                  <motion.div
+                    key="result"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0 }}
+                    className="rounded-2xl p-4 border-2 border-blue-600/25 bg-blue-600/5 dark:bg-blue-600/10 flex items-start gap-4"
                   >
-                    {f.zoneName}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-6 md:grid-cols-10 gap-2 max-h-[420px] overflow-auto">
-                {(activeFloor?.slots ?? []).map((slot) => (
-                  <button
-                    key={slot.slotId}
-                    onClick={() => slot.activeSession && processPlate(slot.activeSession.licensePlate)}
-                    className={`text-xs rounded-lg p-2 border ${
-                      slot.status === "Occupied"
-                        ? "bg-red-50 text-red-600 border-red-200"
-                        : slot.status === "Reserved"
-                          ? "bg-yellow-50 text-yellow-700 border-yellow-200"
-                          : "bg-blue-50 text-blue-700 border-blue-200"
-                    }`}
-                    title={slot.activeSession?.licensePlate ?? "Available"}
+                    <div className="w-10 h-10 rounded-xl bg-blue-600/15 text-blue-600 flex items-center justify-center shrink-0">
+                      <CheckCircle className="w-6 h-6" />
+                    </div>
+                    <p className="flex-1 text-sm font-medium text-gray-900 dark:text-white pt-2">{result}</p>
+                    <button type="button" onClick={() => setResult("")} className="p-2 text-gray-400 hover:text-gray-600">
+                      <X className="w-5 h-5" />
+                    </button>
+                  </motion.div>
+                ) : (
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="rounded-2xl border border-dashed border-gray-300 dark:border-gray-700 p-4 text-center text-sm text-gray-400"
                   >
-                    {slot.slotId}
-                  </button>
-                ))}
-              </div>
-            </section>
+                    Chưa có thông tin xe. Quét camera hoặc nhập biển số để bắt đầu.
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <ParkingSlotMap
+                floors={floors}
+                activeZoneId={activeZoneId}
+                onZoneChange={setActiveZoneId}
+                onOccupiedSlotClick={(slot) => {
+                  if (slot.activeSession) processPlate(slot.activeSession.licensePlate);
+                }}
+              />
+            </div>
           </div>
         )}
 

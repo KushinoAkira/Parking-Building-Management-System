@@ -60,7 +60,7 @@ export function PricingPolicies() {
       const [p, vt, cfg] = await Promise.all([
         apiGet<PricingPolicy[]>("/api/pricing-policies", auth?.token),
         apiGet<VehicleType[]>("/api/vehicle-types", auth?.token),
-        apiGet<typeof configs>("/api/system-configs", auth?.token),
+        apiGet<typeof configs>("/api/system-configs", auth?.token).catch(() => []),
       ]);
       setPolicies(p);
       setVehicleTypes(vt);

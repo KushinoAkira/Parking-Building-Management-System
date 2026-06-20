@@ -8,7 +8,7 @@ using ParkingBuildingManagement.Api.Models;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = RoleNames.ManagerOrAdmin)]
+[Authorize(Roles = RoleNames.ManagerOnly)]
 [Route("api/pricing-policies")]
 public class PricingPoliciesController(ApplicationDbContext db) : ControllerBase
 {

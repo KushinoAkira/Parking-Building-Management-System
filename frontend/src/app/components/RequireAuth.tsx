@@ -1,5 +1,5 @@
 import { Navigate, Outlet } from "react-router";
-import { getAuth } from "../lib/auth";
+import { getAuth, getRoleHomePath } from "../lib/auth";
 
 export function RequireAuth({ roles }: { roles: string[] }) {
   const auth = getAuth();
@@ -8,7 +8,9 @@ export function RequireAuth({ roles }: { roles: string[] }) {
 
   const role = auth.roleName.toLowerCase();
   const allowed = roles.map((x) => x.toLowerCase());
-  if (!allowed.includes(role)) return <Navigate to="/login" replace />;
+  if (!allowed.includes(role)) {
+    return <Navigate to={getRoleHomePath(auth.roleName)} replace />;
+  }
 
   return <Outlet />;
 }
