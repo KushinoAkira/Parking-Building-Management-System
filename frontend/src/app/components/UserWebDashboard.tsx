@@ -131,7 +131,7 @@ export function UserWebDashboard() {
       return;
     }
     setMessage("");
-    try {
+     try {
       const created = await apiPost<{ reservationId: number }>(
         "/api/reservations",
         {
@@ -140,8 +140,10 @@ export function UserWebDashboard() {
           zoneId: bookZoneId || null,
           slotId: null,
           licensePlate: bookPlate.trim(),
-          reservedFrom: new Date(bookFrom).toISOString(),
-          reservedTo: new Date(bookTo).toISOString(),
+          // reservedFrom: new Date(bookFrom).toISOString(),
+          // reservedTo: new Date(bookTo).toISOString(),
+          reservedFrom: bookFrom,
+          reservedTo: bookTo,
         },
         auth.token,
       );

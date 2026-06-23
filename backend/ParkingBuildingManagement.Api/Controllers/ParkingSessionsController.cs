@@ -73,13 +73,16 @@ public class ParkingSessionsController(
         return session is null ? NotFound() : Ok(session);
     }
 
-    [HttpGet("active/{licensePlate}")]
+       [HttpGet("active/{licensePlate}")]
     [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetActiveByPlate(string licensePlate, CancellationToken ct)
     {
         var session = await sessionService.GetActiveByLicensePlateAsync(licensePlate, ct);
-        return session is null ? NotFound() : Ok(session);
+        // Return 200 with null when no active session exists, so the caller
+        // can distinguish "parked" vs "not parked" without a noisy 404.
+        return Ok(session);
     }
+
 
     [HttpPost("check-in")]
     [Authorize(Roles = RoleNames.StaffOrAbove)]
