@@ -2,6 +2,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, ShieldAlert, Car, MoreHorizontal, CheckCircle2, Loader2 } from "lucide-react";
 import { apiGet, apiPost } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
+import { useRealtimeRefresh } from "../lib/RealtimeContext";
+import { RealtimeEventTypes } from "../lib/realtime";
 
 type Incident = {
   incidentId: number;
@@ -17,38 +20,8 @@ type Incident = {
   plate?: string;
 };
 
-const TYPE_LABELS: Record<string, string> = {
-  WrongZone: "Đỗ sai vị trí",
-  SlotOccupied: "Chiếm 2 slot",
-  WrongPlate: "Sai biển số",
-  Overstay: "Quá giờ",
-  Unpaid: "Chưa thanh toán",
-  LostTicket: "Mất vé",
-  Other: "Khác",
-};
-
-function formatTime(value: string) {
-  return new Date(value).toLocaleString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function formatMoney(amount: number) {
-  return `${amount.toLocaleString("vi-VN")} đ`;
-}
-
-function statusLabel(status: string) {
-  if (status === "Open") return "Chưa xử lý";
-  if (status === "Resolved") return "Đã xử lý";
-  if (status === "Cancelled") return "Đã hủy";
-  return status;
-}
-
 export function Violations() {
+  const { t, formatMoney, formatDateTime, ts } = useLocale();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [incidents, setIncidents] = useState<Incident[]>([]);
@@ -64,16 +37,18 @@ export function Violations() {
       const data = await apiGet<Incident[]>("/api/incidents", auth?.token);
       setIncidents(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được danh sách vi phạm");
+      setError(e instanceof Error ? e.message : t("violations.loadFailed"));
       setIncidents([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useRealtimeRefresh([RealtimeEventTypes.IncidentUpdated], load);
 
   const filtered = useMemo(() => {
     return incidents.filter((v) => {
@@ -101,7 +76,7 @@ export function Violations() {
       await apiPost(`/api/incidents/${id}/resolve`, {}, auth?.token);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Xử lý vi phạm thất bại");
+      setError(e instanceof Error ? e.message : t("violations.resolveFailed"));
     } finally {
       setResolvingId(null);
     }
@@ -113,9 +88,9 @@ export function Violations() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white flex items-center gap-3">
             <ShieldAlert className="w-8 h-8 text-red-500" />
-            Bãi Xe Vi Phạm
+            {t("violations.title")}
           </h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">Quản lý và xử lý các phương tiện vi phạm quy định đỗ xe.</p>
+          <p className="text-gray-500 dark:text-gray-400 mt-2 text-sm">{t("violations.subtitle")}</p>
         </div>
 
         <div className="flex items-center gap-3 w-full sm:w-auto">
@@ -123,7 +98,7 @@ export function Violations() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm mã vé, loại vi phạm..."
+              placeholder={t("violations.search")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl text-sm focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
@@ -134,10 +109,10 @@ export function Violations() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="px-4 py-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl text-sm"
           >
-            <option value="all">Tất cả</option>
-            <option value="Open">Chưa xử lý</option>
-            <option value="Resolved">Đã xử lý</option>
-            <option value="Cancelled">Đã hủy</option>
+            <option value="all">{t("common.all")}</option>
+            <option value="Open">{t("violations.open")}</option>
+            <option value="Resolved">{t("violations.resolved")}</option>
+            <option value="Cancelled">{t("violations.cancelled")}</option>
           </select>
         </div>
       </div>
@@ -150,9 +125,9 @@ export function Violations() {
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
-          { label: "Tổng số vi phạm", value: stats.total, bg: "bg-gray-50 dark:bg-gray-800/50" },
-          { label: "Chưa xử lý", value: stats.open, bg: "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400" },
-          { label: "Đã xử lý", value: stats.resolved, bg: "bg-blue-600/10 text-blue-600" },
+          { label: t("violations.total"), value: stats.total, bg: "bg-gray-50 dark:bg-gray-800/50" },
+          { label: t("violations.open"), value: stats.open, bg: "bg-red-50 dark:bg-red-500/10 text-red-600 dark:text-red-400" },
+          { label: t("violations.resolved"), value: stats.resolved, bg: "bg-blue-600/10 text-blue-600" },
         ].map((stat) => (
           <div key={stat.label} className={`p-6 rounded-2xl border border-gray-100 dark:border-gray-800 ${stat.bg}`}>
             <p className="text-sm font-medium text-gray-500 dark:text-gray-400 mb-2">{stat.label}</p>
@@ -171,13 +146,13 @@ export function Violations() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="border-b border-gray-200 dark:border-gray-800 text-sm font-semibold text-gray-500 dark:text-gray-400 bg-gray-50/50 dark:bg-[#121212]/50">
-                  <th className="py-4 px-6">Mã / Vé</th>
-                  <th className="py-4 px-6">Người ghi nhận</th>
-                  <th className="py-4 px-6">Lỗi vi phạm</th>
-                  <th className="py-4 px-6">Thời gian</th>
-                  <th className="py-4 px-6">Mức phạt</th>
-                  <th className="py-4 px-6">Trạng thái</th>
-                  <th className="py-4 px-6 text-right">Thao tác</th>
+                  <th className="py-4 px-6">{t("violations.codeTicket")}</th>
+                  <th className="py-4 px-6">{t("violations.reporter")}</th>
+                  <th className="py-4 px-6">{t("violations.violationType")}</th>
+                  <th className="py-4 px-6">{t("common.time")}</th>
+                  <th className="py-4 px-6">{t("violations.penalty")}</th>
+                  <th className="py-4 px-6">{t("common.status")}</th>
+                  <th className="py-4 px-6 text-right">{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -197,13 +172,13 @@ export function Violations() {
                     <td className="py-4 px-6 font-medium text-gray-900 dark:text-white">{v.reportedByName ?? "—"}</td>
                     <td className="py-4 px-6">
                       <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold bg-red-50 text-red-600 dark:bg-red-500/10 dark:text-red-400 border border-red-100 dark:border-red-500/20">
-                        {TYPE_LABELS[v.incidentType] ?? v.incidentType}
+                        {t(`incident.${v.incidentType}`)}
                       </div>
                       {v.description && (
                         <p className="text-xs text-gray-500 mt-1 max-w-xs truncate">{v.description}</p>
                       )}
                     </td>
-                    <td className="py-4 px-6 text-sm text-gray-600 dark:text-gray-400">{formatTime(v.createdAt)}</td>
+                    <td className="py-4 px-6 text-sm text-gray-600 dark:text-gray-400">{formatDateTime(v.createdAt)}</td>
                     <td className="py-4 px-6 font-bold text-gray-900 dark:text-white">{formatMoney(v.penaltyFee)}</td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold border ${
@@ -211,7 +186,7 @@ export function Violations() {
                           ? "bg-orange-50 text-orange-600 border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/20"
                           : "bg-blue-600/10 text-blue-600 border-blue-600/20"
                       }`}>
-                        {statusLabel(v.status)}
+                        {ts(v.status)}
                       </span>
                     </td>
                     <td className="py-4 px-6 text-right">
@@ -222,7 +197,7 @@ export function Violations() {
                           className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60"
                         >
                           {resolvingId === v.incidentId ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                          Xử lý
+                          {t("violations.resolve")}
                         </button>
                       ) : (
                         <button className="p-2 text-gray-400 rounded-lg" disabled>
@@ -234,7 +209,7 @@ export function Violations() {
                 ))}
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-gray-500">Không có vi phạm phù hợp.</td>
+                    <td colSpan={7} className="py-12 text-center text-gray-500">{t("violations.empty")}</td>
                   </tr>
                 )}
               </tbody>

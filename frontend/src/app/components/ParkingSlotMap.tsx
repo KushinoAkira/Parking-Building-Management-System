@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Car, CheckCircle, Clock, Info } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 export type MapSlot = {
   slotId: string;
@@ -35,6 +36,7 @@ type Props = {
 };
 
 export function ParkingSlotMap({ floors, activeZoneId, onZoneChange, onOccupiedSlotClick }: Props) {
+  const { t, formatDateTime, ts } = useLocale();
   const [filter, setFilter] = useState<"all" | UiStatus>("all");
   const [selectedSlot, setSelectedSlot] = useState<MapSlot | null>(null);
 
@@ -57,10 +59,16 @@ export function ParkingSlotMap({ floors, activeZoneId, onZoneChange, onOccupiedS
     return mapStatus(s.status) === filter;
   });
 
+  function statusLabel(ui: UiStatus) {
+    if (ui === "free") return ts("Available");
+    if (ui === "occupied") return ts("Occupied");
+    return ts("Reserved");
+  }
+
   if (!activeFloor) {
     return (
       <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-8 text-center text-gray-500">
-        Chưa có dữ liệu slot từ backend.
+        {t("slots.noData")}
       </div>
     );
   }
@@ -90,10 +98,10 @@ export function ParkingSlotMap({ floors, activeZoneId, onZoneChange, onOccupiedS
 
           <div className="flex flex-wrap items-center gap-1 bg-gray-100 dark:bg-[#121212] p-1 rounded-xl border border-gray-200 dark:border-gray-800">
             {([
-              ["all", `Tất cả (${counts.total})`, ""],
-              ["free", `Trống (${counts.free})`, "bg-blue-600"],
-              ["occupied", `Chiếm (${counts.occupied})`, "bg-red-500"],
-              ["reserved", `Reserved (${counts.reserved})`, "bg-amber-500"],
+              ["all", `${t("common.all")} (${counts.total})`, ""],
+              ["free", `${t("common.free")} (${counts.free})`, "bg-blue-600"],
+              ["occupied", `${t("common.occupied")} (${counts.occupied})`, "bg-red-500"],
+              ["reserved", `${t("common.reserved")} (${counts.reserved})`, "bg-amber-500"],
             ] as const).map(([key, label, dot]) => (
               <button
                 key={key}
@@ -111,10 +119,10 @@ export function ParkingSlotMap({ floors, activeZoneId, onZoneChange, onOccupiedS
 
         <div className="grid grid-cols-4 gap-3 p-4 border-b border-gray-100 dark:border-gray-800">
           {[
-            { label: "Tổng Slot", value: counts.total, cls: "text-gray-900 dark:text-white" },
-            { label: "Trống", value: counts.free, cls: "text-blue-600" },
-            { label: "Chiếm", value: counts.occupied, cls: "text-red-500" },
-            { label: "Reserved", value: counts.reserved, cls: "text-amber-600" },
+            { label: t("dashboard.totalSlots"), value: counts.total, cls: "text-gray-900 dark:text-white" },
+            { label: t("common.free"), value: counts.free, cls: "text-blue-600" },
+            { label: t("common.occupied"), value: counts.occupied, cls: "text-red-500" },
+            { label: t("common.reserved"), value: counts.reserved, cls: "text-amber-600" },
           ].map((s) => (
             <div key={s.label} className="rounded-xl border border-gray-100 dark:border-gray-800 p-3 text-center bg-gray-50 dark:bg-[#121212]">
               <div className={`text-xl font-bold ${s.cls}`}>{s.value}</div>
@@ -165,7 +173,7 @@ export function ParkingSlotMap({ floors, activeZoneId, onZoneChange, onOccupiedS
       <div className="w-full lg:w-72 bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shrink-0 shadow-sm">
         <h3 className="font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-3 mb-4 flex items-center gap-2">
           <Info className="w-4 h-4 text-blue-600" />
-          Chi tiết slot
+          {t("slots.detailTitle")}
         </h3>
         <AnimatePresence mode="wait">
           {selectedSlot ? (
@@ -176,20 +184,20 @@ export function ParkingSlotMap({ floors, activeZoneId, onZoneChange, onOccupiedS
               </div>
               <div className="bg-gray-50 dark:bg-[#121212] rounded-xl p-3 border border-gray-100 dark:border-gray-800 space-y-2 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-gray-500">Trạng thái</span>
-                  <span className="font-semibold capitalize">{mapStatus(selectedSlot.status)}</span>
+                  <span className="text-gray-500">{t("common.status")}</span>
+                  <span className="font-semibold">{statusLabel(mapStatus(selectedSlot.status))}</span>
                 </div>
                 {selectedSlot.activeSession && (
                   <>
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Biển số</span>
+                      <span className="text-gray-500">{t("common.plate")}</span>
                       <span className="font-mono font-bold">{selectedSlot.activeSession.licensePlate}</span>
                     </div>
                     <div className="flex justify-between items-center">
-                      <span className="text-gray-500">Giờ vào</span>
+                      <span className="text-gray-500">{t("slots.checkInLabel")}</span>
                       <span className="flex items-center gap-1 text-xs">
                         <Clock className="w-3.5 h-3.5" />
-                        {new Date(selectedSlot.activeSession.entryTime).toLocaleString("vi-VN")}
+                        {formatDateTime(selectedSlot.activeSession.entryTime)}
                       </span>
                     </div>
                   </>
@@ -201,19 +209,19 @@ export function ParkingSlotMap({ floors, activeZoneId, onZoneChange, onOccupiedS
                   onClick={() => onOccupiedSlotClick?.(selectedSlot)}
                   className="w-full bg-red-600 hover:bg-red-700 text-white py-2.5 rounded-xl text-sm font-semibold"
                 >
-                  Check-out xe này
+                  {t("slots.checkoutBtn")}
                 </button>
               )}
               {mapStatus(selectedSlot.status) === "free" && (
                 <div className="flex items-center gap-2 text-sm text-blue-600">
                   <CheckCircle className="w-4 h-4" />
-                  Slot trống — sẵn sàng check-in
+                  {t("slots.readyCheckin")}
                 </div>
               )}
             </motion.div>
           ) : (
             <motion.p key="empty" className="text-sm text-gray-400 text-center py-8">
-              Chọn một ô slot trên sơ đồ để xem chi tiết
+              {t("slots.selectPrompt")}
             </motion.p>
           )}
         </AnimatePresence>

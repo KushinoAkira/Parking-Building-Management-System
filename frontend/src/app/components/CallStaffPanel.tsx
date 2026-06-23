@@ -1,15 +1,17 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Phone, PhoneCall, PhoneOff, X, Circle, User } from "lucide-react";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { t } = useLocale();
   const [callingContact, setCallingContact] = useState<any | null>(null);
 
-  const staffList = [
-    { id: '1', name: 'Nhân viên Trạm 1', status: 'online', avatar: 'https://images.unsplash.com/photo-1544168190-79c17527004f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMG1hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc3OTk3NjA0N3ww&ixlib=rb-4.1.0&q=80&w=1080' },
-    { id: '2', name: 'Nhân viên Trạm 2', status: 'online', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMHdvbWFuJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzc5OTYyNjEwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
-    { id: '3', name: 'Nhân viên Trạm 3', status: 'offline', avatar: 'https://images.unsplash.com/photo-1758600431229-191932ccee81?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMG1hdHVyZSUyMG1hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc4MDA1Nzg5Mnww&ixlib=rb-4.1.0&q=80&w=1080' },
-    { id: 'all', name: 'Tất cả nhân viên', status: 'online', avatar: null, isGroup: true },
-  ];
+  const staffList = useMemo(() => [
+    { id: '1', name: t("callStaff.station1"), status: 'online', avatar: 'https://images.unsplash.com/photo-1544168190-79c17527004f?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMG1hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc3OTk3NjA0N3ww&ixlib=rb-4.1.0&q=80&w=1080' },
+    { id: '2', name: t("callStaff.station2"), status: 'online', avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMHdvbWFuJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzc5OTYyNjEwfDA&ixlib=rb-4.1.0&q=80&w=1080' },
+    { id: '3', name: t("callStaff.station3"), status: 'offline', avatar: 'https://images.unsplash.com/photo-1758600431229-191932ccee81?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMG1hdHVyZSUyMG1hbiUyMHBvcnRyYWl0fGVufDF8fHx8MTc4MDA1Nzg5Mnww&ixlib=rb-4.1.0&q=80&w=1080' },
+    { id: 'all', name: t("callStaff.allStaff"), status: 'online', avatar: null, isGroup: true },
+  ], [t]);
 
   if (!isOpen) return null;
 
@@ -28,7 +30,7 @@ export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: 
                 )}
               </div>
             </div>
-            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Đang gọi...</h3>
+            <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t("callStaff.calling")}</h3>
             <p className="text-gray-500 dark:text-gray-400 font-medium mb-10">{callingContact.name}</p>
             <button 
               onClick={() => setCallingContact(null)}
@@ -41,8 +43,8 @@ export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: 
           <>
             <div className="flex justify-between items-center mb-6">
               <div>
-                <h3 className="font-bold text-xl text-gray-900 dark:text-white">Gọi Nhân Viên</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Liên hệ nhanh với các trạm</p>
+                <h3 className="font-bold text-xl text-gray-900 dark:text-white">{t("callStaff.title")}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t("callStaff.subtitle")}</p>
               </div>
               <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-full transition-colors">
                 <X className="w-5 h-5" />
@@ -73,7 +75,7 @@ export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: 
                     <div>
                       <div className="font-semibold text-gray-900 dark:text-white text-sm">{staff.name}</div>
                       <div className="text-xs text-gray-500 dark:text-gray-400">
-                        {staff.status === 'online' ? 'Đang trực' : 'Nghỉ'}
+                        {staff.status === 'online' ? t("callStaff.onDuty") : t("common.offline")}
                       </div>
                     </div>
                   </div>
@@ -81,7 +83,7 @@ export function CallStaffPanel({ isOpen, onClose }: { isOpen: boolean; onClose: 
                     onClick={() => setCallingContact(staff)}
                     disabled={staff.status === 'offline'}
                     className="p-2.5 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed bg-green-50 text-blue-600 hover:bg-blue-600 hover:text-white dark:bg-blue-600/10 dark:hover:bg-blue-600 dark:hover:text-white shadow-sm"
-                    title="Gọi ngay"
+                    title={t("callStaff.callNow")}
                   >
                     <Phone className="w-4 h-4" />
                   </button>

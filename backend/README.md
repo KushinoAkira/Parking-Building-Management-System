@@ -1,6 +1,6 @@
 # Backend — Parking Building Management API
 
-ASP.NET Core Web API + Entity Framework Core + **SQL Server**.
+ASP.NET Core Web API + Entity Framework Core + **PostgreSQL**.
 
 ## Chạy nhanh
 
@@ -16,13 +16,14 @@ dotnet run
 | File | Mục đích |
 |------|----------|
 | `appsettings.example.json` | Mẫu placeholder (commit được) |
-| `appsettings.Development.json` | LocalDB mặc định khi dev |
-| User Secrets / biến môi trường | Mật khẩu SQL thật (không commit) |
+| `appsettings.Development.json` | Postgres local khi dev |
+| User Secrets / biến môi trường | Mật khẩu DB thật (không commit) |
+| `DATABASE_URL` | Railway/Heroku (tự parse sang Npgsql) |
 
-Ví dụ SQL Server:
+Ví dụ PostgreSQL local:
 
 ```
-Server=localhost;Database=ParkingBuildingManagement;User Id=your_user;Password=your_password;TrustServerCertificate=True;
+Host=localhost;Port=5432;Database=ParkingBuildingManagement;Username=postgres;Password=your_password_here
 ```
 
 ## API endpoints (khởi tạo)
@@ -50,6 +51,6 @@ Server=localhost;Database=ParkingBuildingManagement;User Id=your_user;Password=y
 Seed mặc định: Roles (Admin, Manager, Staff, Driver), VehicleTypes (MOTORBIKE, CAR, EV).
 
 ```bash
-dotnet ef migrations add PbmsInitialSchema
+dotnet ef migrations add PbmsPostgresInitial
 dotnet ef database update
 ```

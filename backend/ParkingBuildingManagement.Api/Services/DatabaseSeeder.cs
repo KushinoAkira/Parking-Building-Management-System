@@ -16,6 +16,7 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
         await db.Database.MigrateAsync(ct);
 
         await EnsureDemoUsersAsync(ct);
+        await EnsureEvVehicleTypesAndZonesAsync(ct);
 
         if (!await db.ParkingFacilities.AnyAsync(ct))
         {
@@ -35,7 +36,8 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
             db.ParkingZones.AddRange(
                 new ParkingZone { ZoneCode = "A", ZoneName = "Motorbike Zone A", VehicleTypeId = 1, Capacity = 20, Status = "Active" },
                 new ParkingZone { ZoneCode = "B", ZoneName = "Car Zone B", VehicleTypeId = 2, Capacity = 20, Status = "Active" },
-                new ParkingZone { ZoneCode = "C", ZoneName = "EV Zone C", VehicleTypeId = 3, Capacity = 10, Status = "Active" });
+                new ParkingZone { ZoneCode = "C", ZoneName = "EV Motorbike Zone C", VehicleTypeId = 4, Capacity = 10, Status = "Active" },
+                new ParkingZone { ZoneCode = "D", ZoneName = "EV Car Zone D", VehicleTypeId = 5, Capacity = 10, Status = "Active" });
         }
 
         await db.SaveChangesAsync(ct);
@@ -116,6 +118,83 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
             await EnsureConfigAsync("OCCUPANCY_WARNING_PERCENT", "90", "Occupancy alert threshold", ct);
             await EnsureConfigAsync("AI_SLOT_SUGGESTION", "true", "Enable AI slot suggestion", ct);
             await EnsureConfigAsync("AI_WEIGHT_MODE", "balanced", "AI weight mode", ct);
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureEvVehicleTypesAndZonesAsync(CancellationToken ct)
+    {
+        var evTypes = new[]
+        {
+            (4, "EV_MOTORBIKE", "Electric Motorbike"),
+            (5, "EV_CAR", "Electric Car"),
+        };
+        foreach (var (id, code, name) in evTypes)
+        {
+            if (await db.VehicleTypes.AnyAsync(v => v.VehicleTypeId == id, ct)) continue;
+            db.VehicleTypes.Add(new VehicleType
+            {
+                VehicleTypeId = id,
+                TypeCode = code,
+                TypeName = name,
+                Status = "Active",
+            });
+        }
+
+        var zoneC = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneCode == "C", ct);
+        if (zoneC is not null && zoneC.VehicleTypeId == 3)
+        {
+            zoneC.VehicleTypeId = 4;
+            zoneC.ZoneName = "EV Motorbike Zone C";
+        }
+
+        if (!await db.ParkingZones.AnyAsync(z => z.ZoneCode == "D", ct))
+        {
+            db.ParkingZones.Add(new ParkingZone
+            {
+                ZoneCode = "D",
+                ZoneName = "EV Car Zone D",
+                VehicleTypeId = 5,
+                Capacity = 10,
+                Status = "Active",
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+
+        var evCarZone = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneCode == "D", ct);
+        if (evCarZone is not null && !await db.ParkingSlots.AnyAsync(s => s.ZoneId == evCarZone.ZoneId, ct))
+        {
+            for (var i = 1; i <= Math.Min(evCarZone.Capacity, 10); i++)
+            {
+                db.ParkingSlots.Add(new ParkingSlot
+                {
+                    SlotId = $"D{i}",
+                    ZoneId = evCarZone.ZoneId,
+                    Status = "Available",
+                });
+            }
+            await db.SaveChangesAsync(ct);
+        }
+
+        var now = DateTime.UtcNow;
+        foreach (var typeId in new[] { 4, 5 })
+        {
+            if (await db.PricingPolicies.AnyAsync(p => p.VehicleTypeId == typeId, ct)) continue;
+            var baseEv = await db.PricingPolicies.AsNoTracking()
+                .FirstOrDefaultAsync(p => p.VehicleTypeId == 3 && p.Status == "Active", ct);
+            db.PricingPolicies.Add(new PricingPolicy
+            {
+                VehicleTypeId = typeId,
+                PolicyName = typeId == 4 ? "EV Motorbike Standard" : "EV Car Standard",
+                PricePerHour = baseEv?.PricePerHour ?? (typeId == 4 ? 6000m : 25000m),
+                DailyMaxFee = baseEv?.DailyMaxFee ?? (typeId == 4 ? 60000m : 250000m),
+                LostTicketFee = baseEv?.LostTicketFee ?? 20000m,
+                OvertimeFee = 0,
+                Status = "Active",
+                CreatedAt = now,
+            });
         }
 
         await db.SaveChangesAsync(ct);

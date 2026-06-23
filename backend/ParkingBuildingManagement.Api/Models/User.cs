@@ -10,6 +10,7 @@ public class User
     public int RoleId { get; set; }
     public string Status { get; set; } = "Active";
     public DateTime CreatedAt { get; set; }
+    public decimal WalletBalance { get; set; }
 
     public Role Role { get; set; } = null!;
     public ICollection<Reservation> Reservations { get; set; } = [];
@@ -18,4 +19,5 @@ public class User
     public ICollection<ParkingSession> ExitStaffSessions { get; set; } = [];
     public ICollection<Incident> ReportedIncidents { get; set; } = [];
     public ICollection<Feedback> Feedbacks { get; set; } = [];
+    public ICollection<WalletTopUp> WalletTopUps { get; set; } = [];
 }

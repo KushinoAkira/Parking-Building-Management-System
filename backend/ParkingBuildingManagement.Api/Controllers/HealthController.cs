@@ -7,19 +7,23 @@ namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
 [AllowAnonymous]
-[Route("api/[controller]")]
+[Route("api/health")]
 public class HealthController(ApplicationDbContext db) : ControllerBase
 {
     [HttpGet]
-    public async Task<IActionResult> Get(CancellationToken cancellationToken)
+    public async Task<IActionResult> Get()
     {
-        var canConnect = await db.Database.CanConnectAsync(cancellationToken);
-
-        return Ok(new
+        var database = "connected";
+        try
         {
-            status = "ok",
-            database = canConnect ? "connected" : "unavailable",
-            timestamp = DateTime.UtcNow,
-        });
+            if (!await db.Database.CanConnectAsync())
+                database = "disconnected";
+        }
+        catch
+        {
+            database = "disconnected";
+        }
+
+        return Ok(new { status = "ok", database, timestamp = DateTime.UtcNow });
     }
 }

@@ -6,23 +6,23 @@ import {
 } from "recharts";
 import { apiGet } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 const revenueDataFallback = [{ name: "N/A", value: 0 }];
-
 const occupancyDataFallback = [{ name: "N/A", VIP: 0, Standard: 0 }];
-
 const vehicleTypeDataFallback = [{ name: "N/A", value: 100, color: "#9CA3AF" }];
 
-const CustomTooltip = ({ active, payload, label }: any) => {
+function CustomTooltip({ active, payload, label }: any) {
+  const { t, formatMoney } = useLocale();
   if (active && payload && payload.length) {
     return (
       <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 p-3 rounded-xl shadow-xl">
         <p className="text-gray-700 dark:text-white font-medium mb-1">{label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={entry.dataKey || index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name === 'value' ? 'Doanh thu' : entry.name}: {
-              entry.name === 'value'
-                ? new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(entry.value)
+            {entry.name === "value" ? t("reports.revenue") : entry.name}: {
+              entry.name === "value"
+                ? formatMoney(entry.value)
                 : `${entry.value} slots`
             }
           </p>
@@ -31,7 +31,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
     );
   }
   return null;
-};
+}
 
 const RADIAN = Math.PI / 180;
 const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) => {
@@ -46,6 +46,7 @@ const renderCustomLabel = ({ cx, cy, midAngle, innerRadius, outerRadius, percent
 };
 
 export function ReportsAnalytics() {
+  const { t, formatMoney, language } = useLocale();
   const [revenueData, setRevenueData] = useState<Array<{ name: string; value: number }>>(revenueDataFallback);
   const [occupancyData, setOccupancyData] = useState<Array<{ name: string; VIP: number; Standard: number }>>(occupancyDataFallback);
   const [vehicleTypeData, setVehicleTypeData] = useState<Array<{ name: string; value: number; color: string }>>(vehicleTypeDataFallback);
@@ -58,6 +59,7 @@ export function ReportsAnalytics() {
   useEffect(() => {
     const auth = getAuth();
     const token = auth?.token;
+    const locale = language === "vi" ? "vi-VN" : "en-US";
     Promise.all([
       apiGet<Array<{ date: string; total: number }>>("/api/reports/revenue", token),
       apiGet<Array<{ zoneCode: string; occupied: number; reserved: number }>>("/api/reports/occupancy", token),
@@ -66,7 +68,7 @@ export function ReportsAnalytics() {
       setRevenueData(
         revenue.length > 0
           ? revenue.map((r) => ({
-              name: new Date(r.date).toLocaleDateString("vi-VN", { weekday: "short" }),
+              name: new Date(r.date).toLocaleDateString(locale, { weekday: "short" }),
               value: r.total,
             }))
           : revenueDataFallback,
@@ -107,7 +109,7 @@ export function ReportsAnalytics() {
       setOccupancyData(occupancyDataFallback);
       setVehicleTypeData(vehicleTypeDataFallback);
     });
-  }, []);
+  }, [language]);
 
   const maxRevenue = useMemo(
     () => Math.max(...revenueData.map((d) => d.value), 1),
@@ -116,39 +118,37 @@ export function ReportsAnalytics() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Báo Cáo & Thống Kê</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Phân tích hiệu suất kinh doanh trong 7 ngày qua</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("reports.title")}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t("reports.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <button className="flex items-center justify-center gap-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 px-4 py-2.5 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors flex-1 sm:flex-none">
             <Calendar className="w-4 h-4" />
-            Tuần này
+            {t("reports.thisWeek")}
           </button>
           <button className="flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600/90 transition-colors flex-1 sm:flex-none shadow-md shadow-blue-600/20">
             <Download className="w-4 h-4" />
-            Xuất Báo Cáo
+            {t("reports.export")}
           </button>
         </div>
       </div>
 
-      {/* Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 rounded-xl bg-blue-600/10 text-blue-600">
               <DollarSign className="w-5 h-5" />
             </div>
-            <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">Tổng doanh thu tuần</h3>
+            <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">{t("reports.weekRevenue")}</h3>
           </div>
           <div className="flex items-end gap-3">
             <span className="text-3xl font-bold text-gray-900 dark:text-white">
-              {summary.totalRevenue.toLocaleString("vi-VN")} đ
+              {formatMoney(summary.totalRevenue)}
             </span>
             <span className="text-sm font-semibold text-blue-700 dark:text-emerald-400 flex items-center gap-1 mb-1">
-              <TrendingUp className="w-4 h-4" /> từ dữ liệu thật
+              <TrendingUp className="w-4 h-4" /> {t("reports.fromRealData")}
             </span>
           </div>
         </div>
@@ -157,37 +157,35 @@ export function ReportsAnalytics() {
             <div className="p-2 rounded-xl bg-blue-50 dark:bg-blue-500/15 text-blue-500">
               <Car className="w-5 h-5" />
             </div>
-            <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">Lượt đỗ trung bình</h3>
+            <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">{t("reports.avgSessions")}</h3>
           </div>
           <div className="flex items-end gap-3">
             <span className="text-3xl font-bold text-gray-900 dark:text-white">{summary.totalSessions}</span>
             <span className="text-sm font-semibold text-blue-700 dark:text-emerald-400 flex items-center gap-1 mb-1">
-              <TrendingUp className="w-4 h-4" /> đã đồng bộ
+              <TrendingUp className="w-4 h-4" /> {t("reports.synced")}
             </span>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Lượt/ngày</p>
+          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">{t("reports.perDay")}</p>
         </div>
         <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center gap-3 mb-3">
             <div className="p-2 rounded-xl bg-orange-50 dark:bg-orange-500/15 text-orange-500">
               <Users className="w-5 h-5" />
             </div>
-            <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">Tỷ lệ trống cao nhất</h3>
+            <h3 className="font-medium text-gray-600 dark:text-gray-400 text-sm">{t("reports.highestEmpty")}</h3>
           </div>
           <div className="flex items-end gap-3">
             <span className="text-3xl font-bold text-gray-900 dark:text-white">{summary.busiestType}</span>
             <span className="text-sm font-semibold text-red-500 flex items-center gap-1 mb-1">
-              <TrendingDown className="w-4 h-4" /> Thấp nhất
+              <TrendingDown className="w-4 h-4" /> {t("reports.lowest")}
             </span>
           </div>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">Thường trống lúc 10:00 - 14:00</p>
         </div>
       </div>
 
-      {/* Charts Row 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-5">Biểu Đồ Doanh Thu (7 Ngày)</h3>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-5">{t("reports.revenueChart")}</h3>
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={revenueData} margin={{ top: 10, right: 10, left: 20, bottom: 0 }}>
@@ -208,7 +206,7 @@ export function ReportsAnalytics() {
         </div>
 
         <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-5">Tình Trạng Slot Theo Tầng</h3>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-5">{t("reports.slotByFloor")}</h3>
           <div className="h-[260px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={occupancyData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -217,18 +215,17 @@ export function ReportsAnalytics() {
                 <YAxis key="yaxis" stroke="rgba(150,150,150,0.5)" axisLine={false} tickLine={false} tick={{ fontSize: 11 }} />
                 <Tooltip key="tooltip" content={<CustomTooltip />} cursor={{ fill: 'rgba(0,200,83,0.05)' }} />
                 <Legend key="legend" wrapperStyle={{ paddingTop: '16px', fontSize: '12px' }} />
-                <Bar key="bar-standard" dataKey="Standard" name="Tiêu chuẩn" stackId="a" fill="#00C853" radius={[0, 0, 4, 4]} />
-                <Bar key="bar-vip" dataKey="VIP" name="VIP" stackId="a" fill="#EAB308" radius={[4, 4, 0, 0]} />
+                <Bar key="bar-standard" dataKey="Standard" name={t("reports.standard")} stackId="a" fill="#00C853" radius={[0, 0, 4, 4]} />
+                <Bar key="bar-vip" dataKey="VIP" name={t("reports.vip")} stackId="a" fill="#EAB308" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         </div>
       </div>
 
-      {/* Charts Row 2 */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">Cơ Cấu Loại Xe</h3>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-4">{t("reports.vehicleMix")}</h3>
           <div className="h-[180px] w-full">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
@@ -247,7 +244,7 @@ export function ReportsAnalytics() {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <Tooltip formatter={(value: any) => [`${value}%`, 'Tỷ lệ']} />
+                <Tooltip formatter={(value: any) => [`${value}%`, t("reports.ratio")]} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -265,7 +262,7 @@ export function ReportsAnalytics() {
         </div>
 
         <div className="lg:col-span-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-2xl p-6 shadow-sm">
-          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-5">Doanh Thu Theo Ngày</h3>
+          <h3 className="text-base font-bold text-gray-900 dark:text-white mb-5">{t("reports.dailyRevenue")}</h3>
           <div className="space-y-3.5">
             {revenueData.map((day) => {
               const pct = (day.value / maxRevenue) * 100;
@@ -283,7 +280,7 @@ export function ReportsAnalytics() {
                     />
                   </div>
                   <span className={`w-24 text-sm font-bold text-right ${isMax ? 'text-blue-600' : 'text-gray-700 dark:text-gray-300'}`}>
-                    {new Intl.NumberFormat('vi-VN').format(day.value / 1000)}k đ
+                    {formatMoney(day.value)}
                   </span>
                 </div>
               );

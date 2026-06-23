@@ -6,8 +6,11 @@ using Microsoft.IdentityModel.Tokens;
 using ParkingBuildingManagement.Api.Data;
 using ParkingBuildingManagement.Api.Middleware;
 using ParkingBuildingManagement.Api.Services;
+using ParkingBuildingManagement.Api.Services.Ocr;
+using ParkingBuildingManagement.Api.Services.PayOs;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 var isTesting = builder.Environment.IsEnvironment("Testing");
 
@@ -18,19 +21,37 @@ if (isTesting)
 }
 else
 {
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+    var connectionString = DatabaseConnection.Resolve(builder.Configuration);
 
     builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString));
+        options.UseNpgsql(connectionString));
 }
 
+builder.Services.AddScoped<IParkingRealtimeNotifier, ParkingRealtimeNotifier>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ISlotAllocationService, SlotAllocationService>();
 builder.Services.AddScoped<IPricingService, PricingService>();
 builder.Services.AddScoped<IParkingSessionService, ParkingSessionService>();
 builder.Services.AddScoped<IReservationService, ReservationService>();
 builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
+builder.Services.AddScoped<IWalletService, WalletService>();
+
+builder.Services.Configure<PayOsOptions>(builder.Configuration.GetSection(PayOsOptions.SectionName));
+var payOsConfig = builder.Configuration.GetSection(PayOsOptions.SectionName).Get<PayOsOptions>() ?? new PayOsOptions();
+if (isTesting || payOsConfig.DemoMode || string.IsNullOrWhiteSpace(payOsConfig.ClientId))
+    builder.Services.AddSingleton<IPayOsPaymentService, StubPayOsPaymentService>();
+else
+    builder.Services.AddHttpClient<IPayOsPaymentService, PayOsPaymentService>();
+
+builder.Services.Configure<PlateOcrOptions>(builder.Configuration.GetSection(PlateOcrOptions.SectionName));
+
+if (isTesting)
+    builder.Services.AddSingleton<IPlateOcrService, StubPlateOcrService>();
+else
+{
+    builder.Services.AddSingleton<IPlateOcrService, PaddlePlateOcrService>();
+    builder.Services.AddHostedService<PlateOcrWarmupHostedService>();
+}
 
 var jwtSecret = builder.Configuration["Jwt:Secret"]
     ?? "your_jwt_secret_here_min_32_characters_long";
@@ -50,6 +71,17 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             ValidAudience = jwtAudience,
             IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
         };
+        options.Events = new JwtBearerEvents
+        {
+            OnMessageReceived = context =>
+            {
+                var accessToken = context.Request.Query["access_token"];
+                var path = context.HttpContext.Request.Path;
+                if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                    context.Token = accessToken;
+                return Task.CompletedTask;
+            },
+        };
     });
 
 builder.Services.AddAuthorization(options =>
@@ -62,6 +94,7 @@ builder.Services.AddAuthorization(options =>
     }
 });
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
 
 var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
@@ -73,7 +106,8 @@ builder.Services.AddCors(options =>
     {
         policy.WithOrigins(allowedOrigins)
             .AllowAnyHeader()
-            .AllowAnyMethod();
+            .AllowAnyMethod()
+            .AllowCredentials();
     });
 });
 
@@ -102,6 +136,7 @@ if (!app.Environment.IsDevelopment())
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ParkingBuildingManagement.Api.Hubs.ParkingHub>("/hubs/parking");
 
 app.Run();
 
