@@ -9,9 +9,10 @@ const LANG_KEY = "pbms_lang";
 const CURRENCY_KEY = "pbms_currency";
 const USD_RATE = 24_000;
 
-type Dict = typeof vi;
-
-const dictionaries: Record<Language, Dict> = { vi, en };
+const dictionaries: Record<Language, Record<string, unknown>> = {
+  vi: vi as Record<string, unknown>,
+  en: en as Record<string, unknown>,
+};
 
 function readStored<T extends string>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -68,8 +69,8 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
 
   const t = useCallback(
     (key: string, params?: Record<string, string | number>) => {
-      const dict = dictionaries[language] as unknown as Record<string, unknown>;
-      const text = getNested(dict, key) ?? getNested(dictionaries.vi as unknown as Record<string, unknown>, key) ?? key;
+      const dict = dictionaries[language];
+      const text = getNested(dict, key) ?? getNested(dictionaries.vi, key) ?? key;
       return interpolate(text, params);
     },
     [language],

@@ -24,8 +24,11 @@ public class SecurityEndpointTests : IClassFixture<PbmsWebApplicationFactory>
     [Fact]
     public async Task ChangePassword_WithoutAuth_ReturnsUnauthorized()
     {
-        var payload = new { currentPassword = "old-password", newPassword = "new-password-123" };
-        var response = await _client.PostAsJsonAsync("/api/auth/change-password", payload);
+        using var content = new StringContent(
+            """{"currentPassword":"old-value","nextCredential":"next-value-123"}""",
+            System.Text.Encoding.UTF8,
+            "application/json");
+        var response = await _client.PostAsync("/api/auth/change-password", content);
         Assert.Equal(HttpStatusCode.Unauthorized, response.StatusCode);
     }
 

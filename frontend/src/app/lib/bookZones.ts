@@ -4,6 +4,8 @@ export type BookZone = {
   zoneName?: string;
   vehicleTypeId: number;
   vehicleTypeCode?: string;
+  vehicleType?: string;
+  capacity?: number;
   availableSlots?: number;
 };
 

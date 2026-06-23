@@ -56,7 +56,7 @@ export function useRealtime() {
 }
 
 /** Re-run callback when matching realtime events arrive (debounced). */
-export function useRealtimeRefresh(types: string[], onRefresh: () => void) {
+export function useRealtimeRefresh(types: readonly string[], onRefresh: () => void) {
   const { subscribe } = useRealtime();
   const typesKey = types.join("|");
   const onRefreshRef = useRef(onRefresh);
