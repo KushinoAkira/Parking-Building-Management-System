@@ -130,6 +130,22 @@ git push -u origin dev
 
 Workflow đã cấu hình sẵn cho `main` và `dev`; push/PR vào hai nhánh này đều kích hoạt Actions.
 
+### 3. Deploy (`deploy.yml`) — Railway + Firebase
+
+Chạy khi **merge/push lên `main`** (sau khi verify build + test pass).
+
+| Job | Mô tả |
+|-----|--------|
+| `verify-before-deploy` | Giống CI: test/build FE + test/build BE |
+| `deploy-railway-api` | `railway up` API lên Railway |
+| `deploy-firebase-hosting` | Build Vite + deploy Firebase Hosting |
+| `post-deploy-smoke` | Kiểm tra `/api/health` và URL hosting |
+
+Cấu hình secrets/variables: xem [docs/deploy-cicd.md](docs/deploy-cicd.md).
+
+**Secrets bắt buộc:** `RAILWAY_TOKEN`, `FIREBASE_SERVICE_ACCOUNT`  
+**Variables bắt buộc:** `VITE_API_BASE_URL`, `FIREBASE_HOSTING_URL`, `RAILWAY_SERVICE_NAME`, `RAILWAY_ENVIRONMENT`
+
 ## Ghi chú bảo mật
 
 - Không commit `.env`, mật khẩu SQL thật, hay `appsettings.Local.json`
