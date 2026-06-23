@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Car, Home, Ticket, History, LogOut, Calendar, MessageSquare, XCircle, Wallet } from "lucide-react";
 import { useNavigate } from "react-router";
-import { apiGet, apiPost, formatApiError, isNetworkError, isTimeoutError } from "../lib/api";
+import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
 import { stopRealtimeConnection } from "../lib/realtime";
 import { useLocale } from "../lib/i18n/LocaleContext";
 import { useRealtimeRefresh } from "../lib/RealtimeContext";
-import { RealtimeEventTypes } from "../lib/realtime";
 import { DriverWalletPanel } from "./DriverWalletPanel";
 import type { DriverTransaction } from "../lib/walletApi";
 import {
@@ -16,6 +15,8 @@ import {
   type BookVehicleType,
   type BookZone,
 } from "../lib/bookZones";
+import { toDriverErrorMessage } from "../lib/driverErrors";
+import { driverRealtimeRefreshEvents } from "../lib/driverRealtime";
 
 type ReservationRow = {
   reservationId: number;
@@ -63,13 +64,8 @@ export function UserWebDashboard() {
   const [feedbackType, setFeedbackType] = useState("Suggestion");
   const [feedbackContent, setFeedbackContent] = useState("");
 
-  function driverErrorMessage(e: unknown, fallback: string) {
-    return formatApiError(e, {
-      network: t("common.networkError"),
-      timeout: t("common.timeoutError"),
-      fallback,
-    });
-  }
+  const driverErrorMessage = (e: unknown, fallback: string) =>
+    toDriverErrorMessage(e, t, fallback);
 
   async function loadFeeEstimate(sessionId: number) {
     if (!authToken) return;
@@ -144,17 +140,9 @@ export function UserWebDashboard() {
       .finally(() => setLoading(false));
   }, [navigate, authToken, authRole, t]);
 
-  useRealtimeRefresh(
-    [
-      RealtimeEventTypes.SessionCheckedIn,
-      RealtimeEventTypes.SessionCheckedOut,
-      RealtimeEventTypes.ReservationUpdated,
-      RealtimeEventTypes.WalletTopUpCompleted,
-    ],
-    () => {
+  useRealtimeRefresh(driverRealtimeRefreshEvents, () => {
       loadAllRef.current({ quiet: true }).catch(() => {});
-    },
-  );
+    });
 
   const activeSession = home?.activeSession;
 

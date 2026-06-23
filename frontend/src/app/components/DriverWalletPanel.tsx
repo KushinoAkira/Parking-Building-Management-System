@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2, QrCode, Wallet, X } from "lucide-react";
 import { useLocale } from "../lib/i18n/LocaleContext";
-import { formatApiError } from "../lib/api";
+import { toDriverErrorMessage } from "../lib/driverErrors";
 import {
   createTopUp,
   getTopUp,
@@ -43,13 +43,8 @@ export function DriverWalletPanel({
     ? Number(customAmount.replace(/\D/g, ""))
     : selectedAmount;
 
-  function errMsg(e: unknown, fallback: string) {
-    return formatApiError(e, {
-      network: t("common.networkError"),
-      timeout: t("common.timeoutError"),
-      fallback,
-    });
-  }
+  const errMsg = (e: unknown, fallback: string) =>
+    toDriverErrorMessage(e, t, fallback);
 
   const stopPolling = useCallback(() => {
     if (pollRef.current) {

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Dtos;
 using ParkingBuildingManagement.Api.Services;
@@ -7,6 +8,7 @@ using ParkingBuildingManagement.Api.Services;
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("auth")]
 [Route("api/auth")]
 public class AuthController(IAuthService auth) : ControllerBase
 {

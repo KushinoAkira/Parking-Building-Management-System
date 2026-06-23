@@ -1,3 +1,5 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ParkingBuildingManagement.Api.Dtos;
 
 public record WalletSummaryDto(decimal Balance, IReadOnlyList<WalletTopUpDto> RecentTopUps);
@@ -13,7 +15,8 @@ public record WalletTopUpDto(
     DateTime CreatedAt,
     DateTime? CompletedAt);
 
-public record CreateTopUpRequest(decimal Amount);
+public record CreateTopUpRequest(
+    [Range(10_000, 50_000_000)] decimal Amount);
 
 public record CreateTopUpResponse(
     int TopUpId,

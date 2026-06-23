@@ -153,6 +153,9 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.LicensePlate).HasMaxLength(20);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.UserId, e.Status }).HasDatabaseName("IX_Reservation_User_Status");
+            entity.HasIndex(e => new { e.ZoneId, e.ReservedFrom, e.ReservedTo }).HasDatabaseName("IX_Reservation_Zone_TimeRange");
+            entity.HasIndex(e => e.LicensePlate).HasDatabaseName("IX_Reservation_LicensePlate");
             entity.HasOne(e => e.User)
                 .WithMany(u => u.Reservations)
                 .HasForeignKey(e => e.UserId)
@@ -337,6 +340,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.PaymentLinkId).HasMaxLength(100);
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => e.PayOsOrderCode).IsUnique();
+            entity.HasIndex(e => new { e.UserId, e.Status }).HasDatabaseName("IX_WalletTopUp_User_Status");
+            entity.HasIndex(e => e.CreatedAt).HasDatabaseName("IX_WalletTopUp_CreatedAt");
             entity.HasOne(e => e.User)
                 .WithMany(u => u.WalletTopUps)
                 .HasForeignKey(e => e.UserId)

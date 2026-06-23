@@ -134,3 +134,5 @@ Workflow đã cấu hình sẵn cho `main` và `dev`; push/PR vào hai nhánh n�
 
 - Không commit `.env`, mật khẩu SQL thật, hay `appsettings.Local.json`
 - Dùng `appsettings.example.json` và placeholder trong repo
+- Trước khi commit: kiểm tra `git diff --cached` để chắc chắn không có key thật (`Jwt`, `PayOs`, DB password)
+- Secrets production chỉ đặt ở Railway Variables / local machine, không đặt trong file tracked

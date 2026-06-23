@@ -4,11 +4,10 @@ import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { useNavigate } from "react-router";
 import { motion, AnimatePresence, Variants } from "motion/react";
-import { apiGet, apiPost, formatApiError, isNetworkError, isTimeoutError } from "../lib/api";
+import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
 import { useLocale } from "../lib/i18n/LocaleContext";
 import { useRealtimeRefresh } from "../lib/RealtimeContext";
-import { RealtimeEventTypes } from "../lib/realtime";
 import { DriverWalletPanel } from "./DriverWalletPanel";
 import type { DriverTransaction } from "../lib/walletApi";
 import {
@@ -18,6 +17,8 @@ import {
   type BookVehicleType,
   type BookZone,
 } from "../lib/bookZones";
+import { toDriverErrorMessage } from "../lib/driverErrors";
+import { mobileDriverRealtimeRefreshEvents } from "../lib/driverRealtime";
 
 const TX_FILTERS = ["all", "topup", "payment", "refund"] as const;
 type TxFilter = (typeof TX_FILTERS)[number];
@@ -120,13 +121,8 @@ export function UserMobileHome() {
     return Array.from(map.values());
   }, [tickets, t, formatDateTime]);
 
-  function driverErrorMessage(e: unknown, fallback: string) {
-    return formatApiError(e, {
-      network: t("common.networkError"),
-      timeout: t("common.timeoutError"),
-      fallback,
-    });
-  }
+  const driverErrorMessage = (e: unknown, fallback: string) =>
+    toDriverErrorMessage(e, t, fallback);
 
   const loadData = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!authToken || !userId) return;
@@ -179,10 +175,7 @@ export function UserMobileHome() {
   }, [navigate, authToken, authRole, t]);
 
   useRealtimeRefresh(
-    [
-      RealtimeEventTypes.SessionCheckedOut,
-      RealtimeEventTypes.WalletTopUpCompleted,
-    ],
+    mobileDriverRealtimeRefreshEvents,
     () => {
       loadDataRef.current({ quiet: true }).catch(() => {});
     },

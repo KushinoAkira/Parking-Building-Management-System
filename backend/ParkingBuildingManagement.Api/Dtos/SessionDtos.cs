@@ -1,22 +1,24 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ParkingBuildingManagement.Api.Dtos;
 
 public record CheckInRequest(
-    string LicensePlate,
-    int VehicleTypeId,
-    string? SlotId,
+    [Required][MaxLength(20)] string LicensePlate,
+    [Range(1, int.MaxValue)] int VehicleTypeId,
+    [MaxLength(20)] string? SlotId,
     int? ZoneId,
     int? UserId,
     int? ReservationId,
     int? EntryStaffId,
-    string? EntryGate,
-    string? Note);
+    [MaxLength(50)] string? EntryGate,
+    [MaxLength(500)] string? Note);
 
 public record CheckOutRequest(
     int? ExitStaffId,
-    string? ExitGate,
-    string PaymentMethod,
+    [MaxLength(50)] string? ExitGate,
+    [RegularExpression("^(Cash|BankTransfer|EWallet)$")] string PaymentMethod,
     bool LostTicket = false,
-    string? Note = null);
+    [MaxLength(500)] string? Note = null);
 
 public record SessionDto(
     int SessionId,

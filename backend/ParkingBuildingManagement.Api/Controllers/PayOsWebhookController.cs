@@ -1,12 +1,14 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ParkingBuildingManagement.Api.Services;
 using ParkingBuildingManagement.Api.Services.PayOs;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
+[EnableRateLimiting("webhook")]
 [Route("api/payos")]
 public class PayOsWebhookController(
     IWalletService wallet,
@@ -42,6 +44,9 @@ public class PayOsWebhookController(
             return BadRequest(new { error = "Missing orderCode." });
 
         var orderCode = orderCodeEl.GetInt64();
+        if (orderCode <= 0)
+            return BadRequest(new { error = "Invalid orderCode." });
+
         await wallet.CompleteTopUpByOrderCodeAsync(orderCode, ct);
         return Ok(new { message = "Received." });
     }

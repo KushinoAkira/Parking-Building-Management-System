@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Services.Ocr;
 
@@ -7,6 +8,7 @@ namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = RoleNames.StaffOrAbove)]
+[EnableRateLimiting("ocr")]
 [Route("api/ocr")]
 public class PlateOcrController(IPlateOcrService ocr) : ControllerBase
 {

@@ -15,8 +15,14 @@ public static class PayOsSignature
         return Convert.ToHexString(hmac.ComputeHash(Encoding.UTF8.GetBytes(raw))).ToLowerInvariant();
     }
 
-    public static bool Verify(string signature, IReadOnlyDictionary<string, string> data, string checksumKey) =>
-        string.Equals(Sign(data, checksumKey), signature, StringComparison.OrdinalIgnoreCase);
+    public static bool Verify(string signature, IReadOnlyDictionary<string, string> data, string checksumKey)
+    {
+        var expected = Sign(data, checksumKey);
+        if (string.IsNullOrWhiteSpace(signature)) return false;
+        return CryptographicOperations.FixedTimeEquals(
+            Encoding.UTF8.GetBytes(expected),
+            Encoding.UTF8.GetBytes(signature.ToLowerInvariant()));
+    }
 
     public static IReadOnlyDictionary<string, string> FlattenJsonElement(JsonElement element)
     {

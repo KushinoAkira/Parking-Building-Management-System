@@ -65,36 +65,27 @@ public class ReservationService(
         if (reservation.Status != "Pending")
             throw new BusinessException($"Only pending reservations can be confirmed (status: {reservation.Status}).");
 
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
+        await ExecuteInTransactionAsync(async () =>
+        {
+            if (string.IsNullOrWhiteSpace(reservation.SlotId))
+            {
+                var slot = await slotAllocation.FindAvailableSlotAsync(
+                    reservation.VehicleTypeId, reservation.ZoneId, null, ct);
+                reservation.SlotId = slot.SlotId;
+                reservation.ZoneId = slot.ZoneId;
+                slot.Status = "Reserved";
+            }
+            else if (reservation.Slot is not null)
+            {
+                if (reservation.Slot.Status != "Available")
+                    throw new BusinessException($"Slot '{reservation.SlotId}' is not available.");
 
-        try
-        {
-        if (string.IsNullOrWhiteSpace(reservation.SlotId))
-        {
-            var slot = await slotAllocation.FindAvailableSlotAsync(
-                reservation.VehicleTypeId, reservation.ZoneId, null, ct);
-            reservation.SlotId = slot.SlotId;
-            reservation.ZoneId = slot.ZoneId;
-            slot.Status = "Reserved";
-        }
-        else if (reservation.Slot is not null)
-        {
-            if (reservation.Slot.Status != "Available")
-                throw new BusinessException($"Slot '{reservation.SlotId}' is not available.");
+                reservation.Slot.Status = "Reserved";
+            }
 
-            reservation.Slot.Status = "Reserved";
-        }
-
-        reservation.Status = "Confirmed";
-        await db.SaveChangesAsync(ct);
-        if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
+            reservation.Status = "Confirmed";
+            await db.SaveChangesAsync(ct);
+        }, ct);
 
         return await MapAsync(reservationId, ct) is { } confirmed
             ? await NotifyAsync(confirmed, "confirmed", ct)
@@ -111,23 +102,14 @@ public class ReservationService(
         if (reservation.Status is "CheckedIn" or "Cancelled" or "Expired")
             throw new BusinessException($"Reservation cannot be cancelled (status: {reservation.Status}).");
 
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
+        await ExecuteInTransactionAsync(async () =>
         {
-        if (reservation.Slot is not null && reservation.Slot.Status == "Reserved")
-            reservation.Slot.Status = "Available";
+            if (reservation.Slot is not null && reservation.Slot.Status == "Reserved")
+                reservation.Slot.Status = "Available";
 
-        reservation.Status = "Cancelled";
-        await db.SaveChangesAsync(ct);
-        if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
+            reservation.Status = "Cancelled";
+            await db.SaveChangesAsync(ct);
+        }, ct);
 
         return await MapAsync(reservationId, ct) is { } cancelled
             ? await NotifyAsync(cancelled, "cancelled", ct)
@@ -159,4 +141,21 @@ public class ReservationService(
                 r.Status,
                 r.CreatedAt))
             .FirstOrDefaultAsync(ct);
+
+    private async Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken ct)
+    {
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (db.Database.SupportsTransactions())
+            tx = await db.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            await action();
+            if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
+        }
+    }
 }

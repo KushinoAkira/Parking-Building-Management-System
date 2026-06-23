@@ -1,20 +1,4 @@
 import { createBrowserRouter, Navigate } from "react-router";
-import { Layout } from "./components/Layout";
-import { AdminLayout } from "./components/AdminLayout";
-import { Dashboard } from "./components/Dashboard";
-import { SlotManagement } from "./components/SlotManagement";
-import { PricingPolicies } from "./components/PricingPolicies";
-import { ReportsAnalytics } from "./components/ReportsAnalytics";
-import { UserManagement } from "./components/UserManagement";
-import { RoleManagement } from "./components/RoleManagement";
-import { SystemConfig } from "./components/SystemConfig";
-import { Login } from "./components/Login";
-import { StaffDashboard } from "./components/StaffDashboard";
-import { UserMobileHome } from "./components/UserMobileHome";
-import { UserWebDashboard } from "./components/UserWebDashboard";
-import { Settings } from "./components/Settings";
-import { Violations } from "./components/Violations";
-import { VehicleHistory } from "./components/VehicleHistory";
 import { RequireAuth } from "./components/RequireAuth";
 import { RequireGuest } from "./components/RequireGuest";
 import { RouteErrorPage } from "./components/RouteErrorPage";
@@ -29,17 +13,34 @@ function SettingsRedirect() {
   return <Navigate to={getRoleHomePath(auth.roleName)} replace />;
 }
 
+const loginRoute = async () => ({ Component: (await import("./components/Login")).Login });
+const staffDashboardRoute = async () => ({ Component: (await import("./components/StaffDashboard")).StaffDashboard });
+const userMobileRoute = async () => ({ Component: (await import("./components/UserMobileHome")).UserMobileHome });
+const userWebRoute = async () => ({ Component: (await import("./components/UserWebDashboard")).UserWebDashboard });
+const managerLayoutRoute = async () => ({ Component: (await import("./components/Layout")).Layout });
+const adminLayoutRoute = async () => ({ Component: (await import("./components/AdminLayout")).AdminLayout });
+const dashboardRoute = async () => ({ Component: (await import("./components/Dashboard")).Dashboard });
+const slotManagementRoute = async () => ({ Component: (await import("./components/SlotManagement")).SlotManagement });
+const pricingPoliciesRoute = async () => ({ Component: (await import("./components/PricingPolicies")).PricingPolicies });
+const reportsAnalyticsRoute = async () => ({ Component: (await import("./components/ReportsAnalytics")).ReportsAnalytics });
+const violationsRoute = async () => ({ Component: (await import("./components/Violations")).Violations });
+const vehicleHistoryRoute = async () => ({ Component: (await import("./components/VehicleHistory")).VehicleHistory });
+const settingsRoute = async () => ({ Component: (await import("./components/Settings")).Settings });
+const userManagementRoute = async () => ({ Component: (await import("./components/UserManagement")).UserManagement });
+const roleManagementRoute = async () => ({ Component: (await import("./components/RoleManagement")).RoleManagement });
+const systemConfigRoute = async () => ({ Component: (await import("./components/SystemConfig")).SystemConfig });
+
 export const router = createBrowserRouter([
   {
     element: <RequireGuest />,
     children: [
       {
         path: "/",
-        Component: Login,
+        lazy: loginRoute,
       },
       {
         path: "/login",
-        Component: Login,
+        lazy: loginRoute,
       },
     ],
   },
@@ -48,7 +49,7 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/staff-dashboard",
-        Component: StaffDashboard,
+        lazy: staffDashboardRoute,
       },
     ],
   },
@@ -57,11 +58,11 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/user-mobile",
-        Component: UserMobileHome,
+        lazy: userMobileRoute,
       },
       {
         path: "/user-web",
-        Component: UserWebDashboard,
+        lazy: userWebRoute,
       },
     ],
   },
@@ -70,16 +71,16 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/manager",
-        Component: Layout,
+        lazy: managerLayoutRoute,
         errorElement: <RouteErrorPage />,
         children: [
-          { index: true, Component: Dashboard },
-          { path: "slots", Component: SlotManagement },
-          { path: "pricing", Component: PricingPolicies },
-          { path: "reports", Component: ReportsAnalytics },
-          { path: "violations", Component: Violations },
-          { path: "history", Component: VehicleHistory },
-          { path: "settings", Component: Settings },
+          { index: true, lazy: dashboardRoute },
+          { path: "slots", lazy: slotManagementRoute },
+          { path: "pricing", lazy: pricingPoliciesRoute },
+          { path: "reports", lazy: reportsAnalyticsRoute },
+          { path: "violations", lazy: violationsRoute },
+          { path: "history", lazy: vehicleHistoryRoute },
+          { path: "settings", lazy: settingsRoute },
         ],
       },
     ],
@@ -89,14 +90,14 @@ export const router = createBrowserRouter([
     children: [
       {
         path: "/admin",
-        Component: AdminLayout,
+        lazy: adminLayoutRoute,
         errorElement: <RouteErrorPage />,
         children: [
-          { index: true, Component: UserManagement },
-          { path: "users", Component: UserManagement },
-          { path: "roles", Component: RoleManagement },
-          { path: "config", Component: SystemConfig },
-          { path: "settings", Component: Settings },
+          { index: true, lazy: userManagementRoute },
+          { path: "users", lazy: userManagementRoute },
+          { path: "roles", lazy: roleManagementRoute },
+          { path: "config", lazy: systemConfigRoute },
+          { path: "settings", lazy: settingsRoute },
         ],
       },
     ],

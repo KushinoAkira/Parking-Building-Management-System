@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using System.Data;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
 using ParkingBuildingManagement.Api.Dtos;
@@ -88,18 +89,34 @@ public class WalletService(
 
     public async Task<bool> CompleteTopUpByOrderCodeAsync(long orderCode, CancellationToken ct = default)
     {
-        var topUp = await db.WalletTopUps
-            .Include(t => t.User)
-            .FirstOrDefaultAsync(t => t.PayOsOrderCode == orderCode, ct);
-        if (topUp is null || topUp.Status == "Completed") return topUp is not null;
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (db.Database.SupportsTransactions())
+            tx = await db.Database.BeginTransactionAsync(IsolationLevel.Serializable, ct);
 
-        topUp.Status = "Completed";
-        topUp.CompletedAt = DateTime.UtcNow;
-        topUp.User.WalletBalance += topUp.Amount;
-        await db.SaveChangesAsync(ct);
+        try
+        {
+            var topUp = await db.WalletTopUps
+                .Include(t => t.User)
+                .FirstOrDefaultAsync(t => t.PayOsOrderCode == orderCode, ct);
+            if (topUp is null || topUp.Status == "Completed")
+            {
+                if (tx is not null) await tx.CommitAsync(ct);
+                return topUp is not null;
+            }
 
-        await realtime.NotifyWalletTopUpAsync(topUp.UserId, topUp.TopUpId, topUp.Amount, topUp.User.WalletBalance, ct);
-        return true;
+            topUp.Status = "Completed";
+            topUp.CompletedAt = DateTime.UtcNow;
+            topUp.User.WalletBalance += topUp.Amount;
+            await db.SaveChangesAsync(ct);
+            if (tx is not null) await tx.CommitAsync(ct);
+
+            await realtime.NotifyWalletTopUpAsync(topUp.UserId, topUp.TopUpId, topUp.Amount, topUp.User.WalletBalance, ct);
+            return true;
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
+        }
     }
 
     public async Task<WalletTopUpDto> SimulateTopUpAsync(int userId, int topUpId, CancellationToken ct = default)

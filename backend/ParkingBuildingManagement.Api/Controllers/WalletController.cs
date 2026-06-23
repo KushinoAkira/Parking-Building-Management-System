@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Dtos;
 using ParkingBuildingManagement.Api.Services;
@@ -8,6 +9,7 @@ namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = RoleNames.DriverOrAbove)]
+[EnableRateLimiting("wallet")]
 [Route("api/portal/driver/{userId:int}/wallet")]
 public class WalletController(IWalletService wallet) : ControllerBase
 {

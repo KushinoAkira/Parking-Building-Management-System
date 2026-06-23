@@ -54,3 +54,11 @@ Seed mặc định: Roles (Admin, Manager, Staff, Driver), VehicleTypes (MOTORBI
 dotnet ef migrations add PbmsPostgresInitial
 dotnet ef database update
 ```
+
+## Smoke checklist (deploy)
+
+- `GET /api/health` trả về `status=ok` và `database=connected`.
+- Đăng nhập driver/staff thành công bằng tài khoản seed.
+- Driver web/mobile tải được dashboard (không lỗi CORS/network).
+- Tạo reservation, check-in/check-out và cập nhật slot status đúng.
+- Wallet top-up callback (PayOS demo/real) cập nhật số dư và transactions.
