@@ -1,6 +1,6 @@
 # Parking Building Management System (SWP391)
 
-Monorepo quản lý bãi đỗ xe: **React** (frontend), **ASP.NET Core** (backend), **SQL Server** (database).
+Monorepo quản lý bãi đỗ xe: **React** (frontend), **ASP.NET Core** (backend), **PostgreSQL** (database).
 
 ## Cấu trúc thư mục
 
@@ -16,7 +16,7 @@ Monorepo quản lý bãi đỗ xe: **React** (frontend), **ASP.NET Core** (backe
 
 - Node.js 18+ và pnpm (hoặc npm)
 - .NET SDK 8+ (đang dùng .NET 10)
-- SQL Server hoặc SQL Server LocalDB
+- PostgreSQL 14+ (local hoặc Docker; Railway dùng `DATABASE_URL`)
 
 ## Frontend (React)
 
@@ -27,7 +27,7 @@ cp .env.example .env
 pnpm dev       # http://localhost:5173
 ```
 
-## Backend (.NET + SQL Server)
+## Backend (.NET + PostgreSQL)
 
 1. Sao chép cấu hình mẫu (nếu cần chỉnh connection string):
 
@@ -39,7 +39,7 @@ pnpm dev       # http://localhost:5173
 2. Tạo database (migration):
 
    ```bash
-   dotnet ef migrations add PbmsInitialSchema --project ParkingBuildingManagement.Api
+   dotnet ef migrations add PbmsPostgresInitial --project ParkingBuildingManagement.Api
    dotnet ef database update --project ParkingBuildingManagement.Api
    ```
 

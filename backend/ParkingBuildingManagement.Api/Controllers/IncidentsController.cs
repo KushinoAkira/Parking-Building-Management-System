@@ -3,17 +3,18 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
-using ParkingBuildingManagement.Api.Dtos;
-using ParkingBuildingManagement.Api.Services;
-
 using ParkingBuildingManagement.Api.Models;
+using ParkingBuildingManagement.Api.Realtime;
+using ParkingBuildingManagement.Api.Services;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/incidents")]
-public class IncidentsController(ApplicationDbContext db) : ControllerBase
+public class IncidentsController(
+    ApplicationDbContext db,
+    IParkingRealtimeNotifier realtime) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = RoleNames.StaffOrAbove)]
@@ -80,6 +81,19 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
         };
         db.Incidents.Add(incident);
         await db.SaveChangesAsync(ct);
+
+        var plate = request.SessionId.HasValue
+            ? await db.ParkingSessions.AsNoTracking()
+                .Where(s => s.SessionId == request.SessionId.Value)
+                .Select(s => s.LicensePlate)
+                .FirstOrDefaultAsync(ct)
+            : null;
+
+        await realtime.NotifyIncidentUpdatedAsync(
+            new IncidentEventData(incident.IncidentId, incident.IncidentType, incident.Status, incident.PenaltyFee, plate),
+            "created",
+            ct);
+
         return CreatedAtAction(nameof(GetById), new { id = incident.IncidentId }, incident);
     }
 
@@ -87,7 +101,9 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
     [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Resolve(int id, CancellationToken ct)
     {
-        var incident = await db.Incidents.FirstOrDefaultAsync(i => i.IncidentId == id, ct)
+        var incident = await db.Incidents
+            .Include(i => i.Session)
+            .FirstOrDefaultAsync(i => i.IncidentId == id, ct)
             ?? throw new BusinessException("Incident not found.", 404);
 
         if (incident.Status != "Open")
@@ -96,6 +112,12 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
         incident.Status = "Resolved";
         incident.ResolvedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+
+        await realtime.NotifyIncidentUpdatedAsync(
+            new IncidentEventData(incident.IncidentId, incident.IncidentType, incident.Status, incident.PenaltyFee, incident.Session?.LicensePlate),
+            "resolved",
+            ct);
+
         return Ok(incident);
     }
 
@@ -103,12 +125,20 @@ public class IncidentsController(ApplicationDbContext db) : ControllerBase
     [Authorize(Roles = RoleNames.ManagerOnly)]
     public async Task<IActionResult> Cancel(int id, CancellationToken ct)
     {
-        var incident = await db.Incidents.FirstOrDefaultAsync(i => i.IncidentId == id, ct)
+        var incident = await db.Incidents
+            .Include(i => i.Session)
+            .FirstOrDefaultAsync(i => i.IncidentId == id, ct)
             ?? throw new BusinessException("Incident not found.", 404);
 
         incident.Status = "Cancelled";
         incident.ResolvedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
+
+        await realtime.NotifyIncidentUpdatedAsync(
+            new IncidentEventData(incident.IncidentId, incident.IncidentType, incident.Status, incident.PenaltyFee, incident.Session?.LicensePlate),
+            "cancelled",
+            ct);
+
         return Ok(incident);
     }
 }

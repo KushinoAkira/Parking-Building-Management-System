@@ -17,7 +17,8 @@ public interface IParkingSessionService
 public class ParkingSessionService(
     ApplicationDbContext db,
     ISlotAllocationService slotAllocation,
-    IPricingService pricing) : IParkingSessionService
+    IPricingService pricing,
+    IParkingRealtimeNotifier realtime) : IParkingSessionService
 {
     public async Task<SessionDto> CheckInAsync(CheckInRequest request, CancellationToken ct)
     {
@@ -91,7 +92,15 @@ public class ParkingSessionService(
         }
 
         return await MapSessionAsync(session.SessionId, ct)
-            ?? throw new BusinessException("Failed to load session after check-in.", 500);
+            is { } dto
+            ? await NotifyCheckInAsync(dto, ct)
+            : throw new BusinessException("Failed to load session after check-in.", 500);
+    }
+
+    private async Task<SessionDto> NotifyCheckInAsync(SessionDto dto, CancellationToken ct)
+    {
+        await realtime.NotifySessionCheckedInAsync(dto, ct);
+        return dto;
     }
 
     public async Task<CheckOutResultDto> CheckOutAsync(int sessionId, CheckOutRequest request, CancellationToken ct)
@@ -120,6 +129,17 @@ public class ParkingSessionService(
         Payment payment;
         try
         {
+        if (request.PaymentMethod == "EWallet")
+        {
+            if (!session.UserId.HasValue)
+                throw new BusinessException("EWallet requires a registered driver account.", 400);
+
+            var driver = await db.Users.FirstAsync(u => u.UserId == session.UserId.Value, ct);
+            if (driver.WalletBalance < totalFee)
+                throw new BusinessException("Insufficient wallet balance. Please top up your account.", 400);
+            driver.WalletBalance -= totalFee;
+        }
+
         payment = new Payment
         {
             SessionId = sessionId,
@@ -149,7 +169,9 @@ public class ParkingSessionService(
         var dto = await MapSessionAsync(sessionId, ct)
             ?? throw new BusinessException("Failed to load session after check-out.", 500);
 
-        return new CheckOutResultDto(dto, totalFee, payment.PaymentId, payment.PaymentMethod);
+        var result = new CheckOutResultDto(dto, totalFee, payment.PaymentId, payment.PaymentMethod);
+        await realtime.NotifySessionCheckedOutAsync(result, ct);
+        return result;
     }
 
     public async Task<SessionDto?> GetByTicketCodeAsync(string ticketCode, CancellationToken ct) =>

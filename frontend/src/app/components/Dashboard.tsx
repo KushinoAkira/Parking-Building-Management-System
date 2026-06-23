@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Car, CheckCircle2, DollarSign, TrendingUp } from "lucide-react";
 import { StatCard } from "./StatCard";
 import {
@@ -7,6 +7,9 @@ import {
 import { motion, Variants } from "motion/react";
 import { apiGet } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
+import { useRealtimeRefresh } from "../lib/RealtimeContext";
+import { RealtimeEventTypes } from "../lib/realtime";
 
 const fallbackHourlyData = [
   { hour: "06h", count: 0 },
@@ -24,18 +27,6 @@ const revenueSpark = [0, 0, 0, 0, 0, 0, 0, 0];
 const totalSpark = [0, 0, 0, 0, 0, 0, 0, 0];
 const rateSpark = [0, 0, 0, 0, 0, 0, 0, 0];
 
-const CustomBarTooltip = ({ active, payload, label }: any) => {
-  if (active && payload && payload.length) {
-    return (
-      <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg shadow-xl text-sm">
-        <p className="text-gray-500 dark:text-gray-400">{label}</p>
-        <p className="font-bold text-blue-600">{payload[0].value} lượt</p>
-      </div>
-    );
-  }
-  return null;
-};
-
 const containerVariants: Variants = {
   hidden: { opacity: 0 },
   show: {
@@ -49,7 +40,21 @@ const fadeUpVariants: Variants = {
   show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 300, damping: 24 } }
 };
 
+function CustomBarTooltip({ active, payload, label }: any) {
+  const { t } = useLocale();
+  if (active && payload && payload.length) {
+    return (
+      <div className="bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 px-3 py-2 rounded-lg shadow-xl text-sm">
+        <p className="text-gray-500 dark:text-gray-400">{label}</p>
+        <p className="font-bold text-blue-600">{t("dashboard.visits", { count: payload[0].value })}</p>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function Dashboard() {
+  const { t, formatMoney } = useLocale();
   const [dashboard, setDashboard] = useState<{
     activeSessions: number;
     todayEntries: number;
@@ -65,7 +70,7 @@ export function Dashboard() {
   } | null>(null);
   const [sessionStats, setSessionStats] = useState<Array<{ vehicleTypeCode: string; totalSessions: number }>>([]);
 
-  useEffect(() => {
+  const loadDashboard = useCallback(() => {
     const auth = getAuth();
     Promise.all([
       apiGet("/api/reports/dashboard", auth?.token),
@@ -80,6 +85,20 @@ export function Dashboard() {
         setSessionStats([]);
       });
   }, []);
+
+  useEffect(() => {
+    loadDashboard();
+  }, [loadDashboard]);
+
+  useRealtimeRefresh(
+    [
+      RealtimeEventTypes.DashboardRefresh,
+      RealtimeEventTypes.SessionCheckedIn,
+      RealtimeEventTypes.SessionCheckedOut,
+      RealtimeEventTypes.ReservationUpdated,
+    ],
+    loadDashboard,
+  );
 
   const hourlyData = useMemo(() => {
     if (sessionStats.length === 0) return fallbackHourlyData;
@@ -96,23 +115,21 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Tổng Quan</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-0.5">Thống kê hôm nay từ backend</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("dashboard.title")}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-0.5">{t("dashboard.subtitle")}</p>
         </div>
         <div className="flex items-center gap-2 bg-blue-600/10 border border-blue-600/20 rounded-full px-3 py-1.5">
           <div className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />
-          <span className="text-xs font-semibold text-blue-600">Cập nhật tự động</span>
+          <span className="text-xs font-semibold text-blue-600">{t("dashboard.autoUpdate")}</span>
         </div>
       </motion.div>
 
-      {/* Stats Grid */}
       <motion.div 
         variants={containerVariants}
         initial="hidden"
@@ -120,43 +137,42 @@ export function Dashboard() {
         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"
       >
         <StatCard
-          title="Tổng Slot"
+          title={t("dashboard.totalSlots")}
           value={totalSlots.toString()}
           icon={<Car className="w-5 h-5" />}
           sparkData={totalSpark}
-          subtitle="Tổng sức chứa"
+          subtitle={t("dashboard.totalCapacity")}
         />
         <StatCard
-          title="Đang Sử Dụng"
+          title={t("dashboard.inUse")}
           value={occupiedSlots.toString()}
           trend={`${Math.round(occupancyRate)}%`}
           trendUp={true}
           icon={<CheckCircle2 className="w-5 h-5" />}
           accent={true}
           sparkData={slotSpark}
-          subtitle="So với hôm qua"
+          subtitle={t("dashboard.vsYesterday")}
         />
         <StatCard
-          title="Doanh Thu Hôm Nay"
-          value={`${todayRevenue.toLocaleString("vi-VN")} đ`}
-          trend={`${dashboard?.todayExits ?? 0} lượt ra`}
+          title={t("dashboard.todayRevenue")}
+          value={formatMoney(todayRevenue)}
+          trend={t("dashboard.visits", { count: dashboard?.todayExits ?? 0 })}
           trendUp={true}
           icon={<DollarSign className="w-5 h-5" />}
           sparkData={revenueSpark}
-          subtitle="+225k so với hôm qua"
+          subtitle={t("dashboard.vsYesterday")}
         />
         <StatCard
-          title="Tỷ Lệ Lấp Đầy"
+          title={t("dashboard.occupancyRate")}
           value={`${occupancyRate.toFixed(2)}%`}
-          trend={`${dashboard?.todayEntries ?? 0} lượt vào`}
+          trend={t("dashboard.visits", { count: dashboard?.todayEntries ?? 0 })}
           trendUp={false}
           icon={<TrendingUp className="w-5 h-5" />}
           sparkData={rateSpark}
-          subtitle="Mục tiêu: 75%"
+          subtitle={t("dashboard.target")}
         />
       </motion.div>
 
-      {/* Hourly Activity Bar Chart */}
       <motion.div 
         variants={fadeUpVariants}
         initial="hidden"
@@ -165,10 +181,10 @@ export function Dashboard() {
       >
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-base font-bold text-gray-900 dark:text-white">Lưu Lượng Theo Giờ</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Số lượt xe vào/ra hôm nay</p>
+            <h2 className="text-base font-bold text-gray-900 dark:text-white">{t("dashboard.hourlyTraffic")}</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t("dashboard.hourlyDesc")}</p>
           </div>
-          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">Hôm nay</span>
+          <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-3 py-1.5 rounded-lg">{t("common.today")}</span>
         </div>
         <div className="h-[180px] w-full">
           <ResponsiveContainer width="100%" height="100%">
@@ -191,11 +207,11 @@ export function Dashboard() {
       </motion.div>
 
       <motion.div variants={fadeUpVariants} initial="hidden" animate="show" className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-6 shadow-sm">
-        <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">Tổng kết vận hành</h2>
+        <h2 className="text-base font-bold text-gray-900 dark:text-white mb-4">{t("dashboard.opsSummary")}</h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">Vào hôm nay: <strong>{dashboard?.todayEntries ?? 0}</strong></div>
-          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">Ra hôm nay: <strong>{dashboard?.todayExits ?? 0}</strong></div>
-          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">Đang active: <strong>{dashboard?.activeSessions ?? 0}</strong></div>
+          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">{t("dashboard.entriesToday")}: <strong>{dashboard?.todayEntries ?? 0}</strong></div>
+          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">{t("dashboard.exitsToday")}: <strong>{dashboard?.todayExits ?? 0}</strong></div>
+          <div className="p-4 rounded-xl bg-gray-50 dark:bg-[#121212]">{t("dashboard.activeNow")}: <strong>{dashboard?.activeSessions ?? 0}</strong></div>
         </div>
       </motion.div>
     </div>

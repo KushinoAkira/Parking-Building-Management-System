@@ -13,7 +13,10 @@ public interface IReservationService
     Task<ReservationDto> CancelAsync(int reservationId, CancellationToken ct);
 }
 
-public class ReservationService(ApplicationDbContext db, ISlotAllocationService slotAllocation) : IReservationService
+public class ReservationService(
+    ApplicationDbContext db,
+    ISlotAllocationService slotAllocation,
+    IParkingRealtimeNotifier realtime) : IReservationService
 {
     public async Task<ReservationDto> CreateAsync(CreateReservationRequest request, CancellationToken ct)
     {
@@ -47,8 +50,9 @@ public class ReservationService(ApplicationDbContext db, ISlotAllocationService 
         db.Reservations.Add(reservation);
         await db.SaveChangesAsync(ct);
 
-        return await MapAsync(reservation.ReservationId, ct)
-            ?? throw new BusinessException("Failed to load reservation.", 500);
+        return await MapAsync(reservation.ReservationId, ct) is { } dto
+            ? await NotifyAsync(dto, "created", ct)
+            : throw new BusinessException("Failed to load reservation.", 500);
     }
 
     public async Task<ReservationDto> ConfirmAsync(int reservationId, CancellationToken ct)
@@ -92,8 +96,9 @@ public class ReservationService(ApplicationDbContext db, ISlotAllocationService 
             if (tx is not null) await tx.DisposeAsync();
         }
 
-        return await MapAsync(reservationId, ct)
-            ?? throw new BusinessException("Failed to load reservation.", 500);
+        return await MapAsync(reservationId, ct) is { } confirmed
+            ? await NotifyAsync(confirmed, "confirmed", ct)
+            : throw new BusinessException("Failed to load reservation.", 500);
     }
 
     public async Task<ReservationDto> CancelAsync(int reservationId, CancellationToken ct)
@@ -124,8 +129,15 @@ public class ReservationService(ApplicationDbContext db, ISlotAllocationService 
             if (tx is not null) await tx.DisposeAsync();
         }
 
-        return await MapAsync(reservationId, ct)
-            ?? throw new BusinessException("Failed to load reservation.", 500);
+        return await MapAsync(reservationId, ct) is { } cancelled
+            ? await NotifyAsync(cancelled, "cancelled", ct)
+            : throw new BusinessException("Failed to load reservation.", 500);
+    }
+
+    private async Task<ReservationDto> NotifyAsync(ReservationDto dto, string action, CancellationToken ct)
+    {
+        await realtime.NotifyReservationUpdatedAsync(dto, action, ct);
+        return dto;
     }
 
     private async Task<ReservationDto?> MapAsync(int reservationId, CancellationToken ct) =>

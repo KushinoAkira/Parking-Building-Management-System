@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Banknote, Check, Plus, Edit2, ShieldAlert, Bike, Car, Star, Loader2, X } from "lucide-react";
 import { apiGet, apiPost, apiPut } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 type PricingPolicy = {
   policyId: number;
@@ -29,11 +30,8 @@ const colorMap: Record<string, { badge: string; icon: string; accent: string }> 
   yellow: { badge: "bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600", icon: "bg-yellow-50 dark:bg-yellow-500/15 text-yellow-500", accent: "text-yellow-600" },
 };
 
-function formatMoney(n: number) {
-  return `${n.toLocaleString("vi-VN")} đ`;
-}
-
 export function PricingPolicies() {
+  const { t, formatMoney, ts } = useLocale();
   const [policies, setPolicies] = useState<PricingPolicy[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<VehicleType[]>([]);
   const [configs, setConfigs] = useState<{ configKey: string; configValue: string; description?: string }[]>([]);
@@ -66,7 +64,7 @@ export function PricingPolicies() {
       setVehicleTypes(vt);
       setConfigs(cfg);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được bảng giá");
+      setError(e instanceof Error ? e.message : t("pricing.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -129,7 +127,7 @@ export function PricingPolicies() {
       setCreating(false);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Lưu bảng giá thất bại");
+      setError(e instanceof Error ? e.message : t("pricing.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -143,15 +141,15 @@ export function PricingPolicies() {
     <div className="space-y-8 max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Bảng Giá & Chính Sách</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Cấu hình giá vé và các quy định cho bãi đỗ xe</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("pricing.title")}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t("pricing.subtitle")}</p>
         </div>
         <button
           onClick={openCreate}
           className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-blue-600/90 transition-colors shadow-md shadow-blue-600/20"
         >
           <Plus className="w-4 h-4" />
-          Thêm Bảng Giá
+          {t("pricing.addPolicy")}
         </button>
       </div>
 
@@ -180,15 +178,15 @@ export function PricingPolicies() {
                     <div className={`p-2.5 rounded-xl ${colors.icon}`}>{meta.icon}</div>
                     <div>
                       <h3 className="text-lg font-bold text-gray-900 dark:text-white">{policy.policyName}</h3>
-                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{policy.vehicleTypeCode} • {policy.status}</p>
+                      <p className="text-gray-500 dark:text-gray-400 text-xs mt-0.5">{policy.vehicleTypeCode} • {ts(policy.status)}</p>
                     </div>
                   </div>
                 </div>
                 <div className="p-6 flex-1 flex flex-col gap-0">
                   {[
-                    { label: "Giá / giờ", value: formatMoney(policy.pricePerHour) },
-                    { label: "Trần ngày", value: policy.dailyMaxFee ? formatMoney(policy.dailyMaxFee) : "—" },
-                    { label: "Mất vé", value: formatMoney(policy.lostTicketFee), accent: true },
+                    { label: t("pricing.pricePerHour"), value: formatMoney(policy.pricePerHour) },
+                    { label: t("pricing.dailyMax"), value: policy.dailyMaxFee ? formatMoney(policy.dailyMaxFee) : "—" },
+                    { label: t("pricing.lostTicketFee"), value: formatMoney(policy.lostTicketFee), accent: true },
                   ].map((item, i, arr) => (
                     <div
                       key={item.label}
@@ -202,7 +200,7 @@ export function PricingPolicies() {
                     onClick={() => openEdit(policy)}
                     className="mt-5 w-full flex justify-center items-center gap-2 py-2.5 rounded-xl text-sm font-semibold border-2 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800"
                   >
-                    <Edit2 className="w-4 h-4" /> Chỉnh sửa
+                    <Edit2 className="w-4 h-4" /> {t("common.edit")}
                   </button>
                 </div>
               </div>
@@ -218,8 +216,8 @@ export function PricingPolicies() {
               <ShieldAlert className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white">Quy Định Hệ Thống</h2>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Đọc từ SystemConfigs — chỉnh tại Cấu hình hệ thống (Admin)</p>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white">{t("pricing.sysRules")}</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t("pricing.sysRulesDesc")}</p>
             </div>
           </div>
           <Banknote className="w-5 h-5 text-gray-400" />
@@ -238,7 +236,7 @@ export function PricingPolicies() {
                 </div>
               </li>
             )) : (
-              <li className="text-gray-500 text-sm">Chưa có cấu hình quy định trong hệ thống.</li>
+              <li className="text-gray-500 text-sm">{t("pricing.noRules")}</li>
             )}
           </ul>
         </div>
@@ -249,7 +247,7 @@ export function PricingPolicies() {
           <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl w-full max-w-md p-6 shadow-xl">
             <div className="flex justify-between items-center mb-4">
               <h3 className="font-bold text-lg text-gray-900 dark:text-white">
-                {editing ? "Chỉnh sửa bảng giá" : "Thêm bảng giá"}
+                {editing ? t("pricing.editPolicy") : t("pricing.addPolicyModal")}
               </h3>
               <button onClick={() => { setEditing(null); setCreating(false); }} className="p-1 text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
@@ -257,7 +255,7 @@ export function PricingPolicies() {
             </div>
             <div className="space-y-3">
               <input
-                placeholder="Tên chính sách"
+                placeholder={t("pricing.policyName")}
                 value={form.policyName}
                 onChange={(e) => setForm({ ...form, policyName: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
@@ -274,10 +272,10 @@ export function PricingPolicies() {
                 </select>
               )}
               {[
-                { key: "pricePerHour" as const, label: "Giá / giờ" },
-                { key: "dailyMaxFee" as const, label: "Trần ngày" },
-                { key: "lostTicketFee" as const, label: "Phí mất vé" },
-                { key: "overtimeFee" as const, label: "Phí quá giờ" },
+                { key: "pricePerHour" as const, label: t("pricing.pricePerHour") },
+                { key: "dailyMaxFee" as const, label: t("pricing.dailyMax") },
+                { key: "lostTicketFee" as const, label: t("pricing.lostTicketFee") },
+                { key: "overtimeFee" as const, label: t("pricing.overtimeFee") },
               ].map((f) => (
                 <div key={f.key}>
                   <label className="text-xs text-gray-500">{f.label}</label>
@@ -294,8 +292,8 @@ export function PricingPolicies() {
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
               >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="Active">{ts("Active")}</option>
+                <option value="Inactive">{ts("Inactive")}</option>
               </select>
             </div>
             <button
@@ -304,7 +302,7 @@ export function PricingPolicies() {
               className="mt-4 w-full bg-blue-600 text-white py-2.5 rounded-xl font-bold disabled:opacity-60 flex justify-center gap-2"
             >
               {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-              Lưu
+              {t("common.save")}
             </button>
           </div>
         </div>

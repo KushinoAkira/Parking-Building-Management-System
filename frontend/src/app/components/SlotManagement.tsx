@@ -1,8 +1,11 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Car, Search, Filter, Info, AlertTriangle, CheckCircle, Clock } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiGet } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
+import { useRealtimeRefresh } from "../lib/RealtimeContext";
+import { RealtimeEventTypes } from "../lib/realtime";
 
 type SlotVm = {
   id: string;
@@ -15,13 +18,14 @@ type SlotVm = {
 type FloorVm = { id: number; name: string; slots: SlotVm[] };
 
 export function SlotManagement() {
+  const { t, formatDateTime, ts } = useLocale();
   const [floors, setFloors] = useState<FloorVm[]>([]);
   const [activeFloorId, setActiveFloorId] = useState<number | null>(null);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSlot, setSelectedSlot] = useState<SlotVm | null>(null);
 
-  useEffect(() => {
+  const loadFloors = useCallback(() => {
     const auth = getAuth();
     apiGet<Array<{ zoneId: number; zoneName: string; slots: Array<{ slotId: string; status: string; activeSession?: { licensePlate: string; entryTime: string } }> }>>("/api/portal/staff/floors", auth?.token)
       .then((data) => {
@@ -43,12 +47,24 @@ export function SlotManagement() {
           })),
         }));
         setFloors(mapped);
-        if (mapped.length > 0) setActiveFloorId(mapped[0].id);
+        if (mapped.length > 0) setActiveFloorId((prev) => prev ?? mapped[0].id);
       })
-      .catch(() => {
-        setFloors([]);
-      });
+      .catch(() => setFloors([]));
   }, []);
+
+  useEffect(() => {
+    loadFloors();
+  }, [loadFloors]);
+
+  useRealtimeRefresh(
+    [
+      RealtimeEventTypes.SlotUpdated,
+      RealtimeEventTypes.SessionCheckedIn,
+      RealtimeEventTypes.SessionCheckedOut,
+      RealtimeEventTypes.ReservationUpdated,
+    ],
+    loadFloors,
+  );
 
   const activeFloor = useMemo(
     () => floors.find((f) => f.id === activeFloorId) ?? floors[0],
@@ -58,7 +74,7 @@ export function SlotManagement() {
   if (!activeFloor) {
     return (
       <div className="p-6 bg-white dark:bg-[#1A1A1A] rounded-xl border border-gray-200 dark:border-gray-800">
-        Chưa có dữ liệu slot từ backend.
+        {t("slots.noData")}
       </div>
     );
   }
@@ -83,15 +99,15 @@ export function SlotManagement() {
         className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4"
       >
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản lý Slot Xe</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Giám sát và điều khiển các vị trí đỗ xe theo thời gian thực</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("slots.title")}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t("slots.subtitle")}</p>
         </div>
         <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
           <div className="relative flex-1 sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm biển số hoặc mã slot..."
+              placeholder={t("slots.searchPlaceholder")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-blue-600 focus:ring-1 focus:ring-blue-600 transition-colors"
@@ -103,7 +119,7 @@ export function SlotManagement() {
             className="flex items-center gap-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 px-4 py-2 rounded-xl text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
           >
             <Filter className="w-4 h-4" />
-            Bộ lọc
+            {t("common.filter")}
           </motion.button>
         </div>
       </motion.div>
@@ -142,7 +158,7 @@ export function SlotManagement() {
                 className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors relative z-10 ${filter === 'all' ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
               >
                 {filter === 'all' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm -z-10" />}
-                Tất cả ({activeFloor.slots.length})
+                {t("common.all")} ({activeFloor.slots.length})
               </button>
               <button
                 onClick={() => setFilter("free")}
@@ -150,7 +166,7 @@ export function SlotManagement() {
               >
                 {filter === 'free' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-blue-600/15 dark:bg-blue-600/20 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-blue-600" />
-                Trống ({activeFloor.slots.filter(s => s.status === 'free').length})
+                {t("common.free")} ({activeFloor.slots.filter(s => s.status === 'free').length})
               </button>
               <button
                 onClick={() => setFilter("occupied")}
@@ -158,7 +174,7 @@ export function SlotManagement() {
               >
                 {filter === 'occupied' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-red-50 dark:bg-red-500/15 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-red-500" />
-                Đang sử dụng ({activeFloor.slots.filter(s => s.status === 'occupied').length})
+                {t("common.occupied")} ({activeFloor.slots.filter(s => s.status === 'occupied').length})
               </button>
               <button
                 onClick={() => setFilter("reserved")}
@@ -166,7 +182,7 @@ export function SlotManagement() {
               >
                 {filter === 'reserved' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-amber-50 dark:bg-amber-500/15 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-amber-500" />
-                Reserved ({activeFloor.slots.filter(s => s.status === 'reserved').length})
+                {t("common.reserved")} ({activeFloor.slots.filter(s => s.status === 'reserved').length})
               </button>
               <button
                 onClick={() => setFilter("violation")}
@@ -174,7 +190,7 @@ export function SlotManagement() {
               >
                 {filter === 'violation' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-yellow-50 dark:bg-yellow-500/15 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                Vi phạm ({activeFloor.slots.filter(s => s.status === 'violation').length})
+                {t("common.violation")} ({activeFloor.slots.filter(s => s.status === 'violation').length})
               </button>
             </div>
           </div>
@@ -230,7 +246,7 @@ export function SlotManagement() {
                 className="flex flex-col items-center justify-center h-full text-gray-400 dark:text-gray-500 py-16"
               >
                 <Search className="w-12 h-12 mb-3 opacity-20" />
-                <p>Không tìm thấy slot nào phù hợp.</p>
+                <p>{t("slots.noResults")}</p>
               </motion.div>
             )}
           </div>
@@ -244,7 +260,7 @@ export function SlotManagement() {
         >
           <h2 className="text-base font-bold text-gray-900 dark:text-white border-b border-gray-100 dark:border-gray-800 pb-4 mb-4 flex items-center gap-2">
             <Info className="w-5 h-5 text-blue-600" />
-            Chi Tiết Slot
+            {t("slots.detailTitle")}
           </h2>
 
           <AnimatePresence mode="wait">
@@ -259,7 +275,7 @@ export function SlotManagement() {
                 <div className="flex justify-between items-start">
                   <div>
                     <div className="text-3xl font-bold text-gray-900 dark:text-white">{selectedSlot.name}</div>
-                    <div className="text-sm text-gray-400 dark:text-gray-500 mt-1">Mã: {selectedSlot.id}</div>
+                    <div className="text-sm text-gray-400 dark:text-gray-500 mt-1">{t("staff.code")}: {selectedSlot.id}</div>
                   </div>
                   <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${
                     selectedSlot.type === 'VIP' ? 'bg-yellow-50 dark:bg-yellow-500/15 text-yellow-600 dark:text-yellow-400' : 'bg-blue-50 dark:bg-blue-500/15 text-blue-600 dark:text-blue-400'
@@ -270,7 +286,7 @@ export function SlotManagement() {
 
                 <div className="bg-gray-50 dark:bg-[#121212] rounded-xl p-4 border border-gray-100 dark:border-gray-800 space-y-4">
                   <div className="flex justify-between items-center">
-                    <span className="text-gray-500 dark:text-gray-400 text-sm">Trạng thái</span>
+                    <span className="text-gray-500 dark:text-gray-400 text-sm">{t("common.status")}</span>
                     <div className={`flex items-center gap-1.5 text-sm font-bold ${
                       selectedSlot.status === 'occupied' ? 'text-red-500' :
                       selectedSlot.status === 'reserved' ? 'text-amber-600 dark:text-amber-500' :
@@ -279,28 +295,28 @@ export function SlotManagement() {
                     }`}>
                       {selectedSlot.status === 'free' ? <CheckCircle className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
                       {selectedSlot.status === 'occupied'
-                        ? 'Đang sử dụng'
+                        ? t("common.occupied")
                         : selectedSlot.status === 'reserved'
-                          ? 'Reserved'
+                          ? t("common.reserved")
                           : selectedSlot.status === 'violation'
-                            ? 'Vi phạm'
-                            : 'Có sẵn'}
+                            ? t("common.violation")
+                            : ts("Available")}
                     </div>
                   </div>
 
                   {selectedSlot.status !== 'free' && (
                     <>
                       <div className="pt-3 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400 text-sm">Biển số xe</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm">{t("common.plate")}</span>
                         <span className="text-gray-900 dark:text-white font-mono font-bold bg-gray-200 dark:bg-gray-800 px-2 py-1 rounded-lg text-sm">
                           {selectedSlot.plate}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-gray-500 dark:text-gray-400 text-sm">Giờ vào</span>
+                        <span className="text-gray-500 dark:text-gray-400 text-sm">{t("slots.checkInLabel")}</span>
                         <span className="text-gray-700 dark:text-gray-300 text-sm flex items-center gap-1.5">
                           <Clock className="w-4 h-4 text-gray-400" />
-                          {selectedSlot.checkIn}
+                          {formatDateTime(selectedSlot.checkIn)}
                         </span>
                       </div>
                     </>
@@ -311,20 +327,20 @@ export function SlotManagement() {
                   {selectedSlot.status !== 'free' ? (
                     <>
                       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full border-2 border-red-200 dark:border-red-500/30 text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 font-bold py-2.5 rounded-xl transition-colors text-sm">
-                        Ghi nhận Check-out
+                        {t("slots.checkoutRecord")}
                       </motion.button>
                       {selectedSlot.status === 'violation' && (
                         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full bg-yellow-50 dark:bg-yellow-500/10 text-yellow-700 dark:text-yellow-500 hover:bg-yellow-100 dark:hover:bg-yellow-500/20 font-bold py-2.5 rounded-xl transition-colors text-sm border border-yellow-200 dark:border-yellow-500/30">
-                          Xử lý vi phạm
+                          {t("slots.handleViolation")}
                         </motion.button>
                       )}
                       <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700 font-medium py-2.5 rounded-xl transition-colors text-sm">
-                        Xem lịch sử vị trí
+                        {t("slots.viewHistory")}
                       </motion.button>
                     </>
                   ) : (
                     <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }} className="w-full bg-blue-600 text-white hover:bg-blue-600/90 font-bold py-2.5 rounded-xl transition-colors text-sm shadow-md shadow-blue-600/20">
-                      Khóa Slot / Bảo trì
+                      {t("slots.lockSlot")}
                     </motion.button>
                   )}
                 </div>
@@ -340,7 +356,7 @@ export function SlotManagement() {
                 <div className="w-16 h-16 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center">
                   <Car className="w-8 h-8 opacity-40" />
                 </div>
-                <p className="text-sm">Chọn một vị trí trên bản đồ<br/>để xem chi tiết</p>
+                <p className="text-sm">{t("slots.selectPrompt")}</p>
               </motion.div>
             )}
           </AnimatePresence>

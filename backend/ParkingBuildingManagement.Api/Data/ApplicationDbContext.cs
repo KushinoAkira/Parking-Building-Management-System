@@ -19,6 +19,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<Feedback> Feedbacks => Set<Feedback>();
     public DbSet<ReportSnapshot> ReportSnapshots => Set<ReportSnapshot>();
     public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
+    public DbSet<WalletTopUp> WalletTopUps => Set<WalletTopUp>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -28,6 +29,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         ConfigureOperations(modelBuilder);
         ConfigureFeedbackAndReports(modelBuilder);
         ConfigureSystem(modelBuilder);
+        ConfigureWallet(modelBuilder);
         SeedReferenceData(modelBuilder);
     }
 
@@ -53,7 +55,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Phone).HasMaxLength(20);
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Active");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.Property(e => e.WalletBalance).HasColumnType("decimal(12,2)").HasDefaultValue(0m);
             entity.HasIndex(e => e.Email).IsUnique();
             entity.HasOne(e => e.Role)
                 .WithMany(r => r.Users)
@@ -131,7 +134,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.LostTicketFee).HasColumnType("decimal(12,2)").HasDefaultValue(0m);
             entity.Property(e => e.OvertimeFee).HasColumnType("decimal(12,2)").HasDefaultValue(0m);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Active");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasOne(e => e.VehicleType)
                 .WithMany(v => v.PricingPolicies)
                 .HasForeignKey(e => e.VehicleTypeId)
@@ -149,7 +152,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.SlotId).HasColumnName("SlotID").HasMaxLength(20);
             entity.Property(e => e.LicensePlate).HasMaxLength(20);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasOne(e => e.User)
                 .WithMany(u => u.Reservations)
                 .HasForeignKey(e => e.UserId)
@@ -183,7 +186,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.ZoneId).HasColumnName("ZoneID");
             entity.Property(e => e.SlotId).HasColumnName("SlotID").HasMaxLength(20);
             entity.Property(e => e.LicensePlate).HasMaxLength(20).IsRequired();
-            entity.Property(e => e.EntryTime).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.EntryTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.EntryGate).HasMaxLength(50);
             entity.Property(e => e.ExitGate).HasMaxLength(50);
             entity.Property(e => e.EstimatedFee).HasColumnType("decimal(12,2)");
@@ -235,7 +238,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.SessionId).HasColumnName("SessionID");
             entity.Property(e => e.Amount).HasColumnType("decimal(12,2)");
             entity.Property(e => e.PaymentMethod).HasMaxLength(30).IsRequired();
-            entity.Property(e => e.PaymentTime).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.PaymentTime).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Completed");
             entity.HasOne(e => e.Session)
                 .WithMany(s => s.Payments)
@@ -254,7 +257,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Description).HasMaxLength(1000);
             entity.Property(e => e.PenaltyFee).HasColumnType("decimal(12,2)").HasDefaultValue(0m);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Open");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasOne(e => e.Session)
                 .WithMany(s => s.Incidents)
                 .HasForeignKey(e => e.SessionId)
@@ -278,7 +281,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.FeedbackType).HasMaxLength(50).IsRequired();
             entity.Property(e => e.Content).HasMaxLength(1000);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("New");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasOne(e => e.User)
                 .WithMany(u => u.Feedbacks)
                 .HasForeignKey(e => e.UserId)
@@ -297,7 +300,7 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.VehicleTypeId).HasColumnName("VehicleTypeID");
             entity.Property(e => e.TotalRevenue).HasColumnType("decimal(14,2)").HasDefaultValue(0m);
             entity.Property(e => e.OccupancyRate).HasColumnType("decimal(5,2)");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("GETDATE()");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => new { e.ReportDate, e.VehicleTypeId }).IsUnique();
             entity.HasOne(e => e.VehicleType)
                 .WithMany(v => v.ReportSnapshots)
@@ -318,6 +321,29 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         });
     }
 
+    private static void ConfigureWallet(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<WalletTopUp>(entity =>
+        {
+            entity.ToTable("WalletTopUps");
+            entity.HasKey(e => e.TopUpId);
+            entity.Property(e => e.TopUpId).HasColumnName("TopUpID");
+            entity.Property(e => e.UserId).HasColumnName("UserID");
+            entity.Property(e => e.Amount).HasColumnType("decimal(12,2)").IsRequired();
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
+            entity.Property(e => e.PayOsOrderCode).IsRequired();
+            entity.Property(e => e.CheckoutUrl).HasMaxLength(500);
+            entity.Property(e => e.QrCode).HasMaxLength(2000);
+            entity.Property(e => e.PaymentLinkId).HasMaxLength(100);
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => e.PayOsOrderCode).IsUnique();
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.WalletTopUps)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
     private static void SeedReferenceData(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<Role>().HasData(
@@ -329,6 +355,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
         modelBuilder.Entity<VehicleType>().HasData(
             new VehicleType { VehicleTypeId = 1, TypeCode = "MOTORBIKE", TypeName = "Motorbike", Status = "Active" },
             new VehicleType { VehicleTypeId = 2, TypeCode = "CAR", TypeName = "Car", Status = "Active" },
-            new VehicleType { VehicleTypeId = 3, TypeCode = "EV", TypeName = "Electric Vehicle", Status = "Active" });
+            new VehicleType { VehicleTypeId = 3, TypeCode = "EV", TypeName = "Electric Vehicle", Status = "Active" },
+            new VehicleType { VehicleTypeId = 4, TypeCode = "EV_MOTORBIKE", TypeName = "Electric Motorbike", Status = "Active" },
+            new VehicleType { VehicleTypeId = 5, TypeCode = "EV_CAR", TypeName = "Electric Car", Status = "Active" });
     }
 }

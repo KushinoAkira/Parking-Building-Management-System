@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
+using ParkingBuildingManagement.Api.Services;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/portal")]
-public class PortalController(ApplicationDbContext db) : ControllerBase
+public class PortalController(ApplicationDbContext db, IWalletService wallet) : ControllerBase
 {
     [HttpGet("staff/overview")]
     [Authorize(Roles = RoleNames.StaffOrAbove)]
@@ -197,7 +198,7 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
 
         return Ok(new
         {
-            user = new { user.UserId, user.FullName, user.Email, user.Phone },
+            user = new { user.UserId, user.FullName, user.Email, user.Phone, walletBalance = user.WalletBalance },
             activeSession,
             slots = slotsSummary ?? new { total = 0, available = 0, occupied = 0, reserved = 0 },
         });
@@ -234,26 +235,7 @@ public class PortalController(ApplicationDbContext db) : ControllerBase
     public async Task<IActionResult> GetDriverTransactions(int userId, CancellationToken ct)
     {
         if (!User.CanAccessUserData(userId)) return Forbid();
-
-        var transactions = await db.Payments
-            .AsNoTracking()
-            .Where(p => p.Session.UserId == userId)
-            .OrderByDescending(p => p.PaymentTime)
-            .Take(100)
-            .Select(p => new
-            {
-                p.PaymentId,
-                p.SessionId,
-                p.Session.TicketCode,
-                p.Session.LicensePlate,
-                p.Amount,
-                p.PaymentMethod,
-                p.PaymentTime,
-                p.Status,
-            })
-            .ToListAsync(ct);
-
-        return Ok(transactions);
+        return Ok(await wallet.GetDriverTransactionsAsync(userId, ct));
     }
 
     [HttpGet("manager/dashboard")]
