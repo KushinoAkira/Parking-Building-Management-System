@@ -133,4 +133,4 @@ Workflow đã cấu hình sẵn cho `main` và `dev`; push/PR vào hai nhánh n�
 ## Ghi chú bảo mật
 
 - Không commit `.env`, mật khẩu SQL thật, hay `appsettings.Local.json`
-- Dùng `appsettings.example.json` và placeholder trong repo
+- Dùng `appsettings.example.json` và placeholder trong  repo
