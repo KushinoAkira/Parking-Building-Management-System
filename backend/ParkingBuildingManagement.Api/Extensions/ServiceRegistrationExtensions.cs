@@ -28,7 +28,7 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
-    public static IServiceCollection AddPbmsCoreServices(this IServiceCollection services)
+    public static IServiceCollection AddPbmsCoreServices(this IServiceCollection services, bool isTesting = false)
     {
         services.AddScoped<IParkingRealtimeNotifier, ParkingRealtimeNotifier>();
         services.AddScoped<IAuthService, AuthService>();
@@ -38,6 +38,10 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IReservationService, ReservationService>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IWalletService, WalletService>();
+
+        if (!isTesting)
+            services.AddHostedService<ReservationExpiryHostedService>();
+
         return services;
     }
 

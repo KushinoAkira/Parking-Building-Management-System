@@ -53,7 +53,7 @@ public class ParkingSessionService(
             throw new BusinessException($"Slot '{slot.SlotId}' is not available.");
 
         ParkingSession? session = null;
-        await ExecuteInTransactionAsync(async () =>
+        await db.ExecuteInTransactionAsync(async () =>
         {
             session = new ParkingSession
             {
@@ -114,7 +114,7 @@ public class ParkingSessionService(
         totalFee += penaltyFee;
 
         Payment? payment = null;
-        await ExecuteInTransactionAsync(async () =>
+        await db.ExecuteInTransactionAsync(async () =>
         {
             if (request.PaymentMethod == "EWallet")
             {
@@ -202,21 +202,4 @@ public class ParkingSessionService(
             s.EntryStaffId,
             s.ExitStaffId,
             s.Note);
-
-    private async Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken ct)
-    {
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
-        {
-            await action();
-            if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
-    }
 }

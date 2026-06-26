@@ -11,6 +11,7 @@ public interface IReservationService
     Task<ReservationDto> CreateAsync(CreateReservationRequest request, CancellationToken ct);
     Task<ReservationDto> ConfirmAsync(int reservationId, CancellationToken ct);
     Task<ReservationDto> CancelAsync(int reservationId, CancellationToken ct);
+    Task<int> ExpireOverdueAsync(CancellationToken ct);
 }
 
 public class ReservationService(
@@ -65,7 +66,7 @@ public class ReservationService(
         if (reservation.Status != "Pending")
             throw new BusinessException($"Only pending reservations can be confirmed (status: {reservation.Status}).");
 
-        await ExecuteInTransactionAsync(async () =>
+        await db.ExecuteInTransactionAsync(async () =>
         {
             if (string.IsNullOrWhiteSpace(reservation.SlotId))
             {
@@ -102,7 +103,7 @@ public class ReservationService(
         if (reservation.Status is "CheckedIn" or "Cancelled" or "Expired")
             throw new BusinessException($"Reservation cannot be cancelled (status: {reservation.Status}).");
 
-        await ExecuteInTransactionAsync(async () =>
+        await db.ExecuteInTransactionAsync(async () =>
         {
             if (reservation.Slot is not null && reservation.Slot.Status == "Reserved")
                 reservation.Slot.Status = "Available";
@@ -114,6 +115,38 @@ public class ReservationService(
         return await MapAsync(reservationId, ct) is { } cancelled
             ? await NotifyAsync(cancelled, "cancelled", ct)
             : throw new BusinessException("Failed to load reservation.", 500);
+    }
+
+    public async Task<int> ExpireOverdueAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var overdue = await db.Reservations
+            .Include(r => r.Slot)
+            .Where(r => r.Status == "Confirmed" && r.ReservedTo < now)
+            .ToListAsync(ct);
+
+        if (overdue.Count == 0)
+            return 0;
+
+        await db.ExecuteInTransactionAsync(async () =>
+        {
+            foreach (var reservation in overdue)
+            {
+                if (reservation.Slot?.Status == SlotStatuses.Reserved)
+                    reservation.Slot.Status = SlotStatuses.Available;
+                reservation.Status = "Expired";
+            }
+
+            await db.SaveChangesAsync(ct);
+        }, ct);
+
+        foreach (var reservation in overdue)
+        {
+            if (await MapAsync(reservation.ReservationId, ct) is { } dto)
+                await NotifyAsync(dto, "expired", ct);
+        }
+
+        return overdue.Count;
     }
 
     private async Task<ReservationDto> NotifyAsync(ReservationDto dto, string action, CancellationToken ct)
@@ -141,21 +174,4 @@ public class ReservationService(
                 r.Status,
                 r.CreatedAt))
             .FirstOrDefaultAsync(ct);
-
-    private async Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken ct)
-    {
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
-        {
-            await action();
-            if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
-    }
 }

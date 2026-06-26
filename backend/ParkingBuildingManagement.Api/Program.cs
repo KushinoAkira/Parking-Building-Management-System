@@ -9,7 +9,7 @@ var isTesting = builder.Environment.IsEnvironment("Testing");
 
 builder.Services
     .AddPbmsData(builder.Configuration, isTesting)
-    .AddPbmsCoreServices()
+    .AddPbmsCoreServices(isTesting)
     .AddPbmsPayments(builder.Configuration, builder.Environment, isTesting)
     .AddPbmsOcr(builder.Configuration, isTesting)
     .AddPbmsAuth(builder.Configuration, builder.Environment, isTesting)
