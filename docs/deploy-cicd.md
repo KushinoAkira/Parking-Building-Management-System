@@ -45,9 +45,17 @@ Migration DB chạy tự động khi API khởi động (`DatabaseSeeder.Migrate
 
 Nếu Railway đã connect GitHub repo: redeploy sau mỗi merge vào `main`.
 
-**Settings service API (bắt buộc):**
-- Root Directory: `backend/ParkingBuildingManagement.Api`
-- Builder: **Dockerfile** (file `Dockerfile` trong thư mục trên)
+**Settings service API (bắt buộc nếu không dùng Dockerfile ở root repo):**
+
+1. Vào **Project** trên Railway (canvas có các ô service).
+2. **Click vào ô service API** (không phải Project Settings ở góc trên).
+3. Tab **Settings** của service đó.
+4. Mục **Source** (hoặc **Service Source**) → **Root Directory** = `backend/ParkingBuildingManagement.Api`
+5. Bấm **Deploy** / Save rồi redeploy.
+
+> Nếu không thấy **Source** / **Root Directory**: service có thể chưa connect GitHub repo, hoặc UI mới đặt trong **Source Repo** khi click service. Cách không cần setting: merge PR có `Dockerfile` + `railway.json` ở **root repo** (xem nhánh `fix/railway-monorepo-root`).
+
+- Builder: **Dockerfile**
 
 **Variables bắt buộc:**
 
@@ -80,4 +88,4 @@ GitHub → **Actions** → **Deploy** → **Run workflow** → branch `main`.
 | Railway `Not signed in` | Kiểm tra `RAILWAY_SERVICE_NAME` đúng tên friendly trên dashboard |
 | Firebase auth fail | JSON service account đầy đủ; bật Firebase Hosting API |
 | Frontend gọi sai API | Kiểm tra `VITE_API_BASE_URL` variable trước khi build |
-| CORS lỗi sau deploy | Thêm domain Firebase vào `Cors__AllowedOrigins__*` trên Railway |
+| Railway Railpack "could not determine how to build" | Service đang build từ **root monorepo** thay vì thư mục API. Đặt **Root Directory** = `backend/ParkingBuildingManagement.Api` **hoặc** dùng `Dockerfile` + `railway.toml` ở root repo (sau merge fix monorepo). |
