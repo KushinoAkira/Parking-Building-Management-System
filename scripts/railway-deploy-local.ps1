@@ -18,6 +18,7 @@ if ($LASTEXITCODE -ne 0) {
 
 Write-Host "=== Bien bat buoc tren Railway (Variables) ===" -ForegroundColor Cyan
 Write-Host @"
+RAILWAY_DOCKERFILE_PATH = Dockerfile
 DATABASE_URL           = `${{Postgres.DATABASE_URL}}
 JWT signing secret     = (>= 32 chars, Railway variable Jwt__Secret)
 ASPNETCORE_ENVIRONMENT = Production
