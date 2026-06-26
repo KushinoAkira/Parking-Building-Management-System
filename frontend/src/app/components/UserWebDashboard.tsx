@@ -17,6 +17,7 @@ import {
 } from "../lib/bookZones";
 import { toDriverErrorMessage } from "../lib/driverErrors";
 import { driverRealtimeRefreshEvents } from "../lib/driverRealtime";
+import { createAndConfirmReservation } from "../lib/bookReservation";
 
 type ReservationRow = {
   reservationId: number;
@@ -190,8 +191,7 @@ export function UserWebDashboard() {
     }
     setMessage("");
     try {
-      const created = await apiPost<{ reservationId: number }>(
-        "/api/reservations",
+      await createAndConfirmReservation(
         {
           userId,
           vehicleTypeId: bookVehicleTypeId,
@@ -203,7 +203,6 @@ export function UserWebDashboard() {
         },
         authToken,
       );
-      await apiPost(`/api/reservations/${created.reservationId}/confirm`, {}, authToken);
       setMessage(t("driver.bookSuccess"));
       await loadAllRef.current({ quiet: true });
     } catch (e) {

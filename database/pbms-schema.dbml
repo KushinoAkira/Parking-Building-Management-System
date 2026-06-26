@@ -16,6 +16,7 @@ Table Users {
   Phone        varchar(20)
   RoleID       int          [not null, ref: > Roles.RoleID]
   Status       varchar(20)  [not null, default: 'Active', note: 'Active | Locked']
+  WalletBalance decimal(14,2) [not null, default: 0]
   CreatedAt    datetime     [not null, default: `GETDATE()`]
 }
 
@@ -127,6 +128,24 @@ Table Payments {
   PaymentTime   datetime      [not null, default: `GETDATE()`]
   Status        varchar(20)   [not null, default: 'Completed',
                                note: 'Pending | Completed | Refunded | Failed']
+}
+
+Table WalletTopUps {
+  TopUpID        int           [pk, increment]
+  UserID         int           [not null, ref: > Users.UserID]
+  Amount         decimal(12,2) [not null]
+  Status         varchar(20)   [not null, default: 'Pending', note: 'Pending | Completed | Failed']
+  PayOsOrderCode bigint        [not null, unique]
+  CheckoutUrl    varchar(500)
+  QrCode         text
+  PaymentLinkId  varchar(100)
+  CreatedAt      datetime      [not null, default: `GETDATE()`]
+  CompletedAt    datetime
+
+  indexes {
+    PayOsOrderCode [name: 'IX_WalletTopUp_PayOsOrderCode']
+    (UserID, Status) [name: 'IX_WalletTopUp_User_Status']
+  }
 }
 
 // ── Group: Exception Handling ───────────────────────────────

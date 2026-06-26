@@ -9,6 +9,8 @@ import { getAuth, saveAuth, getRoleHomePath, type AuthPayload } from "../lib/aut
 import { startRealtimeConnection } from "../lib/realtime";
 import { useLocale } from "../lib/i18n/LocaleContext";
 
+const SHOW_DEMO_ACCOUNTS = import.meta.env.DEV;
+
 const DEMO_ACCOUNTS = [
   {
     labelKey: "auth.demoAdmin",
@@ -514,7 +516,7 @@ export function Login() {
             </form>
 
             <AnimatePresence>
-              {isLogin && (
+              {isLogin && SHOW_DEMO_ACCOUNTS && (
                 <motion.div
                   initial={{ opacity: 0, height: 0, marginTop: 0 }}
                   animate={{ opacity: 1, height: "auto", marginTop: 8 }}

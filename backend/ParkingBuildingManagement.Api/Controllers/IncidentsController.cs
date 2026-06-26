@@ -69,10 +69,13 @@ public class IncidentsController(
     [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> Create([FromBody] CreateIncidentRequest request, CancellationToken ct)
     {
+        var reporterId = User.GetUserId()
+            ?? throw new BusinessException("Unauthorized.", 401);
+
         var incident = new Incident
         {
             SessionId = request.SessionId,
-            ReportedById = request.ReportedById ?? User.GetUserId(),
+            ReportedById = reporterId,
             IncidentType = request.IncidentType,
             Description = request.Description,
             PenaltyFee = request.PenaltyFee,
@@ -145,7 +148,6 @@ public class IncidentsController(
 
 public record CreateIncidentRequest(
     int? SessionId,
-    int? ReportedById,
     string IncidentType,
     string? Description,
     decimal PenaltyFee = 0m);

@@ -19,6 +19,7 @@ import {
 } from "../lib/bookZones";
 import { toDriverErrorMessage } from "../lib/driverErrors";
 import { mobileDriverRealtimeRefreshEvents } from "../lib/driverRealtime";
+import { createAndConfirmReservation } from "../lib/bookReservation";
 
 const TX_FILTERS = ["all", "topup", "payment", "refund"] as const;
 type TxFilter = (typeof TX_FILTERS)[number];
@@ -250,8 +251,7 @@ export function UserMobileHome() {
       from.setHours(from.getHours() + 1);
       const to = new Date(from);
       to.setHours(to.getHours() + 2);
-      const created = await apiPost<{ reservationId: number }>(
-        "/api/reservations",
+      await createAndConfirmReservation(
         {
           userId,
           vehicleTypeId: bookVehicleTypeId,
@@ -263,7 +263,6 @@ export function UserMobileHome() {
         },
         authToken,
       );
-      await apiPost(`/api/reservations/${created.reservationId}/confirm`, {}, authToken);
       setBookMessage(t("driver.bookSuccessExtended"));
       await loadDataRef.current({ quiet: true });
     } catch (e) {

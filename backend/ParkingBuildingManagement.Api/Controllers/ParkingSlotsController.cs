@@ -104,6 +104,9 @@ public class ParkingSlotsController(ApplicationDbContext db) : ControllerBase
         var slot = await db.ParkingSlots.FirstOrDefaultAsync(s => s.SlotId == slotId, ct)
             ?? throw new BusinessException("Slot not found.", 404);
 
+        if (!SlotStatuses.IsStaffSettable(request.Status))
+            throw new BusinessException($"Invalid slot status '{request.Status}'.");
+
         slot.Status = request.Status;
         slot.Note = request.Note ?? slot.Note;
         await db.SaveChangesAsync(ct);
