@@ -15,6 +15,7 @@ import { preloadOcrWorker, terminateOcrWorker, normalizePlateDisplay } from "../
 import { useRealtimeRefresh } from "../lib/RealtimeContext";
 import { RealtimeEventTypes } from "../lib/realtime";
 import { useLocale } from "../lib/i18n/LocaleContext";
+import { bookableVehicleTypes, type BookVehicleType } from "../lib/bookZones";
 
 type Tab = "control" | "violations" | "history" | "reservations";
 
@@ -56,7 +57,7 @@ const INCIDENT_TYPES = ["WrongZone", "SlotOccupied", "WrongPlate", "Overstay", "
 
 export function StaffDashboard() {
   const navigate = useNavigate();
-  const { t, formatMoney, formatDateTime, ts, tp } = useLocale();
+  const { t, formatMoney, formatDateTime, ts, tp, tv } = useLocale();
   const [activeTab, setActiveTab] = useState<Tab>("control");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [plate, setPlate] = useState("");
@@ -70,9 +71,11 @@ export function StaffDashboard() {
   const [history, setHistory] = useState<SessionHistory[]>([]);
   const [historyFilter, setHistoryFilter] = useState("");
   
-  const [vehicleTypes, setVehicleTypes] = useState<{vehicleTypeId: number, typeName: string}[]>([]);
+  const [vehicleTypes, setVehicleTypes] = useState<BookVehicleType[]>([]);
   const [selectedVehicleType, setSelectedVehicleType] = useState<number | "">("");
   const [selectedGate, setSelectedGate] = useState<string>("Gate-A");
+
+  const staffVehicleTypes = bookableVehicleTypes(vehicleTypes);
   
   const [vPlate, setVPlate] = useState("");
   const [vType, setVType] = useState("WrongZone");
@@ -112,12 +115,13 @@ export function StaffDashboard() {
   }
 
   async function loadVehicleTypes() {
-    try {
-      const data = await apiGet<{vehicleTypeId: number, typeName: string}[]>("/api/vehicle-types", authToken);
-      setVehicleTypes(data);
-      if (data.length > 0) setSelectedVehicleType(data[0].vehicleTypeId);
-    } catch {
-      // Ignore
+    const data = await apiGet<BookVehicleType[]>("/api/vehicle-types?status=Active", authToken);
+    setVehicleTypes(data);
+    const bookable = bookableVehicleTypes(data);
+    if (bookable.length > 0) {
+      setSelectedVehicleType((prev) =>
+        bookable.some((v) => v.vehicleTypeId === prev) ? prev : bookable[0].vehicleTypeId,
+      );
     }
   }
 
@@ -252,7 +256,11 @@ export function StaffDashboard() {
   }
 
   async function checkInReservation(r: StaffReservation) {
-    const vt = vehicleTypes.find((v) => v.typeName.toLowerCase().includes(r.vehicleType.toLowerCase()));
+    const vt = staffVehicleTypes.find(
+      (v) =>
+        v.typeCode.toLowerCase() === r.vehicleType.toLowerCase() ||
+        v.typeName.toLowerCase() === r.vehicleType.toLowerCase(),
+    );
     await processPlate(r.licensePlate, {
       reservationId: r.reservationId,
       vehicleTypeId: vt?.vehicleTypeId ?? Number(selectedVehicleType),
@@ -392,8 +400,8 @@ export function StaffDashboard() {
                       required
                     >
                       <option value="" disabled>{t("staff.selectVehicle")}</option>
-                      {vehicleTypes.map((v) => (
-                        <option key={v.vehicleTypeId} value={v.vehicleTypeId}>{v.typeName}</option>
+                      {staffVehicleTypes.map((v) => (
+                        <option key={v.vehicleTypeId} value={v.vehicleTypeId}>{tv(v.typeCode)}</option>
                       ))}
                     </select>
                     <select
