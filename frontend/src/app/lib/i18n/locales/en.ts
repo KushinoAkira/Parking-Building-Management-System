@@ -238,6 +238,7 @@ export const en = {
     handleViolation: "Handle violation",
     viewHistory: "View slot history",
     lockSlot: "Lock slot / Maintenance",
+    evZone: "EV",
   },
   dashboard: {
     title: "Overview",
@@ -561,6 +562,8 @@ export const en = {
     parkingNow: "PARKED",
     addVehicle: "Add vehicle",
     bookPlate: "License plate",
+    preferVipSlot: "VIP slot (near exit)",
+    vipSurchargeNote: "VIP surcharge: +{fee} (added to parking fee at check-out)",
     bookSuccessExtended: "Booking successful! Slot reserved.",
     bookPlateRequired: "Please enter license plate.",
     freeCount: "{count} free",

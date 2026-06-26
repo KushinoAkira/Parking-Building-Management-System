@@ -41,3 +41,8 @@ build/
 # Cursor local config and security rules (local only, never push)
 .cursor/
 cursor-pre-push-security-rules.mdc
+
+# Generated SWP391 exports (local; keep committed deliverables)
+docs/PBMS_*.docx
+docs/PBMS_*.pdf
+!docs/PBMS_Basic_CRUD_Master_Data_Setup.docx

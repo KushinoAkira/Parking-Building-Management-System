@@ -27,6 +27,9 @@ type ReservationRow = {
   reservedFrom: string;
   reservedTo: string;
   status: string;
+  preferVipSlot?: boolean;
+  vipSurcharge?: number | null;
+  isVipSlot?: boolean;
 };
 
 const PAYMENT_METHODS = ["Cash", "BankTransfer", "EWallet"] as const;
@@ -58,6 +61,8 @@ export function UserWebDashboard() {
   const [bookPlate, setBookPlate] = useState("");
   const [bookVehicleTypeId, setBookVehicleTypeId] = useState(1);
   const [bookZoneId, setBookZoneId] = useState<number | "">("");
+  const [bookPreferVip, setBookPreferVip] = useState(false);
+  const [vipSurchargeAmount, setVipSurchargeAmount] = useState(10_000);
   const [bookFrom, setBookFrom] = useState("");
   const [bookTo, setBookTo] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<(typeof PAYMENT_METHODS)[number]>("EWallet");
@@ -101,18 +106,22 @@ export function UserWebDashboard() {
       }
       return;
     }
-    const [ticketsRes, txRes, vtRes, zonesRes, resRes] = await Promise.allSettled([
+    const [ticketsRes, txRes, vtRes, zonesRes, resRes, vipRes] = await Promise.allSettled([
       apiGet(`/api/portal/driver/${userId}/tickets`, authToken),
       apiGet(`/api/portal/driver/${userId}/transactions`, authToken),
       apiGet("/api/vehicle-types", authToken),
       apiGet("/api/zones?status=Active", authToken),
       apiGet<ReservationRow[]>(`/api/reservations?userId=${userId}`, authToken),
+      apiGet<{ amount: number }>("/api/reservations/vip-surcharge", authToken),
     ]);
     if (ticketsRes.status === "fulfilled") setTickets(ticketsRes.value as any[]);
     if (txRes.status === "fulfilled") setTransactions(txRes.value as DriverTransaction[]);
     if (vtRes.status === "fulfilled") setVehicleTypes(vtRes.value as BookVehicleType[]);
     if (zonesRes.status === "fulfilled") setZones(zonesRes.value as BookZone[]);
     if (resRes.status === "fulfilled") setReservations(resRes.value);
+    if (vipRes.status === "fulfilled" && typeof vipRes.value?.amount === "number") {
+      setVipSurchargeAmount(vipRes.value.amount);
+    }
   }, [authToken, userId, t]);
 
   const loadAllRef = useRef(loadAll);
@@ -200,6 +209,7 @@ export function UserWebDashboard() {
           licensePlate: bookPlate.trim(),
           reservedFrom: new Date(bookFrom).toISOString(),
           reservedTo: new Date(bookTo).toISOString(),
+          preferVipSlot: bookPreferVip,
         },
         authToken,
       );
@@ -452,6 +462,22 @@ export function UserWebDashboard() {
             {bookingZones.length === 0 && (
               <p className="text-xs text-amber-600">{t("driver.noZonesForVehicle")}</p>
             )}
+            <label className="flex items-start gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={bookPreferVip}
+                onChange={(e) => setBookPreferVip(e.target.checked)}
+                className="mt-0.5 rounded border-gray-300"
+              />
+              <span>
+                <span className="font-medium">{t("driver.preferVipSlot")}</span>
+                {bookPreferVip && (
+                  <span className="block text-xs text-amber-600 mt-0.5">
+                    {t("driver.vipSurchargeNote", { fee: formatMoney(vipSurchargeAmount) })}
+                  </span>
+                )}
+              </span>
+            </label>
             <label className="text-xs text-gray-500">{t("driver.from")}</label>
             <input
               type="datetime-local"
@@ -491,7 +517,15 @@ export function UserWebDashboard() {
                   {reservations.map((r) => (
                     <tr key={r.reservationId} className="border-b border-gray-100 dark:border-gray-900">
                       <td className="py-2 font-mono">{r.licensePlate}</td>
-                      <td className="py-2">{r.zoneCode ?? t("driver.autoZone")} {r.slotId ? `- ${r.slotId}` : ""}</td>
+                      <td className="py-2">
+                        {r.zoneCode ?? t("driver.autoZone")} {r.slotId ? `- ${r.slotId}` : ""}
+                        {(r.isVipSlot || r.preferVipSlot) && (
+                          <span className="ml-1 text-xs font-semibold text-amber-600">VIP</span>
+                        )}
+                        {r.vipSurcharge != null && r.vipSurcharge > 0 && (
+                          <span className="block text-xs text-gray-500">+{formatMoney(r.vipSurcharge)}</span>
+                        )}
+                      </td>
                       <td className="py-2">{formatDateTime(r.reservedFrom)}</td>
                       <td className="py-2">{formatDateTime(r.reservedTo)}</td>
                       <td className="py-2">{ts(r.status)}</td>

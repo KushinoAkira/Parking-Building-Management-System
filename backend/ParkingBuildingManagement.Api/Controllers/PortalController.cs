@@ -35,29 +35,61 @@ public class PortalController(ApplicationDbContext db, IWalletService wallet) : 
     [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetStaffFloors(CancellationToken ct)
     {
-        var floors = await db.ParkingZones
+        var zones = await db.ParkingZones
             .AsNoTracking()
             .Include(z => z.VehicleType)
-            .OrderBy(z => z.ZoneCode)
+            .Include(z => z.ParkingSlots)
+            .ThenInclude(s => s.ParkingSessions)
+            .Where(z => z.Status == "Active")
+            .ToListAsync(ct);
+
+        var floors = zones
             .Select(z => new
             {
-                zoneId = z.ZoneId,
-                zoneCode = z.ZoneCode,
-                zoneName = z.ZoneName,
-                vehicleType = z.VehicleType.TypeCode,
-                capacity = z.Capacity,
-                slots = z.ParkingSlots.OrderBy(s => s.SlotId).Select(s => new
-                {
-                    slotId = s.SlotId,
-                    status = s.Status,
-                    note = s.Note,
-                    activeSession = s.ParkingSessions
-                        .Where(ps => ps.Status == "Active")
-                        .Select(ps => new { ps.SessionId, ps.LicensePlate, ps.EntryTime, ps.TicketCode })
-                        .FirstOrDefault(),
-                }),
+                zone = z,
+                floorNumber = ParkingFloorCatalog.GetFloorNumber(z.ZoneCode),
+                sortOrder = ParkingFloorCatalog.GetSortOrder(z.ZoneCode),
             })
-            .ToListAsync(ct);
+            .Where(x => x.floorNumber.HasValue)
+            .GroupBy(x => x.floorNumber!.Value)
+            .OrderBy(g => g.Key)
+            .Select(g =>
+            {
+                var template = ParkingFloorCatalog.Zones.First(t => t.FloorNumber == g.Key);
+                return new
+                {
+                    floorId = g.Key,
+                    floorName = template.FloorLabel,
+                    floorCapacity = ParkingFloorCatalog.FloorCapacity(g.Key),
+                    sections = g.OrderBy(x => x.sortOrder).Select(x => new
+                    {
+                        zoneId = x.zone.ZoneId,
+                        zoneCode = x.zone.ZoneCode,
+                        sectionName = ParkingFloorCatalog.TryParseZoneCode(x.zone.ZoneCode, out _, out var letter)
+                            ? $"Khu {letter}"
+                            : x.zone.ZoneName,
+                        zoneLetter = ParkingFloorCatalog.TryParseZoneCode(x.zone.ZoneCode, out _, out var letter2)
+                            ? letter2.ToString()
+                            : x.zone.ZoneCode,
+                        isElectric = x.zone.VehicleType.TypeCode is "EV_MOTORBIKE" or "EV_CAR",
+                        zoneName = x.zone.ZoneName,
+                        vehicleType = x.zone.VehicleType.TypeCode,
+                        capacity = x.zone.Capacity,
+                        slots = x.zone.ParkingSlots.OrderBy(s => s.SlotId).Select(s => new
+                        {
+                            slotId = s.SlotId,
+                            status = s.Status,
+                            note = s.Note,
+                            isVip = ParkingSlotRules.IsVipSlot(s.SlotId),
+                            activeSession = s.ParkingSessions
+                                .Where(ps => ps.Status == "Active")
+                                .Select(ps => new { ps.SessionId, ps.LicensePlate, ps.EntryTime, ps.TicketCode })
+                                .FirstOrDefault(),
+                        }),
+                    }),
+                };
+            })
+            .ToList();
 
         return Ok(floors);
     }

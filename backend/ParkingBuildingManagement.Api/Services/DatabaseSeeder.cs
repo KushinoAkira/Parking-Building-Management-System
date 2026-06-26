@@ -14,9 +14,10 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
     public async Task SeedAsync(CancellationToken ct = default)
     {
         await db.Database.MigrateAsync(ct);
+        await EnsureReservationVipColumnsAsync(ct);
 
         await EnsureDemoUsersAsync(ct);
-        await EnsureEvVehicleTypesAndZonesAsync(ct);
+        await EnsureEvVehicleTypesAsync(ct);
 
         if (!await db.ParkingFacilities.AnyAsync(ct))
         {
@@ -31,34 +32,8 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
             });
         }
 
-        if (!await db.ParkingZones.AnyAsync(ct))
-        {
-            db.ParkingZones.AddRange(
-                new ParkingZone { ZoneCode = "A", ZoneName = "Motorbike Zone A", VehicleTypeId = 1, Capacity = 20, Status = "Active" },
-                new ParkingZone { ZoneCode = "B", ZoneName = "Car Zone B", VehicleTypeId = 2, Capacity = 20, Status = "Active" },
-                new ParkingZone { ZoneCode = "C", ZoneName = "EV Motorbike Zone C", VehicleTypeId = 4, Capacity = 10, Status = "Active" },
-                new ParkingZone { ZoneCode = "D", ZoneName = "EV Car Zone D", VehicleTypeId = 5, Capacity = 10, Status = "Active" });
-        }
-
-        await db.SaveChangesAsync(ct);
-
-        if (!await db.ParkingSlots.AnyAsync(ct))
-        {
-            var zones = await db.ParkingZones.AsNoTracking().ToListAsync(ct);
-            foreach (var zone in zones)
-            {
-                var targetCount = Math.Min(zone.Capacity, 20);
-                for (var i = 1; i <= targetCount; i++)
-                {
-                    db.ParkingSlots.Add(new ParkingSlot
-                    {
-                        SlotId = $"{zone.ZoneCode}{i}",
-                        ZoneId = zone.ZoneId,
-                        Status = "Available",
-                    });
-                }
-            }
-        }
+        await DeactivateNonCatalogZonesAsync(ct);
+        await EnsureDefaultZonesAndSlotsAsync(ct);
 
         if (!await db.PricingPolicies.AnyAsync(ct))
         {
@@ -99,6 +74,8 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
                 });
         }
 
+        await EnsureEvPricingAsync(ct);
+
         if (!await db.SystemConfigs.AnyAsync(ct))
         {
             db.SystemConfigs.AddRange(
@@ -109,7 +86,8 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
                 new SystemConfig { ConfigKey = "SYSTEM_STATUS", ConfigValue = "Active", Description = "System operational status" },
                 new SystemConfig { ConfigKey = "OCCUPANCY_WARNING_PERCENT", ConfigValue = "90", Description = "Occupancy alert threshold" },
                 new SystemConfig { ConfigKey = "AI_SLOT_SUGGESTION", ConfigValue = "true", Description = "Enable AI slot suggestion" },
-                new SystemConfig { ConfigKey = "AI_WEIGHT_MODE", ConfigValue = "balanced", Description = "AI weight mode" });
+                new SystemConfig { ConfigKey = "AI_WEIGHT_MODE", ConfigValue = "balanced", Description = "AI weight mode" },
+                new SystemConfig { ConfigKey = PricingService.VipSlotSurchargeKey, ConfigValue = "10000", Description = "Extra fee (VND) for VIP slot reservation" });
         }
         else
         {
@@ -118,12 +96,104 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
             await EnsureConfigAsync("OCCUPANCY_WARNING_PERCENT", "90", "Occupancy alert threshold", ct);
             await EnsureConfigAsync("AI_SLOT_SUGGESTION", "true", "Enable AI slot suggestion", ct);
             await EnsureConfigAsync("AI_WEIGHT_MODE", "balanced", "AI weight mode", ct);
+            await EnsureConfigAsync(PricingService.VipSlotSurchargeKey, "10000", "Extra fee (VND) for VIP slot reservation", ct);
         }
 
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task EnsureEvVehicleTypesAndZonesAsync(CancellationToken ct)
+    private async Task DeactivateNonCatalogZonesAsync(CancellationToken ct)
+    {
+        foreach (var zone in await db.ParkingZones.ToListAsync(ct))
+        {
+            if (!ParkingFloorCatalog.IsCatalogZoneCode(zone.ZoneCode))
+                zone.Status = "Inactive";
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureDefaultZonesAndSlotsAsync(CancellationToken ct)
+    {
+        foreach (var template in ParkingFloorCatalog.Zones)
+        {
+            var zone = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneCode == template.Code, ct);
+            if (zone is null)
+            {
+                zone = new ParkingZone
+                {
+                    ZoneCode = template.Code,
+                    ZoneName = ParkingFloorCatalog.ZoneDisplayName(template),
+                    VehicleTypeId = template.VehicleTypeId,
+                    Capacity = template.Capacity,
+                    Status = "Active",
+                };
+                db.ParkingZones.Add(zone);
+                await db.SaveChangesAsync(ct);
+            }
+            else
+            {
+                zone.ZoneName = ParkingFloorCatalog.ZoneDisplayName(template);
+                zone.VehicleTypeId = template.VehicleTypeId;
+                zone.Capacity = template.Capacity;
+                zone.Status = "Active";
+            }
+
+            await EnsureZoneSlotsAsync(zone, ct);
+            await EnsureVipSlotNotesAsync(zone.ZoneId, ct);
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureZoneSlotsAsync(ParkingZone zone, CancellationToken ct)
+    {
+        var existingIds = (await db.ParkingSlots
+            .Where(s => s.ZoneId == zone.ZoneId)
+            .Select(s => s.SlotId)
+            .ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (existingIds.Count >= zone.Capacity) return;
+
+        var batch = new List<ParkingSlot>(capacity: 100);
+        for (var i = 1; i <= zone.Capacity; i++)
+        {
+            var slotId = $"{zone.ZoneCode}{i}";
+            if (existingIds.Contains(slotId)) continue;
+            if (await db.ParkingSlots.AsNoTracking().AnyAsync(s => s.SlotId == slotId, ct)) continue;
+
+            batch.Add(new ParkingSlot
+            {
+                SlotId = slotId,
+                ZoneId = zone.ZoneId,
+                Status = "Available",
+                Note = ParkingSlotRules.IsVipSlot(slotId) ? "VIP" : null,
+            });
+
+            if (batch.Count < 100) continue;
+            db.ParkingSlots.AddRange(batch);
+            await db.SaveChangesAsync(ct);
+            batch.Clear();
+        }
+
+        if (batch.Count == 0) return;
+        db.ParkingSlots.AddRange(batch);
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureVipSlotNotesAsync(int zoneId, CancellationToken ct)
+    {
+        var slots = await db.ParkingSlots.Where(s => s.ZoneId == zoneId).ToListAsync(ct);
+        foreach (var slot in slots)
+        {
+            var shouldBeVip = ParkingSlotRules.IsVipSlot(slot.SlotId);
+            slot.Note = shouldBeVip ? "VIP" : null;
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureEvVehicleTypesAsync(CancellationToken ct)
     {
         var evTypes = new[]
         {
@@ -142,42 +212,11 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
             });
         }
 
-        var zoneC = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneCode == "C", ct);
-        if (zoneC is not null && zoneC.VehicleTypeId == 3)
-        {
-            zoneC.VehicleTypeId = 4;
-            zoneC.ZoneName = "EV Motorbike Zone C";
-        }
-
-        if (!await db.ParkingZones.AnyAsync(z => z.ZoneCode == "D", ct))
-        {
-            db.ParkingZones.Add(new ParkingZone
-            {
-                ZoneCode = "D",
-                ZoneName = "EV Car Zone D",
-                VehicleTypeId = 5,
-                Capacity = 10,
-                Status = "Active",
-            });
-        }
-
         await db.SaveChangesAsync(ct);
+    }
 
-        var evCarZone = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneCode == "D", ct);
-        if (evCarZone is not null && !await db.ParkingSlots.AnyAsync(s => s.ZoneId == evCarZone.ZoneId, ct))
-        {
-            for (var i = 1; i <= Math.Min(evCarZone.Capacity, 10); i++)
-            {
-                db.ParkingSlots.Add(new ParkingSlot
-                {
-                    SlotId = $"D{i}",
-                    ZoneId = evCarZone.ZoneId,
-                    Status = "Available",
-                });
-            }
-            await db.SaveChangesAsync(ct);
-        }
-
+    private async Task EnsureEvPricingAsync(CancellationToken ct)
+    {
         var now = DateTime.UtcNow;
         foreach (var typeId in new[] { 4, 5 })
         {
@@ -231,6 +270,14 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
         }
 
         await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureReservationVipColumnsAsync(CancellationToken ct)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "PreferVipSlot" boolean NOT NULL DEFAULT FALSE;
+            ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "VipSurcharge" numeric(12,2);
+            """, ct);
     }
 
     private async Task EnsureConfigAsync(string key, string value, string description, CancellationToken ct)

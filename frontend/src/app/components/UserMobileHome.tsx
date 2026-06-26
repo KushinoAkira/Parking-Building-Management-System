@@ -43,6 +43,8 @@ export function UserMobileHome() {
   const [bookPlate, setBookPlate] = useState("");
   const [bookVehicleTypeId, setBookVehicleTypeId] = useState<number>(1);
   const [bookZoneId, setBookZoneId] = useState<number | "">("");
+  const [bookPreferVip, setBookPreferVip] = useState(false);
+  const [vipSurchargeAmount, setVipSurchargeAmount] = useState(10_000);
   const [bookSubmitting, setBookSubmitting] = useState(false);
   const [bookMessage, setBookMessage] = useState("");
   const [feedbackType, setFeedbackType] = useState("Suggestion");
@@ -143,18 +145,22 @@ export function UserMobileHome() {
       return;
     }
 
-    const [ticketsRes, txRes, zonesRes, notifsRes, vtRes] = await Promise.allSettled([
+    const [ticketsRes, txRes, zonesRes, notifsRes, vtRes, vipRes] = await Promise.allSettled([
       apiGet(`/api/portal/driver/${userId}/tickets`, authToken),
       apiGet(`/api/portal/driver/${userId}/transactions`, authToken),
       apiGet("/api/zones?status=Active", authToken),
       apiGet(`/api/portal/driver/${userId}/notifications`, authToken),
       apiGet<{ vehicleTypeId: number; typeName: string; typeCode: string }[]>("/api/vehicle-types", authToken),
+      apiGet<{ amount: number }>("/api/reservations/vip-surcharge", authToken),
     ]);
     if (ticketsRes.status === "fulfilled") setTickets(ticketsRes.value as any[]);
     if (txRes.status === "fulfilled") setTransactions(txRes.value as DriverTransaction[]);
     if (zonesRes.status === "fulfilled") setParkingFloors(Array.isArray(zonesRes.value) ? (zonesRes.value as BookZone[]) : []);
     if (notifsRes.status === "fulfilled") setNotifications(Array.isArray(notifsRes.value) ? notifsRes.value : []);
     if (vtRes.status === "fulfilled") setVehicleTypes(Array.isArray(vtRes.value) ? (vtRes.value as BookVehicleType[]) : []);
+    if (vipRes.status === "fulfilled" && typeof vipRes.value?.amount === "number") {
+      setVipSurchargeAmount(vipRes.value.amount);
+    }
   }, [authToken, userId, t]);
 
   const loadDataRef = useRef(loadData);
@@ -260,6 +266,7 @@ export function UserMobileHome() {
           licensePlate: bookPlate.trim(),
           reservedFrom: from.toISOString(),
           reservedTo: to.toISOString(),
+          preferVipSlot: bookPreferVip,
         },
         authToken,
       );
@@ -919,6 +926,22 @@ export function UserMobileHome() {
                 {bookingZones.length === 0 && (
                   <p className="text-xs text-amber-600">{t("driver.noZonesForVehicle")}</p>
                 )}
+                <label className="flex items-start gap-3 p-4 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={bookPreferVip}
+                    onChange={(e) => setBookPreferVip(e.target.checked)}
+                    className="mt-1 rounded border-gray-300"
+                  />
+                  <span>
+                    <span className="block font-semibold text-gray-900 dark:text-white">{t("driver.preferVipSlot")}</span>
+                    {bookPreferVip && (
+                      <span className="block text-xs text-amber-600 mt-1">
+                        {t("driver.vipSurchargeNote", { fee: formatMoney(vipSurchargeAmount) })}
+                      </span>
+                    )}
+                  </span>
+                </label>
                 {bookMessage && (
                   <p className={`text-sm ${bookMessage === t("driver.bookSuccessExtended") || bookMessage === t("driver.bookSuccess") ? "text-green-600" : bookMessage ? "text-red-500" : ""}`}>{bookMessage}</p>
                 )}

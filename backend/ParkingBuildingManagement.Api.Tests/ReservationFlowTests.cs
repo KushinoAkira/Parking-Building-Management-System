@@ -58,6 +58,38 @@ public class ReservationFlowTests : IClassFixture<PbmsWebApplicationFactory>
     }
 
     [Fact]
+    public async Task CreateAndConfirm_WithVipPreference_AssignsVipSlotAndSurcharge()
+    {
+        var client = _factory.CreateClient();
+        await TestAuth.AuthenticateAsDriverAsync(client);
+
+        int driverId;
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+            driverId = db.Users.First(u => u.Email == TestData.DriverEmail).UserId;
+        }
+
+        var from = DateTime.UtcNow.AddHours(1);
+        var to = from.AddHours(2);
+        var create = await client.PostAsJsonAsync("/api/reservations", new CreateReservationRequest(
+            driverId, 2, null, null, "29C-VIP-01", from, to, PreferVipSlot: true));
+
+        Assert.Equal(HttpStatusCode.Created, create.StatusCode);
+        var reservation = await create.Content.ReadFromJsonAsync<ReservationDto>();
+        Assert.NotNull(reservation);
+        Assert.True(reservation.PreferVipSlot);
+
+        var confirm = await client.PostAsync($"/api/reservations/{reservation.ReservationId}/confirm", null);
+        Assert.Equal(HttpStatusCode.OK, confirm.StatusCode);
+        var confirmed = await confirm.Content.ReadFromJsonAsync<ReservationDto>();
+        Assert.NotNull(confirmed);
+        Assert.True(confirmed.IsVipSlot);
+        Assert.NotNull(confirmed.VipSurcharge);
+        Assert.True(confirmed.VipSurcharge > 0);
+    }
+
+    [Fact]
     public async Task ExpireOverdue_ReleasesSlot()
     {
         await TestAuth.AuthenticateAsDriverAsync(_client);

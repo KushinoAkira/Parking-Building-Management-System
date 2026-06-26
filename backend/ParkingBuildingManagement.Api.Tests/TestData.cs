@@ -53,7 +53,7 @@ public static class TestData
 
             var zone = db.ParkingZones.First();
             db.ParkingSlots.AddRange(
-                new ParkingSlot { SlotId = "T1", ZoneId = zone.ZoneId, Status = "Available" },
+                new ParkingSlot { SlotId = "T1", ZoneId = zone.ZoneId, Status = "Available", Note = "VIP" },
                 new ParkingSlot { SlotId = "T2", ZoneId = zone.ZoneId, Status = "Available" });
         }
 

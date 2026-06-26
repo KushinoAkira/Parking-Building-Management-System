@@ -55,7 +55,7 @@ Nếu Railway đã connect GitHub repo: redeploy sau mỗi merge vào `main`.
 4. Mục **Source** (hoặc **Service Source**) → **Root Directory** = `backend/ParkingBuildingManagement.Api`
 5. Bấm **Deploy** / Save rồi redeploy.
 
-> Nếu không thấy **Source** / **Root Directory**: service có thể chưa connect GitHub repo, hoặc UI mới đặt trong **Source Repo** khi click service. Cách không cần setting: merge PR có `Dockerfile` + `railway.json` ở **root repo** (xem nhánh `fix/railway-monorepo-root`).
+> Nếu không thấy **Source** / **Root Directory**: service có thể chưa connect GitHub repo. Cách không cần setting: dùng `Dockerfile` + `railway.toml` ở **root repo**.
 
 - Builder: **Dockerfile**
 

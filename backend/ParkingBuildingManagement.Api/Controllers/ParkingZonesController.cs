@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
 using ParkingBuildingManagement.Api.Models;
+using ParkingBuildingManagement.Api.Services;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
@@ -26,7 +27,11 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
             query = query.Where(z => z.Status == status);
 
         var zones = await query
-            .OrderBy(z => z.ZoneCode)
+            .ToListAsync(ct);
+
+        var ordered = zones
+            .OrderBy(z => ParkingFloorCatalog.GetSortOrder(z.ZoneCode))
+            .ThenBy(z => z.ZoneCode)
             .Select(z => new
             {
                 z.ZoneId,
@@ -38,10 +43,11 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
                 z.Status,
                 AvailableSlots = z.ParkingSlots.Count(s => s.Status == "Available"),
                 OccupiedSlots = z.ParkingSlots.Count(s => s.Status == "Occupied"),
+                FloorNumber = ParkingFloorCatalog.GetFloorNumber(z.ZoneCode),
             })
-            .ToListAsync(ct);
+            .ToList();
 
-        return Ok(zones);
+        return Ok(ordered);
     }
 
     [HttpGet("{id:int}")]

@@ -11,7 +11,10 @@ namespace ParkingBuildingManagement.Api.Controllers;
 [ApiController]
 [Authorize(Roles = RoleNames.DriverOrAbove)]
 [Route("api/reservations")]
-public class ReservationsController(ApplicationDbContext db, IReservationService reservationService) : ControllerBase
+public class ReservationsController(
+    ApplicationDbContext db,
+    IReservationService reservationService,
+    IPricingService pricing) : ControllerBase
 {
     [HttpGet]
     public async Task<IActionResult> GetAll(
@@ -49,6 +52,9 @@ public class ReservationsController(ApplicationDbContext db, IReservationService
                 r.ReservedFrom,
                 r.ReservedTo,
                 r.Status,
+                r.PreferVipSlot,
+                r.VipSurcharge,
+                r.Slot != null && r.Slot.Note == "VIP",
                 r.CreatedAt))
             .ToListAsync(ct);
 
@@ -59,7 +65,7 @@ public class ReservationsController(ApplicationDbContext db, IReservationService
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         var item = await db.Reservations.AsNoTracking()
-            .Include(r => r.User).Include(r => r.VehicleType).Include(r => r.Zone)
+            .Include(r => r.User).Include(r => r.VehicleType).Include(r => r.Zone).Include(r => r.Slot)
             .FirstOrDefaultAsync(r => r.ReservationId == id, ct);
 
         if (item is null) return NotFound();
@@ -69,8 +75,15 @@ public class ReservationsController(ApplicationDbContext db, IReservationService
         return Ok(new ReservationDto(
             item.ReservationId, item.UserId, item.User.FullName, item.VehicleTypeId,
             item.VehicleType.TypeCode, item.ZoneId, item.Zone?.ZoneCode, item.SlotId,
-            item.LicensePlate, item.ReservedFrom, item.ReservedTo, item.Status, item.CreatedAt));
+            item.LicensePlate, item.ReservedFrom, item.ReservedTo, item.Status,
+            item.PreferVipSlot, item.VipSurcharge,
+            item.Slot?.Note == "VIP",
+            item.CreatedAt));
     }
+
+    [HttpGet("vip-surcharge")]
+    public async Task<IActionResult> GetVipSurcharge(CancellationToken ct) =>
+        Ok(new VipSurchargeDto(await pricing.GetVipSlotSurchargeAsync(ct)));
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateReservationRequest request, CancellationToken ct)

@@ -11,6 +11,8 @@ public class Reservation
     public DateTime ReservedFrom { get; set; }
     public DateTime ReservedTo { get; set; }
     public string Status { get; set; } = "Pending";
+    public bool PreferVipSlot { get; set; }
+    public decimal? VipSurcharge { get; set; }
     public DateTime CreatedAt { get; set; }
 
     public User User { get; set; } = null!;

@@ -8,6 +8,7 @@ export type CreateReservationPayload = {
   licensePlate: string;
   reservedFrom: string;
   reservedTo: string;
+  preferVipSlot?: boolean;
 };
 
 /** Creates a reservation and confirms it; cancels the pending reservation if confirm fails. */
