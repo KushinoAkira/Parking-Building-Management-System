@@ -115,6 +115,10 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
 
     private async Task EnsureDefaultZonesAndSlotsAsync(CancellationToken ct)
     {
+        var globalSlotIds = (await db.ParkingSlots.AsNoTracking()
+            .Select(s => s.SlotId)
+            .ToListAsync(ct)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         foreach (var template in ParkingFloorCatalog.Zones)
         {
             var zone = await db.ParkingZones.FirstOrDefaultAsync(z => z.ZoneCode == template.Code, ct);
@@ -139,14 +143,14 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
                 zone.Status = "Active";
             }
 
-            await EnsureZoneSlotsAsync(zone, ct);
+            await EnsureZoneSlotsAsync(zone, globalSlotIds, ct);
             await EnsureVipSlotNotesAsync(zone.ZoneId, ct);
         }
 
         await db.SaveChangesAsync(ct);
     }
 
-    private async Task EnsureZoneSlotsAsync(ParkingZone zone, CancellationToken ct)
+    private async Task EnsureZoneSlotsAsync(ParkingZone zone, HashSet<string> globalSlotIds, CancellationToken ct)
     {
         var existingIds = (await db.ParkingSlots
             .Where(s => s.ZoneId == zone.ZoneId)
@@ -159,8 +163,7 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
         for (var i = 1; i <= zone.Capacity; i++)
         {
             var slotId = $"{zone.ZoneCode}{i}";
-            if (existingIds.Contains(slotId)) continue;
-            if (await db.ParkingSlots.AsNoTracking().AnyAsync(s => s.SlotId == slotId, ct)) continue;
+            if (existingIds.Contains(slotId) || globalSlotIds.Contains(slotId)) continue;
 
             batch.Add(new ParkingSlot
             {
@@ -169,6 +172,7 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
                 Status = "Available",
                 Note = ParkingSlotRules.IsVipSlot(slotId) ? "VIP" : null,
             });
+            globalSlotIds.Add(slotId);
 
             if (batch.Count < 100) continue;
             db.ParkingSlots.AddRange(batch);

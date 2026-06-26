@@ -22,15 +22,6 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
-if (!isTesting)
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var seeder = scope.ServiceProvider.GetRequiredService<IDatabaseSeeder>();
-        await seeder.SeedAsync();
-    }
-}
-
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
