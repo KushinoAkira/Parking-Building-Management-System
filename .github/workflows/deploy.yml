@@ -50,7 +50,7 @@ jobs:
   deploy-api:
     name: deploy-railway-api
     needs: verify
-    if: ${{ secrets.RAILWAY_TOKEN != '' && vars.RAILWAY_SERVICE_NAME != '' }}
+    if: ${{ vars.RAILWAY_SERVICE_NAME != '' && vars.RAILWAY_ENVIRONMENT != '' }}
     runs-on: ubuntu-latest
     environment: production
     container: ghcr.io/railwayapp/cli:latest
@@ -63,7 +63,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Deploy API to Railway
-        working-directory: backend/ParkingBuildingManagement.Api
         run: |
           railway up \
             --service "${{ vars.RAILWAY_SERVICE_NAME }}" \
@@ -73,7 +72,7 @@ jobs:
   deploy-frontend:
     name: deploy-firebase-hosting
     needs: verify
-    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
+    if: ${{ vars.ENABLE_FIREBASE_DEPLOY == 'true' }}
     runs-on: ubuntu-latest
     environment: production
 
@@ -108,7 +107,7 @@ jobs:
   smoke:
     name: post-deploy-smoke
     needs: verify
-    if: ${{ vars.VITE_API_BASE_URL != '' }}
+    if: ${{ vars.VITE_API_BASE_URL != '' && vars.ENABLE_DEPLOY_SMOKE == 'true' }}
     runs-on: ubuntu-latest
 
     steps:
