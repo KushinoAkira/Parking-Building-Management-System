@@ -47,7 +47,7 @@ public class ParkingSessionService(
             ? await db.ParkingSlots.Include(s => s.Zone)
                 .FirstAsync(s => s.SlotId == reservation.SlotId, ct)
             : await slotAllocation.FindAvailableSlotAsync(
-                request.VehicleTypeId, request.ZoneId, request.SlotId, ct);
+                request.VehicleTypeId, request.ZoneId, request.SlotId, reservation?.PreferVipSlot ?? false, ct);
 
         if (slot.Status is not ("Available" or "Reserved"))
             throw new BusinessException($"Slot '{slot.SlotId}' is not available.");
@@ -112,6 +112,16 @@ public class ParkingSessionService(
             .Where(i => i.SessionId == sessionId && i.Status == "Open")
             .SumAsync(i => i.PenaltyFee, ct);
         totalFee += penaltyFee;
+
+        if (session.ReservationId.HasValue)
+        {
+            var vipSurcharge = await db.Reservations.AsNoTracking()
+                .Where(r => r.ReservationId == session.ReservationId.Value)
+                .Select(r => r.VipSurcharge)
+                .FirstOrDefaultAsync(ct);
+            if (vipSurcharge is > 0)
+                totalFee += vipSurcharge.Value;
+        }
 
         Payment? payment = null;
         await db.ExecuteInTransactionAsync(async () =>

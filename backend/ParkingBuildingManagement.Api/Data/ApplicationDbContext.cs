@@ -152,6 +152,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.SlotId).HasColumnName("SlotID").HasMaxLength(20);
             entity.Property(e => e.LicensePlate).HasMaxLength(20);
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Pending");
+            entity.Property(e => e.PreferVipSlot).HasDefaultValue(false);
+            entity.Property(e => e.VipSurcharge).HasColumnType("decimal(12,2)");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.HasIndex(e => new { e.UserId, e.Status }).HasDatabaseName("IX_Reservation_User_Status");
             entity.HasIndex(e => new { e.ZoneId, e.ReservedFrom, e.ReservedTo }).HasDatabaseName("IX_Reservation_Zone_TimeRange");

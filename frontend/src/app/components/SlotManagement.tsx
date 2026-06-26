@@ -6,6 +6,8 @@ import { getAuth } from "../lib/auth";
 import { useLocale } from "../lib/i18n/LocaleContext";
 import { useRealtimeRefresh } from "../lib/RealtimeContext";
 import { RealtimeEventTypes } from "../lib/realtime";
+import { allSlotsForFloor, type StaffFloor, type StaffFloorSlot } from "../lib/parkingFloors";
+import { slotTier } from "../lib/parkingSlots";
 
 type SlotVm = {
   id: string;
@@ -14,12 +16,29 @@ type SlotVm = {
   type: "VIP" | "Standard";
   plate: string | null;
   checkIn: string | null;
+  sectionName: string;
 };
-type FloorVm = { id: number; name: string; slots: SlotVm[] };
+
+function mapSlot(slot: StaffFloorSlot, sectionName: string): SlotVm {
+  return {
+    id: slot.slotId,
+    name: slot.slotId,
+    status:
+      slot.status === "Occupied"
+        ? "occupied"
+        : slot.status === "Reserved"
+          ? "reserved"
+          : "free",
+    type: slotTier(slot.slotId, slot.note),
+    plate: slot.activeSession?.licensePlate ?? null,
+    checkIn: slot.activeSession?.entryTime ?? null,
+    sectionName,
+  };
+}
 
 export function SlotManagement() {
   const { t, formatDateTime, ts } = useLocale();
-  const [floors, setFloors] = useState<FloorVm[]>([]);
+  const [floors, setFloors] = useState<StaffFloor[]>([]);
   const [activeFloorId, setActiveFloorId] = useState<number | null>(null);
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -27,27 +46,10 @@ export function SlotManagement() {
 
   const loadFloors = useCallback(() => {
     const auth = getAuth();
-    apiGet<Array<{ zoneId: number; zoneName: string; slots: Array<{ slotId: string; status: string; activeSession?: { licensePlate: string; entryTime: string } }> }>>("/api/portal/staff/floors", auth?.token)
+    apiGet<StaffFloor[]>("/api/portal/staff/floors", auth?.token)
       .then((data) => {
-        const mapped: FloorVm[] = data.map((z) => ({
-          id: z.zoneId,
-          name: z.zoneName,
-          slots: z.slots.map((s, index) => ({
-            id: s.slotId,
-            name: s.slotId,
-            status:
-              s.status === "Occupied"
-                ? "occupied"
-                : s.status === "Reserved"
-                  ? "reserved"
-                  : "free",
-            type: index % 10 === 0 ? "VIP" : "Standard",
-            plate: s.activeSession?.licensePlate ?? null,
-            checkIn: s.activeSession?.entryTime ?? null,
-          })),
-        }));
-        setFloors(mapped);
-        if (mapped.length > 0) setActiveFloorId((prev) => prev ?? mapped[0].id);
+        setFloors(data);
+        if (data.length > 0) setActiveFloorId((prev) => prev ?? data[0].floorId);
       })
       .catch(() => setFloors([]));
   }, []);
@@ -67,8 +69,18 @@ export function SlotManagement() {
   );
 
   const activeFloor = useMemo(
-    () => floors.find((f) => f.id === activeFloorId) ?? floors[0],
+    () => floors.find((f) => f.floorId === activeFloorId) ?? floors[0],
     [floors, activeFloorId],
+  );
+
+  const activeSlots = useMemo(
+    () =>
+      activeFloor
+        ? activeFloor.sections.flatMap((section) =>
+            section.slots.map((slot) => mapSlot(slot, section.sectionName)),
+          )
+        : [],
+    [activeFloor],
   );
 
   if (!activeFloor) {
@@ -79,7 +91,7 @@ export function SlotManagement() {
     );
   }
 
-  const filteredSlots = activeFloor.slots.filter(slot => {
+  const filteredSlots = activeSlots.filter(slot => {
     if (filter === "free" && slot.status !== "free") return false;
     if (filter === "occupied" && slot.status !== "occupied") return false;
     if (filter === "reserved" && slot.status !== "reserved") return false;
@@ -136,18 +148,18 @@ export function SlotManagement() {
             <div className="flex bg-gray-100 dark:bg-[#121212] p-1 rounded-xl border border-gray-200 dark:border-gray-800 overflow-x-auto max-w-full relative" style={{ scrollbarWidth: 'none' }}>
               {floors.map((floor) => (
                 <button
-                  key={floor.id}
-                  onClick={() => { setActiveFloorId(floor.id); setSelectedSlot(null); }}
+                  key={floor.floorId}
+                  onClick={() => { setActiveFloorId(floor.floorId); setSelectedSlot(null); }}
                   className={`flex-shrink-0 px-4 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap relative z-10 ${
-                    activeFloor.id === floor.id
+                    activeFloor.floorId === floor.floorId
                       ? "text-gray-900 dark:text-white"
                       : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-200/50 dark:hover:bg-gray-800/50"
                   }`}
                 >
-                  {activeFloor.id === floor.id && (
+                  {activeFloor.floorId === floor.floorId && (
                     <motion.div layoutId="slot-floor-tab" className="absolute inset-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm -z-10" />
                   )}
-                  {floor.name}
+                  {floor.floorName}
                 </button>
               ))}
             </div>
@@ -158,7 +170,7 @@ export function SlotManagement() {
                 className={`flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors relative z-10 ${filter === 'all' ? 'text-gray-900 dark:text-white' : 'text-gray-500 dark:text-gray-400'}`}
               >
                 {filter === 'all' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-white dark:bg-gray-800 rounded-lg shadow-sm -z-10" />}
-                {t("common.all")} ({activeFloor.slots.length})
+                {t("common.all")} ({activeSlots.length})
               </button>
               <button
                 onClick={() => setFilter("free")}
@@ -166,7 +178,7 @@ export function SlotManagement() {
               >
                 {filter === 'free' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-blue-600/15 dark:bg-blue-600/20 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-blue-600" />
-                {t("common.free")} ({activeFloor.slots.filter(s => s.status === 'free').length})
+                {t("common.free")} ({activeSlots.filter(s => s.status === 'free').length})
               </button>
               <button
                 onClick={() => setFilter("occupied")}
@@ -174,7 +186,7 @@ export function SlotManagement() {
               >
                 {filter === 'occupied' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-red-50 dark:bg-red-500/15 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-red-500" />
-                {t("common.occupied")} ({activeFloor.slots.filter(s => s.status === 'occupied').length})
+                {t("common.occupied")} ({activeSlots.filter(s => s.status === 'occupied').length})
               </button>
               <button
                 onClick={() => setFilter("reserved")}
@@ -182,7 +194,7 @@ export function SlotManagement() {
               >
                 {filter === 'reserved' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-amber-50 dark:bg-amber-500/15 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-amber-500" />
-                {t("common.reserved")} ({activeFloor.slots.filter(s => s.status === 'reserved').length})
+                {t("common.reserved")} ({activeSlots.filter(s => s.status === 'reserved').length})
               </button>
               <button
                 onClick={() => setFilter("violation")}
@@ -190,55 +202,81 @@ export function SlotManagement() {
               >
                 {filter === 'violation' && <motion.div layoutId="slot-filter-tab" className="absolute inset-0 bg-yellow-50 dark:bg-yellow-500/15 rounded-lg shadow-sm -z-10" />}
                 <div className="w-2 h-2 rounded-full bg-yellow-500" />
-                {t("common.violation")} ({activeFloor.slots.filter(s => s.status === 'violation').length})
+                {t("common.violation")} ({activeSlots.filter(s => s.status === 'violation').length})
               </button>
             </div>
           </div>
 
           {/* Grid */}
-          <div className="flex-1 overflow-y-auto p-4">
-            <motion.div 
-              key={activeFloor.id + filter + searchQuery}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.3 }}
-              className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3"
-            >
-              {filteredSlots.map((slot) => (
-                <motion.div
-                  whileHover={{ scale: 1.05 }}
-                  key={slot.id}
-                  onClick={() => setSelectedSlot(slot)}
-                  className={`
-                    relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all cursor-pointer min-h-[96px]
-                    ${selectedSlot?.id === slot.id ? 'ring-2 ring-blue-600 ring-offset-2 ring-offset-white dark:ring-offset-[#1A1A1A] scale-105 z-10' : ''}
-                    ${slot.status === 'occupied'
-                      ? "border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-500 hover:border-red-300 dark:hover:border-red-500/50"
-                      : slot.status === 'reserved'
-                      ? "border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500 hover:border-amber-400 dark:hover:border-amber-500/60"
-                      : slot.status === 'violation'
-                      ? "border-yellow-300 dark:border-yellow-500/40 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 hover:border-yellow-400 dark:hover:border-yellow-500/60"
-                      : "border-blue-600/20 dark:border-blue-600/30 bg-blue-600/5 dark:bg-blue-600/10 text-blue-600 hover:border-blue-600/40 hover:bg-blue-600/10"
-                    }
-                  `}
-                >
-                  {slot.type === "VIP" && (
-                    <span className="absolute top-1.5 right-1.5 text-[8px] font-bold bg-gray-900/10 dark:bg-white/10 px-1 rounded">VIP</span>
-                  )}
-                  <div className="text-xs font-bold opacity-90">{slot.name}</div>
-                  <div className="flex-1 flex items-center justify-center min-h-[32px]">
-                    <Car className={`w-6 h-6 transition-all duration-300 ${slot.status !== 'free' ? "opacity-100 scale-100" : "opacity-30 scale-90"}`} />
+          <div className="flex-1 overflow-y-auto p-4 space-y-6">
+            {activeFloor.sections.map((section) => {
+              const sectionSlots = section.slots
+                .map((slot) => mapSlot(slot, section.sectionName))
+                .filter((slot) => {
+                  if (filter === "free" && slot.status !== "free") return false;
+                  if (filter === "occupied" && slot.status !== "occupied") return false;
+                  if (filter === "reserved" && slot.status !== "reserved") return false;
+                  if (filter === "violation" && slot.status !== "violation") return false;
+                  if (searchQuery && slot.plate && !slot.plate.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+                  if (searchQuery && !slot.plate && slot.name.toLowerCase().includes(searchQuery.toLowerCase())) return true;
+                  if (searchQuery && !slot.plate) return false;
+                  return true;
+                });
+
+              if (sectionSlots.length === 0 && (filter !== "all" || searchQuery)) return null;
+
+              return (
+                <div key={section.zoneId}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white flex items-center gap-2">
+                      {section.sectionName}
+                      {section.isElectric && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                          {t("slots.evZone")}
+                        </span>
+                      )}
+                    </h3>
+                    <span className="text-xs text-gray-500">{sectionSlots.length}/{section.capacity}</span>
                   </div>
-                  <div className="h-[18px] flex items-center justify-center mt-0.5">
-                    {slot.plate && (
-                      <span className="bg-gray-900/80 dark:bg-black/60 px-1.5 py-0.5 rounded text-[9px] text-white font-mono whitespace-nowrap">
-                        {slot.plate}
-                      </span>
-                    )}
+                  <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-6 lg:grid-cols-8 gap-3">
+                    {sectionSlots.map((slot) => (
+                      <motion.div
+                        whileHover={{ scale: 1.05 }}
+                        key={slot.id}
+                        onClick={() => setSelectedSlot(slot)}
+                        className={`
+                          relative flex flex-col items-center justify-center p-2 rounded-xl border-2 transition-all cursor-pointer min-h-[96px]
+                          ${selectedSlot?.id === slot.id ? 'ring-2 ring-blue-600 ring-offset-2 ring-offset-white dark:ring-offset-[#1A1A1A] scale-105 z-10' : ''}
+                          ${slot.status === 'occupied'
+                            ? "border-red-200 dark:border-red-500/30 bg-red-50 dark:bg-red-500/10 text-red-500 hover:border-red-300 dark:hover:border-red-500/50"
+                            : slot.status === 'reserved'
+                            ? "border-amber-300 dark:border-amber-500/40 bg-amber-50 dark:bg-amber-500/10 text-amber-600 dark:text-amber-500 hover:border-amber-400 dark:hover:border-amber-500/60"
+                            : slot.status === 'violation'
+                            ? "border-yellow-300 dark:border-yellow-500/40 bg-yellow-50 dark:bg-yellow-500/10 text-yellow-600 dark:text-yellow-500 hover:border-yellow-400 dark:hover:border-yellow-500/60"
+                            : "border-blue-600/20 dark:border-blue-600/30 bg-blue-600/5 dark:bg-blue-600/10 text-blue-600 hover:border-blue-600/40 hover:bg-blue-600/10"
+                          }
+                        `}
+                      >
+                        {slot.type === "VIP" && (
+                          <span className="absolute top-1.5 right-1.5 text-[8px] font-bold bg-gray-900/10 dark:bg-white/10 px-1 rounded">VIP</span>
+                        )}
+                        <div className="text-xs font-bold opacity-90">{slot.name}</div>
+                        <div className="flex-1 flex items-center justify-center min-h-[32px]">
+                          <Car className={`w-6 h-6 transition-all duration-300 ${slot.status !== 'free' ? "opacity-100 scale-100" : "opacity-30 scale-90"}`} />
+                        </div>
+                        <div className="h-[18px] flex items-center justify-center mt-0.5">
+                          {slot.plate && (
+                            <span className="bg-gray-900/80 dark:bg-black/60 px-1.5 py-0.5 rounded text-[9px] text-white font-mono whitespace-nowrap">
+                              {slot.plate}
+                            </span>
+                          )}
+                        </div>
+                      </motion.div>
+                    ))}
                   </div>
-                </motion.div>
-              ))}
-            </motion.div>
+                </div>
+              );
+            })}
             {filteredSlots.length === 0 && (
               <motion.div 
                 initial={{ opacity: 0 }}

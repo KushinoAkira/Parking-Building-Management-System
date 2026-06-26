@@ -7,12 +7,14 @@ namespace ParkingBuildingManagement.Api.Services;
 
 public interface ISlotAllocationService
 {
-    Task<ParkingSlot> FindAvailableSlotAsync(int vehicleTypeId, int? zoneId, string? slotId, CancellationToken ct);
+    Task<ParkingSlot> FindAvailableSlotAsync(
+        int vehicleTypeId, int? zoneId, string? slotId, bool preferVipSlot, CancellationToken ct);
 }
 
 public class SlotAllocationService(ApplicationDbContext db) : ISlotAllocationService
 {
-    public async Task<ParkingSlot> FindAvailableSlotAsync(int vehicleTypeId, int? zoneId, string? slotId, CancellationToken ct)
+    public async Task<ParkingSlot> FindAvailableSlotAsync(
+        int vehicleTypeId, int? zoneId, string? slotId, bool preferVipSlot, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(slotId))
         {
@@ -27,7 +29,26 @@ public class SlotAllocationService(ApplicationDbContext db) : ISlotAllocationSer
             if (specific.Status != "Available" && specific.Status != "Reserved")
                 throw new BusinessException($"Slot '{slotId}' is not available (status: {specific.Status}).");
 
+            if (preferVipSlot && specific.Note != "VIP")
+                throw new BusinessException("Selected slot is not a VIP slot.");
+
             return specific;
+        }
+
+        if (preferVipSlot)
+        {
+            var vipSlot = await db.ParkingSlots
+                .Include(s => s.Zone)
+                .Where(s => s.Zone.VehicleTypeId == vehicleTypeId
+                    && s.Zone.Status == "Active"
+                    && (!zoneId.HasValue || s.ZoneId == zoneId.Value)
+                    && s.Status == "Available"
+                    && s.Note == "VIP")
+                .OrderBy(s => s.SlotId)
+                .FirstOrDefaultAsync(ct)
+                ?? throw new BusinessException("No VIP slots available for this vehicle type.", 404);
+
+            return vipSlot;
         }
 
         var zoneQuery = db.ParkingZones
@@ -36,7 +57,6 @@ public class SlotAllocationService(ApplicationDbContext db) : ISlotAllocationSer
         if (zoneId.HasValue)
             zoneQuery = zoneQuery.Where(z => z.ZoneId == zoneId.Value);
 
-        // Single query: join zones with available slot counts, pick zone with most availability ratio
         var bestZoneId = await zoneQuery
             .Select(z => new
             {
@@ -52,7 +72,10 @@ public class SlotAllocationService(ApplicationDbContext db) : ISlotAllocationSer
 
         var slot = await db.ParkingSlots
             .Include(s => s.Zone)
-            .FirstOrDefaultAsync(s => s.ZoneId == bestZoneId && s.Status == "Available", ct)
+            .Where(s => s.ZoneId == bestZoneId && s.Status == "Available")
+            .OrderBy(s => s.Note == "VIP" ? 1 : 0)
+            .ThenBy(s => s.SlotId)
+            .FirstOrDefaultAsync(ct)
             ?? throw new BusinessException("No available slots found.", 404);
 
         return slot;

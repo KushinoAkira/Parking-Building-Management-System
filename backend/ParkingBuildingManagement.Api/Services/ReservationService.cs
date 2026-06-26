@@ -17,6 +17,7 @@ public interface IReservationService
 public class ReservationService(
     ApplicationDbContext db,
     ISlotAllocationService slotAllocation,
+    IPricingService pricing,
     IParkingRealtimeNotifier realtime) : IReservationService
 {
     public async Task<ReservationDto> CreateAsync(CreateReservationRequest request, CancellationToken ct)
@@ -32,7 +33,7 @@ public class ReservationService(
         if (!string.IsNullOrWhiteSpace(request.SlotId))
         {
             slot = await slotAllocation.FindAvailableSlotAsync(
-                request.VehicleTypeId, request.ZoneId, request.SlotId, ct);
+                request.VehicleTypeId, request.ZoneId, request.SlotId, request.PreferVipSlot, ct);
         }
 
         var reservation = new Reservation
@@ -44,6 +45,7 @@ public class ReservationService(
             LicensePlate = request.LicensePlate?.Trim().ToUpperInvariant(),
             ReservedFrom = request.ReservedFrom,
             ReservedTo = request.ReservedTo,
+            PreferVipSlot = request.PreferVipSlot,
             Status = "Pending",
             CreatedAt = DateTime.UtcNow,
         };
@@ -71,7 +73,7 @@ public class ReservationService(
             if (string.IsNullOrWhiteSpace(reservation.SlotId))
             {
                 var slot = await slotAllocation.FindAvailableSlotAsync(
-                    reservation.VehicleTypeId, reservation.ZoneId, null, ct);
+                    reservation.VehicleTypeId, reservation.ZoneId, null, reservation.PreferVipSlot, ct);
                 reservation.SlotId = slot.SlotId;
                 reservation.ZoneId = slot.ZoneId;
                 slot.Status = "Reserved";
@@ -81,8 +83,14 @@ public class ReservationService(
                 if (reservation.Slot.Status != "Available")
                     throw new BusinessException($"Slot '{reservation.SlotId}' is not available.");
 
+                if (reservation.PreferVipSlot && reservation.Slot.Note != "VIP")
+                    throw new BusinessException("Assigned slot is not a VIP slot.");
+
                 reservation.Slot.Status = "Reserved";
             }
+
+            if (reservation.PreferVipSlot)
+                reservation.VipSurcharge = await pricing.GetVipSlotSurchargeAsync(ct);
 
             reservation.Status = "Confirmed";
             await db.SaveChangesAsync(ct);
@@ -172,6 +180,9 @@ public class ReservationService(
                 r.ReservedFrom,
                 r.ReservedTo,
                 r.Status,
+                r.PreferVipSlot,
+                r.VipSurcharge,
+                r.Slot != null && r.Slot.Note == "VIP",
                 r.CreatedAt))
             .FirstOrDefaultAsync(ct);
 }

@@ -238,6 +238,7 @@ export const vi = {
     handleViolation: "Xử lý vi phạm",
     viewHistory: "Xem lịch sử vị trí",
     lockSlot: "Khóa Slot / Bảo trì",
+    evZone: "Xe điện",
   },
   dashboard: {
     title: "Tổng Quan",
@@ -561,6 +562,8 @@ export const vi = {
     parkingNow: "ĐANG ĐỖ",
     addVehicle: "Thêm xe mới",
     bookPlate: "Biển số xe",
+    preferVipSlot: "Chỗ VIP (gần lối ra)",
+    vipSurchargeNote: "Phụ phí VIP: +{fee} (cộng vào phí đỗ khi check-out)",
     bookSuccessExtended: "Đặt chỗ thành công! Slot đã được giữ.",
     bookPlateRequired: "Vui lòng nhập biển số.",
     freeCount: "{count} trống",

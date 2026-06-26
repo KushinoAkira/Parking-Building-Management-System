@@ -11,10 +11,11 @@ describe("bookZones", () => {
   ];
 
   const zones = [
-    { zoneId: 1, zoneCode: "A", vehicleTypeId: 1 },
-    { zoneId: 2, zoneCode: "B", vehicleTypeId: 2 },
-    { zoneId: 3, zoneCode: "C", vehicleTypeId: 4 },
-    { zoneId: 4, zoneCode: "D", vehicleTypeId: 5 },
+    { zoneId: 1, zoneCode: "F1A", vehicleTypeId: 1 },
+    { zoneId: 2, zoneCode: "F1E", vehicleTypeId: 4 },
+    { zoneId: 3, zoneCode: "F2A", vehicleTypeId: 1 },
+    { zoneId: 4, zoneCode: "F3E", vehicleTypeId: 5 },
+    { zoneId: 5, zoneCode: "F3A", vehicleTypeId: 2 },
   ];
 
   it("hides generic EV when split types exist", () => {
@@ -23,8 +24,9 @@ describe("bookZones", () => {
   });
 
   it("filters zones by vehicle type", () => {
-    expect(zonesForVehicleType(zones, 2).map((z) => z.zoneCode)).toEqual(["B"]);
-    expect(zonesForVehicleType(zones, 4).map((z) => z.zoneCode)).toEqual(["C"]);
-    expect(zonesForVehicleType(zones, 5).map((z) => z.zoneCode)).toEqual(["D"]);
+    expect(zonesForVehicleType(zones, 1).map((z) => z.zoneCode)).toEqual(["F1A", "F2A"]);
+    expect(zonesForVehicleType(zones, 4).map((z) => z.zoneCode)).toEqual(["F1E"]);
+    expect(zonesForVehicleType(zones, 2).map((z) => z.zoneCode)).toEqual(["F3A"]);
+    expect(zonesForVehicleType(zones, 5).map((z) => z.zoneCode)).toEqual(["F3E"]);
   });
 });

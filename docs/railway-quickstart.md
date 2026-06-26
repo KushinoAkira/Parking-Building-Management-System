@@ -2,7 +2,7 @@
 
 Domain mục tiêu: `https://parking-building-management-system-production.up.railway.app`
 
-> Repo đã có `Dockerfile` + `railway.json` ở **root** — Railway connect GitHub sẽ build từ root, **không cần** Root Directory.
+> Repo đã có `Dockerfile` + `railway.toml` ở **root** — Railway connect GitHub sẽ build từ root, **không cần** Root Directory.
 
 ## Bước 1 — Railway dashboard
 

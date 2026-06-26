@@ -5,6 +5,7 @@ import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { ParkingSlotMap } from "./ParkingSlotMap";
+import type { StaffFloor } from "../lib/parkingFloors";
 import { PlateCameraScanner } from "./PlateCameraScanner";
 import { useNavigate } from "react-router";
 import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
@@ -16,23 +17,6 @@ import { RealtimeEventTypes } from "../lib/realtime";
 import { useLocale } from "../lib/i18n/LocaleContext";
 
 type Tab = "control" | "violations" | "history" | "reservations";
-
-type FloorSlot = {
-  slotId: string;
-  status: string;
-  activeSession?: {
-    sessionId: number;
-    licensePlate: string;
-    entryTime: string;
-  } | null;
-};
-
-type Floor = {
-  zoneId: number;
-  zoneCode: string;
-  zoneName: string;
-  slots: FloorSlot[];
-};
 
 type Incident = {
   incidentId: number;
@@ -80,8 +64,8 @@ export function StaffDashboard() {
   const [actionError, setActionError] = useState("");
   const [apiOffline, setApiOffline] = useState(false);
   const [loadingAction, setLoadingAction] = useState(false);
-  const [floors, setFloors] = useState<Floor[]>([]);
-  const [activeZoneId, setActiveZoneId] = useState<number | null>(null);
+  const [floors, setFloors] = useState<StaffFloor[]>([]);
+  const [activeFloorId, setActiveFloorId] = useState<number | null>(null);
   const [violations, setViolations] = useState<Incident[]>([]);
   const [history, setHistory] = useState<SessionHistory[]>([]);
   const [historyFilter, setHistoryFilter] = useState("");
@@ -110,9 +94,9 @@ export function StaffDashboard() {
   }
 
   async function loadFloors() {
-    const data = await apiGet<Floor[]>("/api/portal/staff/floors", authToken);
+    const data = await apiGet<StaffFloor[]>("/api/portal/staff/floors", authToken);
     setFloors(data);
-    if (data.length > 0) setActiveZoneId((z) => z ?? data[0].zoneId);
+    if (data.length > 0) setActiveFloorId((id) => id ?? data[0].floorId);
   }
 
   async function loadViolations() {
@@ -506,8 +490,8 @@ export function StaffDashboard() {
 
               <ParkingSlotMap
                 floors={floors}
-                activeZoneId={activeZoneId}
-                onZoneChange={setActiveZoneId}
+                activeFloorId={activeFloorId}
+                onFloorChange={setActiveFloorId}
                 onOccupiedSlotClick={(slot) => {
                   if (slot.activeSession) processPlate(slot.activeSession.licensePlate);
                 }}

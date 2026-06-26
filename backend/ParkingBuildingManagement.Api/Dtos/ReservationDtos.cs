@@ -9,7 +9,8 @@ public record CreateReservationRequest(
     [MaxLength(20)] string? SlotId,
     [MaxLength(20)] string? LicensePlate,
     DateTime ReservedFrom,
-    DateTime ReservedTo);
+    DateTime ReservedTo,
+    bool PreferVipSlot = false);
 
 public record ReservationDto(
     int ReservationId,
@@ -24,4 +25,9 @@ public record ReservationDto(
     DateTime ReservedFrom,
     DateTime ReservedTo,
     string Status,
+    bool PreferVipSlot,
+    decimal? VipSurcharge,
+    bool IsVipSlot,
     DateTime CreatedAt);
+
+public record VipSurchargeDto(decimal Amount);
