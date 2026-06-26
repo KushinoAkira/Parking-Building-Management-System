@@ -40,7 +40,10 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IWalletService, WalletService>();
 
         if (!isTesting)
+        {
             services.AddHostedService<ReservationExpiryHostedService>();
+            services.AddHostedService<DatabaseSeedHostedService>();
+        }
 
         return services;
     }
