@@ -6,4 +6,7 @@ public sealed class PlateOcrOptions
 
     /// <summary>LatinV5 (recommended for VN plates), EnglishV5, or ChineseV5.</summary>
     public string Model { get; set; } = "LatinV5";
+
+    /// <summary>Force stub OCR (used automatically on Linux/Railway).</summary>
+    public bool UseStub { get; set; }
 }
