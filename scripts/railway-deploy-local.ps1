@@ -19,7 +19,7 @@ if ($LASTEXITCODE -ne 0) {
 Write-Host "=== Bien bat buoc tren Railway (Variables) ===" -ForegroundColor Cyan
 Write-Host @"
 DATABASE_URL           = `${{Postgres.DATABASE_URL}}
-Jwt__Secret            = (>= 32 ky tu)
+JWT signing secret     = (>= 32 chars, Railway variable Jwt__Secret)
 ASPNETCORE_ENVIRONMENT = Production
 PayOs__DemoMode        = true
 Cors__AllowedOrigins__0 = https://parking-management-syste-97d18.web.app

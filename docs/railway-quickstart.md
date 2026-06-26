@@ -16,13 +16,12 @@ Thêm từng dòng (Raw Editor):
 
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
-Jwt__Secret=thay-bang-chuoi-ngau-nhien-it-nhat-32-ky-tu
 ASPNETCORE_ENVIRONMENT=Production
 PayOs__DemoMode=true
 Cors__AllowedOrigins__0=https://parking-management-syste-97d18.web.app
 ```
 
-> `Jwt__Secret`: tạo chuỗi ngẫu nhiên ≥ 32 ký tự, **không** dùng placeholder `your_jwt_secret_here`.
+Thêm riêng biến **Jwt** + `__Secret` trên Railway (chuỗi ngẫu nhiên ≥ 32 ký tự).
 
 ## Bước 3 — Public domain
 
@@ -68,6 +67,6 @@ railway link    # chọn perceptive-purpose + service API
 |-------------|------------|
 | `404 Application not found` | Domain chưa gán service / service chưa chạy → Generate Domain + Redeploy |
 | Railpack could not build | Đã fix bằng root `Dockerfile` — redeploy từ `main` |
-| Crash: Jwt:Secret | Đặt `Jwt__Secret` thật trên Variables |
+| Crash startup JWT | Đặt signing secret thật (≥ 32 ký tự) trên Railway Variables |
 | Crash: database | `DATABASE_URL=${{Postgres.DATABASE_URL}}` + Postgres cùng project |
 | GitHub Deployments đỏ | Thiếu GitHub secrets — **bỏ qua** nếu deploy qua Railway dashboard |
