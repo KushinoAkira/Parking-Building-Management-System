@@ -78,7 +78,7 @@ public class ParkingSessionsController(
     public async Task<IActionResult> GetActiveByPlate(string licensePlate, CancellationToken ct)
     {
         var session = await sessionService.GetActiveByLicensePlateAsync(licensePlate, ct);
-        return session is null ? NotFound() : Ok(session);
+        return Ok(session);
     }
 
     [HttpPost("check-in")]
