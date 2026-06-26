@@ -4,6 +4,8 @@ Workflow: `.github/workflows/deploy.yml`
 
 Chạy khi **push lên `main`** hoặc **Run workflow** thủ công (`workflow_dispatch`).
 
+> Dấu đỏ tab **GitHub Deployments** = workflow thiếu secrets — không chặn deploy trên [railway.app](https://railway.app). Hướng dẫn bật API: [docs/railway-quickstart.md](railway-quickstart.md).
+
 ## Luồng deploy
 
 1. `verify-before-deploy` — typecheck/test/build frontend + build/test backend
