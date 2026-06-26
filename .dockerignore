@@ -1,0 +1,14 @@
+.git
+.github
+.cursor
+docs
+database
+guidelines
+frontend/node_modules
+frontend/dist
+**/**/bin
+**/**/obj
+**/*.user
+appsettings.Local.json
+.env
+.env.*
