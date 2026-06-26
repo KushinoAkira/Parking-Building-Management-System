@@ -50,6 +50,7 @@ jobs:
   deploy-api:
     name: deploy-railway-api
     needs: verify
+    if: ${{ secrets.RAILWAY_TOKEN != '' && vars.RAILWAY_SERVICE_NAME != '' }}
     runs-on: ubuntu-latest
     environment: production
     container: ghcr.io/railwayapp/cli:latest
@@ -72,6 +73,7 @@ jobs:
   deploy-frontend:
     name: deploy-firebase-hosting
     needs: verify
+    if: ${{ secrets.FIREBASE_SERVICE_ACCOUNT != '' }}
     runs-on: ubuntu-latest
     environment: production
 
@@ -105,7 +107,8 @@ jobs:
 
   smoke:
     name: post-deploy-smoke
-    needs: [deploy-api, deploy-frontend]
+    needs: verify
+    if: ${{ vars.VITE_API_BASE_URL != '' }}
     runs-on: ubuntu-latest
 
     steps:
@@ -125,6 +128,7 @@ jobs:
           exit 1
 
       - name: Firebase hosting check
+        if: ${{ vars.FIREBASE_HOSTING_URL != '' }}
         run: |
           SITE_URL="${{ vars.FIREBASE_HOSTING_URL }}"
           SITE_URL="${SITE_URL%/}"

@@ -43,7 +43,23 @@ Migration DB chạy tự động khi API khởi động (`DatabaseSeeder.Migrate
 4. Tạo **Project Token** → lưu vào GitHub secret `RAILWAY_TOKEN`.
 5. Ghi **service name** (card trên dashboard) → GitHub variable `RAILWAY_SERVICE_NAME`.
 
-Nếu Railway đã connect GitHub repo: có thể tắt auto-deploy trên Railway để tránh deploy trùng với GitHub Actions.
+Nếu Railway đã connect GitHub repo: redeploy sau mỗi merge vào `main`.
+
+**Settings service API (bắt buộc):**
+- Root Directory: `backend/ParkingBuildingManagement.Api`
+- Builder: **Dockerfile** (file `Dockerfile` trong thư mục trên)
+
+**Variables bắt buộc:**
+
+| Biến | Giá trị |
+|------|---------|
+| `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+| `Jwt__Secret` | Chuỗi ≥ 32 ký tự (không placeholder) |
+| `ASPNETCORE_ENVIRONMENT` | `Production` |
+| `Cors__AllowedOrigins__0` | `https://parking-management-syste-97d18.web.app` |
+| `PayOs__DemoMode` | `true` nếu chưa có key PayOS thật |
+
+**Logs:** Deployments → deploy fail → Build logs (Docker/.NET) hoặc Deploy logs (JWT, DB, PayOS).
 
 ## Firebase — chuẩn bị một lần
 

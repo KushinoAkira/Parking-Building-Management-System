@@ -68,7 +68,10 @@ public static class ServiceRegistrationExtensions
     {
         services.Configure<PlateOcrOptions>(config.GetSection(PlateOcrOptions.SectionName));
 
-        if (isTesting)
+        var ocrOptions = config.GetSection(PlateOcrOptions.SectionName).Get<PlateOcrOptions>() ?? new PlateOcrOptions();
+        var useStubOcr = isTesting || ocrOptions.UseStub || !OperatingSystem.IsWindows();
+
+        if (useStubOcr)
             services.AddSingleton<IPlateOcrService, StubPlateOcrService>();
         else
         {
