@@ -3,6 +3,7 @@ import { Save, Settings2, Zap, RefreshCw, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { apiGet, apiPut } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 type SystemConfig = {
   configKey: string;
@@ -12,30 +13,31 @@ type SystemConfig = {
 
 const CONFIG_FIELDS: {
   key: string;
-  label: string;
+  labelKey: string;
   type: "text" | "number" | "select" | "toggle";
-  options?: { value: string; label: string }[];
+  options?: { value: string; labelKey: string }[];
   section: "ops" | "ai";
 }[] = [
-  { key: "SYSTEM_STATUS", label: "Trạng thái hệ thống", type: "select", section: "ops", options: [
-    { value: "Active", label: "Hoạt động bình thường" },
-    { value: "Maintenance", label: "Bảo trì" },
-    { value: "ReadOnly", label: "Chỉ đọc" },
+  { key: "SYSTEM_STATUS", labelKey: "sysconfig.fieldSystemStatus", type: "select", section: "ops", options: [
+    { value: "Active", labelKey: "sysconfig.optActive" },
+    { value: "Maintenance", labelKey: "sysconfig.optMaintenance" },
+    { value: "ReadOnly", labelKey: "sysconfig.optReadOnly" },
   ]},
-  { key: "OCCUPANCY_WARNING_PERCENT", label: "Ngưỡng cảnh báo lấp đầy (%)", type: "number", section: "ops" },
-  { key: "GRACE_PERIOD_MINUTES", label: "Thời gian ân hạn (phút)", type: "number", section: "ops" },
-  { key: "MAX_ACTIVE_RESERVATIONS", label: "Giới hạn đặt chỗ / tài xế", type: "number", section: "ops" },
-  { key: "RESERVATION_HOLD_MINUTES", label: "Giữ chỗ tối đa (phút)", type: "number", section: "ops" },
-  { key: "DEFAULT_CURRENCY", label: "Đơn vị tiền tệ", type: "text", section: "ops" },
-  { key: "AI_SLOT_SUGGESTION", label: "Bật AI đề xuất slot", type: "toggle", section: "ai" },
-  { key: "AI_WEIGHT_MODE", label: "Trọng số AI", type: "select", section: "ai", options: [
-    { value: "balanced", label: "Cân bằng" },
-    { value: "distance", label: "Ưu tiên khoảng cách" },
-    { value: "time", label: "Ưu tiên thời gian" },
+  { key: "OCCUPANCY_WARNING_PERCENT", labelKey: "sysconfig.fieldOccupancyWarning", type: "number", section: "ops" },
+  { key: "GRACE_PERIOD_MINUTES", labelKey: "sysconfig.fieldGracePeriod", type: "number", section: "ops" },
+  { key: "MAX_ACTIVE_RESERVATIONS", labelKey: "sysconfig.fieldMaxReservations", type: "number", section: "ops" },
+  { key: "RESERVATION_HOLD_MINUTES", labelKey: "sysconfig.fieldReservationHold", type: "number", section: "ops" },
+  { key: "DEFAULT_CURRENCY", labelKey: "sysconfig.fieldDefaultCurrency", type: "text", section: "ops" },
+  { key: "AI_SLOT_SUGGESTION", labelKey: "sysconfig.fieldAiSlotSuggestion", type: "toggle", section: "ai" },
+  { key: "AI_WEIGHT_MODE", labelKey: "sysconfig.fieldAiWeight", type: "select", section: "ai", options: [
+    { value: "balanced", labelKey: "sysconfig.optBalanced" },
+    { value: "distance", labelKey: "sysconfig.optDistance" },
+    { value: "time", labelKey: "sysconfig.optTime" },
   ]},
 ];
 
 export function SystemConfig() {
+  const { t } = useLocale();
   const [configs, setConfigs] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -57,11 +59,11 @@ export function SystemConfig() {
       });
       setConfigs(map);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được cấu hình");
+      setError(e instanceof Error ? e.message : t("sysconfig.loadFailed"));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -81,7 +83,7 @@ export function SystemConfig() {
         CONFIG_FIELDS.map((f) =>
           apiPut(
             `/api/system-configs/${encodeURIComponent(f.key)}`,
-            { configValue: configs[f.key] ?? "", description: f.label },
+            { configValue: configs[f.key] ?? "", description: t(f.labelKey) },
             auth?.token,
           ),
         ),
@@ -89,7 +91,7 @@ export function SystemConfig() {
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Lưu cấu hình thất bại");
+      setError(e instanceof Error ? e.message : t("sysconfig.saveFailed"));
     } finally {
       setIsSaving(false);
     }
@@ -105,7 +107,7 @@ export function SystemConfig() {
           className="w-full bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-2.5 text-gray-900 dark:text-white focus:outline-none focus:border-red-600"
         >
           {field.options?.map((o) => (
-            <option key={o.value} value={o.value}>{o.label}</option>
+            <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
           ))}
         </select>
       );
@@ -145,14 +147,14 @@ export function SystemConfig() {
     >
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sticky top-0 bg-gray-50/90 dark:bg-[#121212]/90 backdrop-blur-md py-4 z-20">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Cấu Hình Hệ Thống</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Thông số vận hành bãi xe — lưu vào SystemConfigs</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("sysconfig.title")}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t("sysconfig.subtitle")}</p>
         </div>
         <div className="flex items-center gap-3 w-full sm:w-auto">
           <AnimatePresence>
             {success && (
               <motion.span initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="text-sm font-bold text-green-600 dark:text-green-400">
-                Đã lưu thành công!
+                {t("sysconfig.saveSuccess")}
               </motion.span>
             )}
           </AnimatePresence>
@@ -162,7 +164,7 @@ export function SystemConfig() {
             className="flex flex-1 sm:flex-none items-center justify-center gap-2 bg-red-600 text-white px-6 py-2.5 rounded-xl text-sm font-bold hover:bg-red-700 transition-all shadow-md shadow-red-600/20 disabled:opacity-70"
           >
             {isSaving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-            Lưu Cấu Hình
+            {t("sysconfig.save")}
           </button>
         </div>
       </div>
@@ -184,12 +186,12 @@ export function SystemConfig() {
               <div className="p-2.5 bg-blue-50 dark:bg-blue-500/10 rounded-xl text-blue-600">
                 <Settings2 className="w-5 h-5" />
               </div>
-              <h2 className="font-bold text-lg text-gray-900 dark:text-white">Thông số vận hành</h2>
+              <h2 className="font-bold text-lg text-gray-900 dark:text-white">{t("sysconfig.opsParams")}</h2>
             </div>
             <div className="space-y-4">
               {opsFields.map((field) => (
                 <div key={field.key}>
-                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">{field.label}</label>
+                  <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">{t(field.labelKey)}</label>
                   {renderField(field)}
                 </div>
               ))}
@@ -201,7 +203,7 @@ export function SystemConfig() {
               <div className="p-2.5 bg-purple-50 dark:bg-purple-500/10 rounded-xl text-purple-600">
                 <Zap className="w-5 h-5" />
               </div>
-              <h2 className="font-bold text-lg text-gray-900 dark:text-white">Cấu hình AI & đặt chỗ</h2>
+              <h2 className="font-bold text-lg text-gray-900 dark:text-white">{t("sysconfig.aiConfig")}</h2>
             </div>
             <div className="space-y-4">
               {aiFields.map((field) => (
@@ -209,13 +211,13 @@ export function SystemConfig() {
                   {field.type === "toggle" ? (
                     <>
                       <div>
-                        <div className="font-bold text-sm text-gray-900 dark:text-white">{field.label}</div>
+                        <div className="font-bold text-sm text-gray-900 dark:text-white">{t(field.labelKey)}</div>
                       </div>
                       {renderField(field)}
                     </>
                   ) : (
                     <>
-                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">{field.label}</label>
+                      <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5">{t(field.labelKey)}</label>
                       {renderField(field)}
                     </>
                   )}
@@ -223,7 +225,7 @@ export function SystemConfig() {
               ))}
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 pt-2">
-              Thanh toán: Cash, BankTransfer, EWallet tại checkout — chưa tích hợp cổng bên thứ ba.
+              {t("sysconfig.paymentNote")}
             </p>
           </motion.div>
         </div>

@@ -3,6 +3,7 @@ import { Search, Calendar, Car, ArrowRight, ArrowLeft, Loader2 } from "lucide-re
 import { motion } from "motion/react";
 import { apiGet } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 type SessionRow = {
   sessionId: number;
@@ -16,32 +17,16 @@ type SessionRow = {
   zoneCode: string;
 };
 
-function formatDateTime(value: string | null) {
-  if (!value) return null;
-  return new Date(value).toLocaleString("vi-VN", {
-    hour: "2-digit",
-    minute: "2-digit",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
-}
-
-function formatDuration(entry: string, exit: string | null) {
-  if (!exit) return "Đang tính";
+function formatDuration(entry: string, exit: string | null, calculating: string) {
+  if (!exit) return calculating;
   const ms = new Date(exit).getTime() - new Date(entry).getTime();
   const hours = Math.floor(ms / 3600000);
   const mins = Math.floor((ms % 3600000) / 60000);
   return `${hours}h ${mins}m`;
 }
 
-function formatFee(fee: number | null, status: string) {
-  if (status === "Active") return "Đang tính";
-  if (fee == null) return "—";
-  return `${fee.toLocaleString("vi-VN")}đ`;
-}
-
 export function VehicleHistory() {
+  const { t, formatMoney, formatDateTime } = useLocale();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sessions, setSessions] = useState<SessionRow[]>([]);
@@ -61,12 +46,12 @@ export function VehicleHistory() {
       );
       setSessions(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được lịch sử");
+      setError(e instanceof Error ? e.message : t("history.loadFailed"));
       setSessions([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     load();
@@ -76,18 +61,27 @@ export function VehicleHistory() {
     return sessions.filter((item) => {
       const matchSearch = item.licensePlate.toLowerCase().includes(searchTerm.toLowerCase()) ||
         item.ticketCode.toLowerCase().includes(searchTerm.toLowerCase());
-      const uiStatus = item.status === "Active" ? "Đang gửi" : "Đã rời đi";
-      const matchStatus = statusFilter === "all" || uiStatus === statusFilter;
+      const matchStatus = statusFilter === "all" || item.status === statusFilter;
       return matchSearch && matchStatus;
     });
   }, [sessions, searchTerm, statusFilter]);
+
+  function displayStatus(status: string) {
+    return status === "Active" ? t("history.parking") : t("history.exited");
+  }
+
+  function displayFee(fee: number | null, status: string) {
+    if (status === "Active") return t("history.calculating");
+    if (fee == null) return "—";
+    return formatMoney(fee);
+  }
 
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Lịch sử xe ra vào</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Theo dõi chi tiết thời gian gửi xe và phí dịch vụ (30 ngày gần nhất)</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("history.title")}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t("history.subtitle")}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -95,7 +89,7 @@ export function VehicleHistory() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder="Tìm biển số, mã vé..."
+              placeholder={t("history.search")}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-4 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-[#1A1A1A] text-sm focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 outline-none transition-all dark:text-white"
@@ -107,9 +101,9 @@ export function VehicleHistory() {
             onChange={(e) => setStatusFilter(e.target.value)}
             className="pl-4 pr-8 py-2 border border-gray-200 dark:border-gray-700 rounded-xl bg-white dark:bg-[#1A1A1A] text-sm focus:ring-2 focus:ring-blue-500 outline-none dark:text-white"
           >
-            <option value="all">Tất cả trạng thái</option>
-            <option value="Đang gửi">Đang gửi</option>
-            <option value="Đã rời đi">Đã rời đi</option>
+            <option value="all">{t("history.allStatus")}</option>
+            <option value="Active">{t("history.parking")}</option>
+            <option value="Completed">{t("history.exited")}</option>
           </select>
 
           <button
@@ -117,7 +111,7 @@ export function VehicleHistory() {
             className="flex items-center gap-2 bg-blue-50 dark:bg-blue-500/10 text-blue-600 dark:text-blue-400 px-4 py-2 rounded-xl font-medium hover:bg-blue-100 dark:hover:bg-blue-500/20 transition-colors border border-blue-100 dark:border-blue-500/20"
           >
             <Calendar className="w-4 h-4" />
-            <span>Làm mới</span>
+            <span>{t("common.refresh")}</span>
           </button>
         </div>
       </div>
@@ -138,21 +132,21 @@ export function VehicleHistory() {
             <table className="w-full text-left border-collapse">
               <thead>
                 <tr className="bg-gray-50/50 dark:bg-gray-800/30 border-b border-gray-100 dark:border-gray-800 text-sm font-medium text-gray-500 dark:text-gray-400">
-                  <th className="p-4 pl-6 whitespace-nowrap">Mã vé</th>
-                  <th className="p-4 whitespace-nowrap">Biển số xe</th>
-                  <th className="p-4 whitespace-nowrap">Thời gian vào</th>
-                  <th className="p-4 whitespace-nowrap">Thời gian ra</th>
-                  <th className="p-4 whitespace-nowrap">Thời lượng</th>
-                  <th className="p-4 whitespace-nowrap">Vị trí</th>
-                  <th className="p-4 whitespace-nowrap">Phí gửi</th>
-                  <th className="p-4 pr-6 whitespace-nowrap">Trạng thái</th>
+                  <th className="p-4 pl-6 whitespace-nowrap">{t("common.ticket")}</th>
+                  <th className="p-4 whitespace-nowrap">{t("common.plate")}</th>
+                  <th className="p-4 whitespace-nowrap">{t("history.entryTime")}</th>
+                  <th className="p-4 whitespace-nowrap">{t("history.exitTime")}</th>
+                  <th className="p-4 whitespace-nowrap">{t("history.duration")}</th>
+                  <th className="p-4 whitespace-nowrap">{t("history.position")}</th>
+                  <th className="p-4 whitespace-nowrap">{t("history.parkingFee")}</th>
+                  <th className="p-4 pr-6 whitespace-nowrap">{t("common.status")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800 text-sm">
                 {filteredData.map((item, index) => {
-                  const uiStatus = item.status === "Active" ? "Đang gửi" : "Đã rời đi";
+                  const uiStatus = displayStatus(item.status);
                   const timeIn = formatDateTime(item.entryTime);
-                  const timeOut = formatDateTime(item.exitTime);
+                  const timeOut = item.exitTime ? formatDateTime(item.exitTime) : null;
                   return (
                     <motion.tr
                       initial={{ opacity: 0, y: 10 }}
@@ -186,16 +180,16 @@ export function VehicleHistory() {
                           <span className="text-gray-400 dark:text-gray-500 italic">—</span>
                         )}
                       </td>
-                      <td className="p-4 text-gray-600 dark:text-gray-300">{formatDuration(item.entryTime, item.exitTime)}</td>
+                      <td className="p-4 text-gray-600 dark:text-gray-300">{formatDuration(item.entryTime, item.exitTime, t("history.calculating"))}</td>
                       <td className="p-4">
                         <span className="px-2 py-1 bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 rounded font-medium text-xs">
                           {item.zoneCode}-{item.slotId}
                         </span>
                       </td>
-                      <td className="p-4 font-semibold text-gray-900 dark:text-white">{formatFee(item.totalFee, item.status)}</td>
+                      <td className="p-4 font-semibold text-gray-900 dark:text-white">{displayFee(item.totalFee, item.status)}</td>
                       <td className="p-4 pr-6">
                         <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-semibold ${
-                          uiStatus === "Đã rời đi"
+                          item.status === "Completed"
                             ? "bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400"
                             : "bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-400"
                         }`}>
@@ -208,7 +202,7 @@ export function VehicleHistory() {
                 {filteredData.length === 0 && (
                   <tr>
                     <td colSpan={8} className="p-8 text-center text-gray-500 dark:text-gray-400">
-                      Không tìm thấy lịch sử phù hợp.
+                      {t("history.empty")}
                     </td>
                   </tr>
                 )}

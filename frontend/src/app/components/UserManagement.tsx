@@ -3,6 +3,7 @@ import { Plus, Search, Edit2, Mail, Phone, Check, X, Users, ShieldAlert, Loader2
 import { motion, AnimatePresence } from "motion/react";
 import { apiGet, apiPost, apiPut } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 type UserRow = {
   userId: number;
@@ -27,6 +28,7 @@ const roleColors: Record<string, string> = {
 const INTERNAL_ROLES = new Set(["Admin", "Manager", "Staff"]);
 
 export function UserManagement() {
+  const { t, ts } = useLocale();
   const [activeTab, setActiveTab] = useState<"internal" | "external">("internal");
   const [searchQuery, setSearchQuery] = useState("");
   const [users, setUsers] = useState<UserRow[]>([]);
@@ -59,7 +61,7 @@ export function UserManagement() {
       setUsers(u);
       setRoles(r);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Không tải được người dùng");
+      setError(e instanceof Error ? e.message : t("users.loadFailed"));
     } finally {
       setLoading(false);
     }
@@ -140,7 +142,7 @@ export function UserManagement() {
       setModalOpen(false);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Lưu người dùng thất bại");
+      setError(e instanceof Error ? e.message : t("users.saveFailed"));
     } finally {
       setSaving(false);
     }
@@ -157,14 +159,14 @@ export function UserManagement() {
       );
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Cập nhật trạng thái thất bại");
+      setError(e instanceof Error ? e.message : t("users.statusUpdateFailed"));
     }
   }
 
   async function handleResetPassword() {
     const auth = getAuth();
     if (!resetUser || resetPassword.length < 8) {
-      setError("Mật khẩu mới phải có ít nhất 8 ký tự.");
+      setError(t("users.passwordMin"));
       return;
     }
     setSaving(true);
@@ -179,7 +181,7 @@ export function UserManagement() {
       setResetPassword("");
       setError("");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Đặt lại mật khẩu thất bại");
+      setError(e instanceof Error ? e.message : t("users.resetPasswordFailed"));
     } finally {
       setSaving(false);
     }
@@ -189,15 +191,15 @@ export function UserManagement() {
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6 flex flex-col h-full">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Quản Lý Người Dùng</h1>
-          <p className="text-gray-500 dark:text-gray-400 mt-1">Kiểm soát danh sách nhân sự và khách hàng sử dụng dịch vụ</p>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t("users.title")}</h1>
+          <p className="text-gray-500 dark:text-gray-400 mt-1">{t("users.subtitle")}</p>
         </div>
         <button
           onClick={openCreate}
           className="flex items-center gap-2 bg-red-600 text-white px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-red-600/90 transition-colors w-full sm:w-auto justify-center shadow-md shadow-red-600/20"
         >
           <Plus className="w-4 h-4" />
-          Thêm {activeTab === "internal" ? "Nhân Viên" : "Khách Hàng"}
+          {activeTab === "internal" ? t("users.addStaff") : t("users.addCustomer")}
         </button>
       </div>
 
@@ -218,7 +220,7 @@ export function UserManagement() {
             }`}
           >
             <ShieldAlert className="w-4 h-4" />
-            Nhân Sự Nội Bộ
+            {t("users.tabInternal")}
           </button>
           <button
             onClick={() => setActiveTab("external")}
@@ -229,12 +231,12 @@ export function UserManagement() {
             }`}
           >
             <Users className="w-4 h-4" />
-            Khách Gửi Xe
+            {t("users.tabExternal")}
           </button>
         </div>
         <div className="flex items-center gap-2 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 rounded-full px-4 py-1.5 text-sm shadow-sm">
           <span className="font-medium text-gray-900 dark:text-white">{data.length}</span>
-          <span className="text-gray-500 dark:text-gray-400">tổng số</span>
+          <span className="text-gray-500 dark:text-gray-400">{t("users.totalCount")}</span>
         </div>
       </div>
 
@@ -244,13 +246,13 @@ export function UserManagement() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
-              placeholder={`Tìm kiếm ${activeTab === "internal" ? "nhân viên" : "khách hàng"}...`}
+              placeholder={activeTab === "internal" ? t("users.searchStaff") : t("users.searchCustomer")}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl pl-9 pr-4 py-2 text-sm text-gray-900 dark:text-white placeholder-gray-400 focus:outline-none focus:border-red-600 transition-colors"
             />
           </div>
-          <span className="hidden sm:block text-sm text-gray-500">Hiển thị {filteredData.length} kết quả</span>
+          <span className="hidden sm:block text-sm text-gray-500">{t("users.showing", { count: filteredData.length })}</span>
         </div>
 
         {loading ? (
@@ -262,11 +264,11 @@ export function UserManagement() {
             <table className="w-full text-left text-sm whitespace-nowrap">
               <thead className="text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-[#121212]/30 sticky top-0 z-10">
                 <tr>
-                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">Người dùng</th>
-                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">Vai trò</th>
-                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">Liên hệ</th>
-                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">Trạng thái</th>
-                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800 text-right">Thao tác</th>
+                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">{t("users.user")}</th>
+                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">{t("users.role")}</th>
+                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">{t("users.contact")}</th>
+                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800">{t("common.status")}</th>
+                  <th className="py-3.5 px-6 font-medium border-b border-gray-100 dark:border-gray-800 text-right">{t("common.actions")}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
@@ -295,7 +297,7 @@ export function UserManagement() {
                     </td>
                     <td className="py-4 px-6">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-medium border ${roleColors[user.roleName] ?? roleColors.Staff}`}>
-                        {user.roleName}
+                        {t(`role.${user.roleName}`)}
                       </span>
                     </td>
                     <td className="py-4 px-6">
@@ -307,23 +309,23 @@ export function UserManagement() {
                     <td className="py-4 px-6">
                       {user.status === "Active" ? (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-green-500/10 text-green-600 dark:text-green-400 px-2.5 py-1 rounded-full border border-green-500/20">
-                          <Check className="w-3.5 h-3.5" /> Kích hoạt
+                          <Check className="w-3.5 h-3.5" /> {t("users.active")}
                         </span>
                       ) : (
                         <span className="inline-flex items-center gap-1.5 text-xs font-semibold bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700">
-                          <X className="w-3.5 h-3.5" /> Bị khoá
+                          <X className="w-3.5 h-3.5" /> {t("users.locked")}
                         </span>
                       )}
                     </td>
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => openEdit(user)} className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title="Chỉnh sửa">
+                        <button onClick={() => openEdit(user)} className="p-2 text-gray-400 hover:text-gray-700 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg" title={t("common.edit")}>
                           <Edit2 className="w-4 h-4" />
                         </button>
-                        <button onClick={() => { setResetUser(user); setResetPassword(""); }} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg" title="Đặt lại mật khẩu">
+                        <button onClick={() => { setResetUser(user); setResetPassword(""); }} className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-500/10 rounded-lg" title={t("users.resetPassword")}>
                           <KeyRound className="w-4 h-4" />
                         </button>
-                        <button onClick={() => toggleStatus(user)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg" title="Đổi trạng thái">
+                        <button onClick={() => toggleStatus(user)} className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg" title={t("users.toggleStatus")}>
                           {user.status === "Active" ? <X className="w-4 h-4" /> : <Check className="w-4 h-4" />}
                         </button>
                       </div>
@@ -332,7 +334,7 @@ export function UserManagement() {
                 ))}
                 {filteredData.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="py-16 text-center text-gray-400">Không tìm thấy dữ liệu phù hợp.</td>
+                    <td colSpan={5} className="py-16 text-center text-gray-400">{t("users.empty")}</td>
                   </tr>
                 )}
               </tbody>
@@ -344,25 +346,25 @@ export function UserManagement() {
       {resetUser && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl w-full max-w-md p-6 shadow-xl">
-            <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">Đặt lại mật khẩu</h3>
+            <h3 className="font-bold text-lg mb-2 text-gray-900 dark:text-white">{t("users.resetPassword")}</h3>
             <p className="text-sm text-gray-500 mb-4">{resetUser.fullName} ({resetUser.email})</p>
             <input
               type="password"
-              placeholder="Mật khẩu mới (≥ 8 ký tự)"
+              placeholder={t("users.newPassword")}
               value={resetPassword}
               onChange={(e) => setResetPassword(e.target.value)}
               className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white mb-4"
             />
             <div className="flex gap-2">
               <button onClick={() => setResetUser(null)} className="flex-1 py-2.5 rounded-xl border text-sm font-semibold dark:border-gray-700 dark:text-gray-300">
-                Hủy
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleResetPassword}
                 disabled={saving || resetPassword.length < 8}
                 className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold disabled:opacity-60"
               >
-                {saving ? "Đang lưu..." : "Xác nhận"}
+                {saving ? t("common.saving") : t("common.confirm")}
               </button>
             </div>
           </div>
@@ -373,18 +375,18 @@ export function UserManagement() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
           <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl w-full max-w-md p-6 shadow-xl">
             <h3 className="font-bold text-lg mb-4 text-gray-900 dark:text-white">
-              {editing ? "Chỉnh sửa người dùng" : "Thêm người dùng"}
+              {editing ? t("users.editUser") : t("users.addUser")}
             </h3>
             <div className="space-y-3">
               <input
-                placeholder="Họ tên"
+                placeholder={t("users.fullNamePlaceholder")}
                 value={form.fullName}
                 onChange={(e) => setForm({ ...form, fullName: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
               />
               {!editing && (
                 <input
-                  placeholder="Email"
+                  placeholder={t("auth.email")}
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
@@ -393,7 +395,7 @@ export function UserManagement() {
               )}
               {!editing && (
                 <input
-                  placeholder="Mật khẩu"
+                  placeholder={t("users.passwordPlaceholder")}
                   type="password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -401,7 +403,7 @@ export function UserManagement() {
                 />
               )}
               <input
-                placeholder="Số điện thoại"
+                placeholder={t("users.phonePlaceholder")}
                 value={form.phone}
                 onChange={(e) => setForm({ ...form, phone: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
@@ -414,7 +416,7 @@ export function UserManagement() {
                 {roles
                   .filter((r) => (activeTab === "internal" ? INTERNAL_ROLES.has(r.roleName) : r.roleName === "Driver"))
                   .map((r) => (
-                    <option key={r.roleId} value={r.roleId}>{r.roleName}</option>
+                    <option key={r.roleId} value={r.roleId}>{t(`role.${r.roleName}`)}</option>
                   ))}
               </select>
               <select
@@ -422,13 +424,13 @@ export function UserManagement() {
                 onChange={(e) => setForm({ ...form, status: e.target.value })}
                 className="w-full border rounded-xl px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700 dark:text-white"
               >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="Active">{ts("Active")}</option>
+                <option value="Inactive">{ts("Inactive")}</option>
               </select>
             </div>
             <div className="flex gap-2 mt-4">
               <button onClick={() => setModalOpen(false)} className="flex-1 py-2.5 rounded-xl border text-sm font-semibold dark:border-gray-700 dark:text-gray-300">
-                Hủy
+                {t("common.cancel")}
               </button>
               <button
                 onClick={handleSave}
@@ -436,7 +438,7 @@ export function UserManagement() {
                 className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-bold disabled:opacity-60 flex justify-center gap-2"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                Lưu
+                {t("common.save")}
               </button>
             </div>
           </div>

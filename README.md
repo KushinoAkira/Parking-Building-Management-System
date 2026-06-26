@@ -1,6 +1,6 @@
 # Parking Building Management System (SWP391)
 
-Monorepo quản lý bãi đỗ xe: **React** (frontend), **ASP.NET Core** (backend), **SQL Server** (database).
+Monorepo quản lý bãi đỗ xe: **React** (frontend), **ASP.NET Core** (backend), **PostgreSQL** (database).
 
 ## Cấu trúc thư mục
 
@@ -16,7 +16,7 @@ Monorepo quản lý bãi đỗ xe: **React** (frontend), **ASP.NET Core** (backe
 
 - Node.js 18+ và pnpm (hoặc npm)
 - .NET SDK 8+ (đang dùng .NET 10)
-- SQL Server hoặc SQL Server LocalDB
+- PostgreSQL 14+ (local hoặc Docker; Railway dùng `DATABASE_URL`)
 
 ## Frontend (React)
 
@@ -27,7 +27,7 @@ cp .env.example .env
 pnpm dev       # http://localhost:5173
 ```
 
-## Backend (.NET + SQL Server)
+## Backend (.NET + PostgreSQL)
 
 1. Sao chép cấu hình mẫu (nếu cần chỉnh connection string):
 
@@ -39,7 +39,7 @@ pnpm dev       # http://localhost:5173
 2. Tạo database (migration):
 
    ```bash
-   dotnet ef migrations add PbmsInitialSchema --project ParkingBuildingManagement.Api
+   dotnet ef migrations add PbmsPostgresInitial --project ParkingBuildingManagement.Api
    dotnet ef database update --project ParkingBuildingManagement.Api
    ```
 
@@ -130,7 +130,25 @@ git push -u origin dev
 
 Workflow đã cấu hình sẵn cho `main` và `dev`; push/PR vào hai nhánh này đều kích hoạt Actions.
 
+### 3. Deploy (`deploy.yml`) — Railway + Firebase
+
+Chạy khi **merge/push lên `main`** (sau khi verify build + test pass).
+
+| Job | Mô tả |
+|-----|--------|
+| `verify-before-deploy` | Giống CI: test/build FE + test/build BE |
+| `deploy-railway-api` | `railway up` API lên Railway |
+| `deploy-firebase-hosting` | Build Vite + deploy Firebase Hosting |
+| `post-deploy-smoke` | Kiểm tra `/api/health` và URL hosting |
+
+Cấu hình secrets/variables: xem [docs/deploy-cicd.md](docs/deploy-cicd.md).
+
+**Secrets bắt buộc:** `RAILWAY_TOKEN`, `FIREBASE_SERVICE_ACCOUNT`  
+**Variables bắt buộc:** `VITE_API_BASE_URL`, `FIREBASE_HOSTING_URL`, `RAILWAY_SERVICE_NAME`, `RAILWAY_ENVIRONMENT`
+
 ## Ghi chú bảo mật
 
 - Không commit `.env`, mật khẩu SQL thật, hay `appsettings.Local.json`
 - Dùng `appsettings.example.json` và placeholder trong repo
+- Trước khi commit: kiểm tra `git diff --cached` để chắc chắn không có key thật (`Jwt`, `PayOs`, DB password)
+- Secrets production chỉ đặt ở Railway Variables / local machine, không đặt trong file tracked

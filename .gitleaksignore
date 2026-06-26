@@ -1,3 +1,5 @@
 9aecd73cddf74446c373149f36aef9b54274fcf6:backend/ParkingBuildingManagement.Api/ParkingBuildingManagement.Api.http:hashicorp-tf-password:12
 4c8f152c8b1577026fe67b22be6f03756964c740:backend/ParkingBuildingManagement.Api/appsettings.json:generic-api-key:6
 dd1fc4bccaab16f1364fa22143b240541d7a0b8b:backend/ParkingBuildingManagement.Api/appsettings.json:generic-api-key:6
+c0044dbc052d0bb1abe68ad56f9f2e412e022f13:backend/ParkingBuildingManagement.Api.Tests/SecurityEndpointTests.cs:hashicorp-tf-password:27
+6923ad7daa882bd667749272afed72134f4f2790:backend/ParkingBuildingManagement.Api.Tests/SecurityEndpointTests.cs:hashicorp-tf-password:27

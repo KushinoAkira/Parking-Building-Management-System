@@ -1,5 +1,6 @@
 ﻿using System;
 using Microsoft.EntityFrameworkCore.Migrations;
+using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
@@ -8,7 +9,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace ParkingBuildingManagement.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class PbmsInitialSchema : Migration
+    public partial class PbmsPostgresInitial : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -17,14 +18,14 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "ParkingFacility",
                 columns: table => new
                 {
-                    FacilityID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    FacilityName = table.Column<string>(type: "nvarchar(200)", maxLength: 200, nullable: false),
-                    Address = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true),
-                    OpenTime = table.Column<TimeOnly>(type: "time", nullable: false),
-                    CloseTime = table.Column<TimeOnly>(type: "time", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    FacilityID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    FacilityName = table.Column<string>(type: "character varying(200)", maxLength: 200, nullable: false),
+                    Address = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    OpenTime = table.Column<TimeOnly>(type: "time without time zone", nullable: false),
+                    CloseTime = table.Column<TimeOnly>(type: "time without time zone", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -35,9 +36,9 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "Roles",
                 columns: table => new
                 {
-                    RoleID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    RoleName = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false)
+                    RoleID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    RoleName = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false)
                 },
                 constraints: table =>
                 {
@@ -48,9 +49,9 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "SystemConfigs",
                 columns: table => new
                 {
-                    ConfigKey = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    ConfigValue = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    ConfigKey = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    ConfigValue = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: false),
+                    Description = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -61,11 +62,11 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "VehicleTypes",
                 columns: table => new
                 {
-                    VehicleTypeID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    TypeCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    TypeName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Active")
+                    VehicleTypeID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    TypeCode = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    TypeName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Active")
                 },
                 constraints: table =>
                 {
@@ -76,15 +77,16 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "Users",
                 columns: table => new
                 {
-                    UserID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    FullName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
-                    Email = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    PasswordHash = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
-                    Phone = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    RoleID = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()")
+                    UserID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    FullName = table.Column<string>(type: "character varying(150)", maxLength: 150, nullable: false),
+                    Email = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    PasswordHash = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
+                    Phone = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    RoleID = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    WalletBalance = table.Column<decimal>(type: "numeric(12,2)", nullable: false, defaultValue: 0m)
                 },
                 constraints: table =>
                 {
@@ -101,13 +103,13 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "ParkingZones",
                 columns: table => new
                 {
-                    ZoneID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    ZoneCode = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    ZoneName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    VehicleTypeID = table.Column<int>(type: "int", nullable: false),
-                    Capacity = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Active")
+                    ZoneID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    ZoneCode = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    ZoneName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    VehicleTypeID = table.Column<int>(type: "integer", nullable: false),
+                    Capacity = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Active")
                 },
                 constraints: table =>
                 {
@@ -124,16 +126,16 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "PricingPolicies",
                 columns: table => new
                 {
-                    PolicyID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    VehicleTypeID = table.Column<int>(type: "int", nullable: false),
-                    PolicyName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
-                    PricePerHour = table.Column<decimal>(type: "decimal(12,2)", nullable: false),
-                    DailyMaxFee = table.Column<decimal>(type: "decimal(12,2)", nullable: true),
-                    LostTicketFee = table.Column<decimal>(type: "decimal(12,2)", nullable: false, defaultValue: 0m),
-                    OvertimeFee = table.Column<decimal>(type: "decimal(12,2)", nullable: false, defaultValue: 0m),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()")
+                    PolicyID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    VehicleTypeID = table.Column<int>(type: "integer", nullable: false),
+                    PolicyName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
+                    PricePerHour = table.Column<decimal>(type: "numeric(12,2)", nullable: false),
+                    DailyMaxFee = table.Column<decimal>(type: "numeric(12,2)", nullable: true),
+                    LostTicketFee = table.Column<decimal>(type: "numeric(12,2)", nullable: false, defaultValue: 0m),
+                    OvertimeFee = table.Column<decimal>(type: "numeric(12,2)", nullable: false, defaultValue: 0m),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -150,16 +152,16 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "ReportSnapshots",
                 columns: table => new
                 {
-                    ReportID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
+                    ReportID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     ReportDate = table.Column<DateOnly>(type: "date", nullable: false),
-                    VehicleTypeID = table.Column<int>(type: "int", nullable: true),
-                    TotalEntries = table.Column<int>(type: "int", nullable: false),
-                    TotalExits = table.Column<int>(type: "int", nullable: false),
-                    TotalRevenue = table.Column<decimal>(type: "decimal(14,2)", nullable: false, defaultValue: 0m),
-                    OccupancyRate = table.Column<decimal>(type: "decimal(5,2)", nullable: true),
-                    PeakHour = table.Column<int>(type: "int", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()")
+                    VehicleTypeID = table.Column<int>(type: "integer", nullable: true),
+                    TotalEntries = table.Column<int>(type: "integer", nullable: false),
+                    TotalExits = table.Column<int>(type: "integer", nullable: false),
+                    TotalRevenue = table.Column<decimal>(type: "numeric(14,2)", nullable: false, defaultValue: 0m),
+                    OccupancyRate = table.Column<decimal>(type: "numeric(5,2)", nullable: true),
+                    PeakHour = table.Column<int>(type: "integer", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -173,13 +175,40 @@ namespace ParkingBuildingManagement.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "WalletTopUps",
+                columns: table => new
+                {
+                    TopUpID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserID = table.Column<int>(type: "integer", nullable: false),
+                    Amount = table.Column<decimal>(type: "numeric(12,2)", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Pending"),
+                    PayOsOrderCode = table.Column<long>(type: "bigint", nullable: false),
+                    CheckoutUrl = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true),
+                    QrCode = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: true),
+                    PaymentLinkId = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_WalletTopUps", x => x.TopUpID);
+                    table.ForeignKey(
+                        name: "FK_WalletTopUps_Users_UserID",
+                        column: x => x.UserID,
+                        principalTable: "Users",
+                        principalColumn: "UserID",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ParkingSlots",
                 columns: table => new
                 {
-                    SlotID = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    ZoneID = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Available"),
-                    Note = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: true)
+                    SlotID = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    ZoneID = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Available"),
+                    Note = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -196,17 +225,17 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "Reservations",
                 columns: table => new
                 {
-                    ReservationID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserID = table.Column<int>(type: "int", nullable: false),
-                    VehicleTypeID = table.Column<int>(type: "int", nullable: false),
-                    ZoneID = table.Column<int>(type: "int", nullable: true),
-                    SlotID = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    LicensePlate = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: true),
-                    ReservedFrom = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ReservedTo = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Pending"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()")
+                    ReservationID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserID = table.Column<int>(type: "integer", nullable: false),
+                    VehicleTypeID = table.Column<int>(type: "integer", nullable: false),
+                    ZoneID = table.Column<int>(type: "integer", nullable: true),
+                    SlotID = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    LicensePlate = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: true),
+                    ReservedFrom = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ReservedTo = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Pending"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -241,25 +270,25 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "ParkingSessions",
                 columns: table => new
                 {
-                    SessionID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    TicketCode = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    UserID = table.Column<int>(type: "int", nullable: true),
-                    ReservationID = table.Column<int>(type: "int", nullable: true),
-                    VehicleTypeID = table.Column<int>(type: "int", nullable: false),
-                    ZoneID = table.Column<int>(type: "int", nullable: false),
-                    SlotID = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    LicensePlate = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false),
-                    EntryTime = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
-                    ExitTime = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    EntryGate = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    ExitGate = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    EstimatedFee = table.Column<decimal>(type: "decimal(12,2)", nullable: true),
-                    TotalFee = table.Column<decimal>(type: "decimal(12,2)", nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
-                    EntryStaffID = table.Column<int>(type: "int", nullable: true),
-                    ExitStaffID = table.Column<int>(type: "int", nullable: true),
-                    Note = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: true)
+                    SessionID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    TicketCode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    UserID = table.Column<int>(type: "integer", nullable: true),
+                    ReservationID = table.Column<int>(type: "integer", nullable: true),
+                    VehicleTypeID = table.Column<int>(type: "integer", nullable: false),
+                    ZoneID = table.Column<int>(type: "integer", nullable: false),
+                    SlotID = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    LicensePlate = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    EntryTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    ExitTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    EntryGate = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    ExitGate = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: true),
+                    EstimatedFee = table.Column<decimal>(type: "numeric(12,2)", nullable: true),
+                    TotalFee = table.Column<decimal>(type: "numeric(12,2)", nullable: true),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Active"),
+                    EntryStaffID = table.Column<int>(type: "integer", nullable: true),
+                    ExitStaffID = table.Column<int>(type: "integer", nullable: true),
+                    Note = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
                 },
                 constraints: table =>
                 {
@@ -312,14 +341,14 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "Feedbacks",
                 columns: table => new
                 {
-                    FeedbackID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    UserID = table.Column<int>(type: "int", nullable: true),
-                    SessionID = table.Column<int>(type: "int", nullable: true),
-                    FeedbackType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Content = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "New"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()")
+                    FeedbackID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    UserID = table.Column<int>(type: "integer", nullable: true),
+                    SessionID = table.Column<int>(type: "integer", nullable: true),
+                    FeedbackType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Content = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "New"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP")
                 },
                 constraints: table =>
                 {
@@ -342,16 +371,16 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "Incidents",
                 columns: table => new
                 {
-                    IncidentID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SessionID = table.Column<int>(type: "int", nullable: true),
-                    ReportedByID = table.Column<int>(type: "int", nullable: true),
-                    IncidentType = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
-                    PenaltyFee = table.Column<decimal>(type: "decimal(12,2)", nullable: false, defaultValue: 0m),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Open"),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
-                    ResolvedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                    IncidentID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    SessionID = table.Column<int>(type: "integer", nullable: true),
+                    ReportedByID = table.Column<int>(type: "integer", nullable: true),
+                    IncidentType = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    PenaltyFee = table.Column<decimal>(type: "numeric(12,2)", nullable: false, defaultValue: 0m),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Open"),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    ResolvedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -374,13 +403,13 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "Payments",
                 columns: table => new
                 {
-                    PaymentID = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    SessionID = table.Column<int>(type: "int", nullable: false),
-                    Amount = table.Column<decimal>(type: "decimal(12,2)", nullable: false),
-                    PaymentMethod = table.Column<string>(type: "nvarchar(30)", maxLength: 30, nullable: false),
-                    PaymentTime = table.Column<DateTime>(type: "datetime2", nullable: false, defaultValueSql: "GETDATE()"),
-                    Status = table.Column<string>(type: "nvarchar(20)", maxLength: 20, nullable: false, defaultValue: "Completed")
+                    PaymentID = table.Column<int>(type: "integer", nullable: false)
+                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    SessionID = table.Column<int>(type: "integer", nullable: false),
+                    Amount = table.Column<decimal>(type: "numeric(12,2)", nullable: false),
+                    PaymentMethod = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    PaymentTime = table.Column<DateTime>(type: "timestamp with time zone", nullable: false, defaultValueSql: "CURRENT_TIMESTAMP"),
+                    Status = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false, defaultValue: "Completed")
                 },
                 constraints: table =>
                 {
@@ -411,7 +440,9 @@ namespace ParkingBuildingManagement.Api.Migrations
                 {
                     { 1, "Active", "MOTORBIKE", "Motorbike" },
                     { 2, "Active", "CAR", "Car" },
-                    { 3, "Active", "EV", "Electric Vehicle" }
+                    { 3, "Active", "EV", "Electric Vehicle" },
+                    { 4, "Active", "EV_MOTORBIKE", "Electric Motorbike" },
+                    { 5, "Active", "EV_CAR", "Electric Car" }
                 });
 
             migrationBuilder.CreateIndex(
@@ -515,8 +546,7 @@ namespace ParkingBuildingManagement.Api.Migrations
                 name: "IX_ReportSnapshots_ReportDate_VehicleTypeID",
                 table: "ReportSnapshots",
                 columns: new[] { "ReportDate", "VehicleTypeID" },
-                unique: true,
-                filter: "[VehicleTypeID] IS NOT NULL");
+                unique: true);
 
             migrationBuilder.CreateIndex(
                 name: "IX_ReportSnapshots_VehicleTypeID",
@@ -565,6 +595,17 @@ namespace ParkingBuildingManagement.Api.Migrations
                 table: "VehicleTypes",
                 column: "TypeCode",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WalletTopUps_PayOsOrderCode",
+                table: "WalletTopUps",
+                column: "PayOsOrderCode",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_WalletTopUps_UserID",
+                table: "WalletTopUps",
+                column: "UserID");
         }
 
         /// <inheritdoc />
@@ -590,6 +631,9 @@ namespace ParkingBuildingManagement.Api.Migrations
 
             migrationBuilder.DropTable(
                 name: "SystemConfigs");
+
+            migrationBuilder.DropTable(
+                name: "WalletTopUps");
 
             migrationBuilder.DropTable(
                 name: "ParkingSessions");

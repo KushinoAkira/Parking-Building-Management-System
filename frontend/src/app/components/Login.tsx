@@ -2,34 +2,37 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import { Car, Lock, User, Eye, EyeOff, CheckCircle2, XCircle, ShieldCheck, Check, Circle } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
+import { LocaleSwitcher } from "./LocaleSwitcher";
 import { motion, AnimatePresence } from "motion/react";
 import { apiPost } from "../lib/api";
 import { getAuth, saveAuth, getRoleHomePath, type AuthPayload } from "../lib/auth";
+import { startRealtimeConnection } from "../lib/realtime";
+import { useLocale } from "../lib/i18n/LocaleContext";
 
 const DEMO_ACCOUNTS = [
   {
-    label: "Admin",
+    labelKey: "auth.demoAdmin",
     email: "admin@parking.com",
     password: "Admin@123",
     role: "admin",
     route: "/admin",
   },
   {
-    label: "Quản lý",
+    labelKey: "auth.demoManager",
     email: "manager@parking.com",
     password: "Manager@123",
     role: "manager",
     route: "/manager",
   },
   {
-    label: "Nhân viên",
+    labelKey: "auth.demoStaff",
     email: "staff@parking.com",
     password: "Staff@123",
     role: "staff",
     route: "/staff-dashboard",
   },
   {
-    label: "Khách gửi xe",
+    labelKey: "auth.demoDriver",
     email: "user@parking.com",
     password: "User@123",
     role: "user",
@@ -89,6 +92,7 @@ function ValidationItem({ isValid, text, isShield = false }: { isValid: boolean;
 
 export function Login() {
   const navigate = useNavigate();
+  const { t } = useLocale();
   const [isLogin, setIsLogin] = useState(true);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
@@ -119,17 +123,17 @@ export function Login() {
   const showPasswordValidation = password.length > 0;
 
   const conditionsMet = [hasLength, hasUpper, hasLower, hasNumber].filter(Boolean).length;
-  let strengthLabel = "YẾU";
+  let strengthLabel = t("auth.strengthWeak");
   let strengthColor = "text-[#F56565]";
   let progressWidth = "25%";
   let progressColor = "bg-[#F56565]";
   if (conditionsMet === 4) {
-    strengthLabel = "MẠNH";
+    strengthLabel = t("auth.strengthStrong");
     strengthColor = "text-[#48BB78]";
     progressWidth = "100%";
     progressColor = "bg-[#48BB78]";
   } else if (conditionsMet >= 2) {
-    strengthLabel = "TRUNG BÌNH";
+    strengthLabel = t("auth.strengthMedium");
     strengthColor = "text-[#ECC94B]";
     progressWidth = "60%";
     progressColor = "bg-[#ECC94B]";
@@ -143,16 +147,16 @@ export function Login() {
     if (!isLogin) {
       const trimmedFullName = fullName.trim();
       if (!trimmedFullName) {
-        setError("Vui lòng nhập họ và tên.");
+        setError(t("auth.fullNameRequired"));
         return;
       }
       if (!isEmailValid || !isStrong) {
-        setError("Vui lòng kiểm tra lại điều kiện hợp lệ.");
+        setError(t("auth.validationCheck"));
         setSuccess("");
         return;
       }
       if (password !== confirmPassword) {
-        setError("Mật khẩu xác nhận không khớp.");
+        setError(t("auth.passwordMismatch"));
         setSuccess("");
         return;
       }
@@ -164,13 +168,13 @@ export function Login() {
           password,
           phone: null,
         });
-        setSuccess("Đăng ký thành công! Vui lòng đăng nhập.");
+        setSuccess(t("auth.registerSuccess"));
         setIsLogin(true);
         setFullName("");
         setPassword("");
         setConfirmPassword("");
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Đăng ký thất bại.");
+        setError(err instanceof Error ? err.message : t("auth.registerFailed"));
       } finally {
         setIsSubmitting(false);
       }
@@ -181,9 +185,10 @@ export function Login() {
       setIsSubmitting(true);
       const auth = await apiPost<AuthPayload>("/api/auth/login", { email, password });
       saveAuth(auth, remember);
+      void startRealtimeConnection();
       navigate(getRoleHomePath(auth.roleName), { replace: true });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Email hoặc mật khẩu không đúng.");
+      setError(err instanceof Error ? err.message : t("auth.loginFailedCredentials"));
     } finally {
       setIsSubmitting(false);
     }
@@ -209,7 +214,8 @@ export function Login() {
 
       {/* Right Column - Form */}
       <div className="w-full lg:w-[45%] flex flex-col relative z-20">
-        <div className="absolute top-6 right-6">
+        <div className="absolute top-6 right-6 flex items-center gap-2">
+          <LocaleSwitcher compact />
           <ThemeToggle />
         </div>
 
@@ -225,9 +231,9 @@ export function Login() {
               <div className="w-8 h-8 bg-blue-600 rounded-xl flex items-center justify-center mb-2">
                 <Car className="w-4 h-4 text-white" />
               </div>
-              <h1 className="text-lg font-bold text-gray-900 dark:text-white mb-0.5">ParkingPro</h1>
+              <h1 className="text-lg font-bold text-gray-900 dark:text-white mb-0.5">{t("auth.appName")}</h1>
               <p className="text-gray-500 dark:text-gray-400 text-[10px]">
-                Hệ thống Quản lý Bãi đỗ xe
+                {t("auth.tagline")}
               </p>
             </div>
 
@@ -239,7 +245,7 @@ export function Login() {
                   isLogin ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
-                Đăng nhập
+                {t("auth.login")}
               </button>
               <button
                 onClick={() => { setIsLogin(false); setError(""); setSuccess(""); setConfirmPassword(""); }}
@@ -247,7 +253,7 @@ export function Login() {
                   !isLogin ? "text-blue-600 dark:text-blue-400" : "text-gray-500 dark:text-gray-400"
                 }`}
               >
-                Đăng ký
+                {t("auth.register")}
               </button>
               <motion.div
                 className="absolute top-1 bottom-1 w-[calc(50%-4px)] bg-white dark:bg-[#1A1A1A] rounded-lg shadow-sm"
@@ -268,7 +274,7 @@ export function Login() {
                     className="overflow-hidden"
                   >
                     <label className="block text-xs font-bold text-gray-900 dark:text-gray-200 mb-1.5">
-                      Họ và Tên
+                      {t("auth.fullName")}
                     </label>
                     <div className="relative">
                       <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -280,7 +286,7 @@ export function Login() {
                         value={fullName}
                         onChange={(e) => { setFullName(e.target.value); setError(""); setSuccess(""); }}
                         className="block w-full pl-14 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
-                        placeholder="Nhập họ và tên đầy đủ"
+                        placeholder={t("auth.fullNamePlaceholder")}
                       />
                     </div>
                   </motion.div>
@@ -290,7 +296,7 @@ export function Login() {
               {/* Email Input */}
               <div>
                 <label className="block text-xs font-bold text-gray-900 dark:text-gray-200 mb-1.5">
-                  Email / Tên đăng nhập
+                  {t("auth.emailUsername")}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -302,7 +308,7 @@ export function Login() {
                     value={email}
                     onChange={(e) => { setEmail(e.target.value); setError(""); setSuccess(""); }}
                     className="block w-full pl-14 pr-4 py-2 border-2 border-gray-200 dark:border-gray-700 rounded-full bg-gray-50/50 dark:bg-[#121212] text-gray-900 dark:text-white placeholder-gray-400 focus:bg-white dark:focus:bg-[#1A1A1A] focus:ring-0 focus:border-blue-600 dark:focus:border-blue-500 transition-all text-sm outline-none"
-                    placeholder="Nhập email"
+                    placeholder={t("auth.emailPlaceholder")}
                   />
                 </div>
                 <AnimatePresence>
@@ -313,7 +319,7 @@ export function Login() {
                       exit={{ opacity: 0, height: 0 }}
                       className="mt-2 pl-1 space-y-1 overflow-hidden"
                     >
-                      <ValidationItem isValid={isEmailValid} text="Định dạng Email hợp lệ" />
+                      <ValidationItem isValid={isEmailValid} text={t("auth.emailValid")} />
                     </motion.div>
                   )}
                 </AnimatePresence>
@@ -322,7 +328,7 @@ export function Login() {
               {/* Password Input */}
               <div className="pt-2">
                 <label className="block text-xs font-bold text-gray-900 dark:text-gray-200 mb-1.5">
-                  Mật khẩu
+                  {t("auth.password")}
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -353,27 +359,27 @@ export function Login() {
                       className="mt-2 overflow-hidden"
                     >
                       <div className="mt-1 pl-1">
-                        <h4 className="text-[11px] font-bold text-gray-400 mb-3 uppercase tracking-wider">Mật khẩu cần có</h4>
+                        <h4 className="text-[11px] font-bold text-gray-400 mb-3 uppercase tracking-wider">{t("auth.passwordRequireTitle")}</h4>
                         <div className="space-y-2 mb-4">
                           <div className={`flex items-center gap-2 text-sm transition-colors duration-300 ${hasLength ? 'text-[#48BB78]' : 'text-gray-400'}`}>
                             {hasLength ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
-                            <span>Ít nhất 8 ký tự</span>
+                            <span>{t("auth.passwordLength")}</span>
                           </div>
                           <div className={`flex items-center gap-2 text-sm transition-colors duration-300 ${hasLower ? 'text-[#48BB78]' : 'text-gray-400'}`}>
                             {hasLower ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
-                            <span>Một chữ thường (a-z)</span>
+                            <span>{t("auth.passwordLowerHint")}</span>
                           </div>
                           <div className={`flex items-center gap-2 text-sm transition-colors duration-300 ${hasUpper ? 'text-[#48BB78]' : 'text-gray-400'}`}>
                             {hasUpper ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
-                            <span>Một chữ hoa (A-Z)</span>
+                            <span>{t("auth.passwordUpperHint")}</span>
                           </div>
                           <div className={`flex items-center gap-2 text-sm transition-colors duration-300 ${hasNumber ? 'text-[#48BB78]' : 'text-gray-400'}`}>
                             {hasNumber ? <Check className="w-4 h-4" /> : <Circle className="w-4 h-4" />}
-                            <span>Một chữ số (0-9)</span>
+                            <span>{t("auth.passwordNumberHint")}</span>
                           </div>
                         </div>
                         <div className="flex items-center justify-between text-[11px] font-bold tracking-wider mb-2">
-                          <span className="text-gray-400 uppercase">Độ mạnh</span>
+                          <span className="text-gray-400 uppercase">{t("auth.strength")}</span>
                           <span className={`${strengthColor} transition-colors duration-300 uppercase`}>{strengthLabel}</span>
                         </div>
                         <div className="h-1.5 w-full bg-gray-200 dark:bg-gray-700/50 rounded-full overflow-hidden flex">
@@ -399,7 +405,7 @@ export function Login() {
                       className="overflow-hidden"
                     >
                       <label className="block text-xs font-bold text-gray-900 dark:text-gray-200 mb-1.5">
-                        Xác nhận Mật khẩu
+                        {t("auth.confirmPassword")}
                       </label>
                       <div className="relative">
                         <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
@@ -446,10 +452,10 @@ export function Login() {
                           />
                           <CheckCircle2 className="absolute w-3 h-3 text-white pointer-events-none opacity-0 peer-checked:opacity-100" />
                         </div>
-                        <span className="text-xs font-bold text-gray-900 dark:text-gray-300">Ghi nhớ đăng nhập</span>
+                        <span className="text-xs font-bold text-gray-900 dark:text-gray-300">{t("auth.remember")}</span>
                       </label>
                       <a href="#" className="text-xs font-bold text-blue-600 hover:underline">
-                        Quên mật khẩu?
+                        {t("auth.forgotPassword")}
                       </a>
                     </div>
                   </motion.div>
@@ -473,7 +479,7 @@ export function Login() {
                 disabled={isSubmitting}
                 className="w-full py-2 rounded-xl bg-blue-600 text-white font-bold text-sm hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 mt-4 disabled:opacity-60"
               >
-                {isSubmitting ? "Đang xử lý..." : isLogin ? "Đăng nhập" : "Đăng ký"}
+                {isSubmitting ? t("common.loading") : isLogin ? t("auth.login") : t("auth.register")}
               </button>
 
               <AnimatePresence>
@@ -486,7 +492,7 @@ export function Login() {
                   >
                     <div className="relative flex items-center py-2">
                       <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
-                      <span className="flex-shrink-0 mx-4 text-xs text-gray-400">hoặc</span>
+                      <span className="flex-shrink-0 mx-4 text-xs text-gray-400">{t("auth.orDivider")}</span>
                       <div className="flex-grow border-t border-gray-200 dark:border-gray-800"></div>
                     </div>
 
@@ -500,7 +506,7 @@ export function Login() {
                         <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
                         <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
                       </svg>
-                      Đăng nhập với Google
+                      {t("auth.loginGoogle")}
                     </button>
                   </motion.div>
                 )}
@@ -523,7 +529,7 @@ export function Login() {
                         onClick={() => fillDemo(acc)}
                         className="text-[10px] text-gray-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors text-left bg-gray-50 dark:bg-[#121212] p-1.5 rounded-lg border border-gray-200 dark:border-gray-800"
                       >
-                        <div className="font-bold">{acc.label}</div>
+                        <div className="font-bold">{t(acc.labelKey)}</div>
                         <div className="truncate opacity-80">{acc.email}</div>
                       </button>
                     ))}
@@ -535,7 +541,7 @@ export function Login() {
         </div>
 
         <div className="w-full text-center py-2 text-[10px] text-gray-500 dark:text-gray-400 font-medium z-20">
-          © 2024 ParkingPro. All rights reserved.
+          {t("auth.copyright")}
         </div>
       </div>
     </div>

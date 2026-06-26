@@ -1,81 +1,24 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using ParkingBuildingManagement.Api.Data;
+using ParkingBuildingManagement.Api.Extensions;
 using ParkingBuildingManagement.Api.Middleware;
 using ParkingBuildingManagement.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddJsonFile("appsettings.Local.json", optional: true, reloadOnChange: true);
 
 var isTesting = builder.Environment.IsEnvironment("Testing");
 
-if (isTesting)
-{
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseInMemoryDatabase("PbmsIntegrationTests"));
-}
-else
-{
-    var connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("Connection string 'DefaultConnection' is not configured.");
+builder.Services
+    .AddPbmsData(builder.Configuration, isTesting)
+    .AddPbmsCoreServices()
+    .AddPbmsPayments(builder.Configuration, builder.Environment, isTesting)
+    .AddPbmsOcr(builder.Configuration, isTesting)
+    .AddPbmsAuth(builder.Configuration, builder.Environment, isTesting)
+    .AddPbmsCors(builder.Configuration, builder.Environment, isTesting)
+    .AddPbmsRuntimeProtections();
 
-    builder.Services.AddDbContext<ApplicationDbContext>(options =>
-        options.UseSqlServer(connectionString));
-}
-
-builder.Services.AddScoped<IAuthService, AuthService>();
-builder.Services.AddScoped<ISlotAllocationService, SlotAllocationService>();
-builder.Services.AddScoped<IPricingService, PricingService>();
-builder.Services.AddScoped<IParkingSessionService, ParkingSessionService>();
-builder.Services.AddScoped<IReservationService, ReservationService>();
-builder.Services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
-
-var jwtSecret = builder.Configuration["Jwt:Secret"]
-    ?? "your_jwt_secret_here_min_32_characters_long";
-var jwtIssuer = builder.Configuration["Jwt:Issuer"] ?? "PBMS";
-var jwtAudience = builder.Configuration["Jwt:Audience"] ?? "PBMS";
-
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.TokenValidationParameters = new TokenValidationParameters
-        {
-            ValidateIssuer = true,
-            ValidateAudience = true,
-            ValidateLifetime = true,
-            ValidateIssuerSigningKey = true,
-            ValidIssuer = jwtIssuer,
-            ValidAudience = jwtAudience,
-            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret)),
-        };
-    });
-
-builder.Services.AddAuthorization(options =>
-{
-    if (!isTesting)
-    {
-        options.FallbackPolicy = new AuthorizationPolicyBuilder()
-            .RequireAuthenticatedUser()
-            .Build();
-    }
-});
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
 builder.Services.AddOpenApi();
-
-var allowedOrigins = builder.Configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-    ?? ["http://localhost:5173"];
-
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Frontend", policy =>
-    {
-        policy.WithOrigins(allowedOrigins)
-            .AllowAnyHeader()
-            .AllowAnyMethod();
-    });
-});
 
 var app = builder.Build();
 
@@ -94,14 +37,25 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseRateLimiter();
+app.Use(async (context, next) =>
+{
+    context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+    context.Response.Headers["X-Frame-Options"] = "DENY";
+    context.Response.Headers["Referrer-Policy"] = "no-referrer";
+    context.Response.Headers["X-Permitted-Cross-Domain-Policies"] = "none";
+    await next();
+});
 app.UseCors("Frontend");
 if (!app.Environment.IsDevelopment())
 {
+    app.UseHsts();
     app.UseHttpsRedirection();
 }
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHub<ParkingBuildingManagement.Api.Hubs.ParkingHub>("/hubs/parking");
 
 app.Run();
 

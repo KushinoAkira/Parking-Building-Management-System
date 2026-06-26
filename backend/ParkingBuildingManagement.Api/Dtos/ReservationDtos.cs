@@ -1,11 +1,13 @@
+using System.ComponentModel.DataAnnotations;
+
 namespace ParkingBuildingManagement.Api.Dtos;
 
 public record CreateReservationRequest(
-    int UserId,
-    int VehicleTypeId,
+    [Range(1, int.MaxValue)] int UserId,
+    [Range(1, int.MaxValue)] int VehicleTypeId,
     int? ZoneId,
-    string? SlotId,
-    string? LicensePlate,
+    [MaxLength(20)] string? SlotId,
+    [MaxLength(20)] string? LicensePlate,
     DateTime ReservedFrom,
     DateTime ReservedTo);
 

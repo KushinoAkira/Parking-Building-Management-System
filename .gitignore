@@ -36,6 +36,7 @@ build/
 .vscode/
 .idea/
 .DS_Store
+.firebase/
 
 # Cursor local config and security rules (local only, never push)
 .cursor/

@@ -17,7 +17,8 @@ public interface IParkingSessionService
 public class ParkingSessionService(
     ApplicationDbContext db,
     ISlotAllocationService slotAllocation,
-    IPricingService pricing) : IParkingSessionService
+    IPricingService pricing,
+    IParkingRealtimeNotifier realtime) : IParkingSessionService
 {
     public async Task<SessionDto> CheckInAsync(CheckInRequest request, CancellationToken ct)
     {
@@ -51,47 +52,46 @@ public class ParkingSessionService(
         if (slot.Status is not ("Available" or "Reserved"))
             throw new BusinessException($"Slot '{slot.SlotId}' is not available.");
 
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
-
-        ParkingSession session;
-        try
+        ParkingSession? session = null;
+        await ExecuteInTransactionAsync(async () =>
         {
-        session = new ParkingSession
-        {
-            TicketCode = TicketCodeGenerator.Generate(),
-            UserId = request.UserId ?? reservation?.UserId,
-            ReservationId = request.ReservationId ?? reservation?.ReservationId,
-            VehicleTypeId = request.VehicleTypeId,
-            ZoneId = slot.ZoneId,
-            SlotId = slot.SlotId,
-            LicensePlate = plate,
-            EntryTime = DateTime.UtcNow,
-            EntryGate = request.EntryGate,
-            EntryStaffId = request.EntryStaffId,
-            Note = request.Note,
-            Status = "Active",
-        };
+            session = new ParkingSession
+            {
+                TicketCode = TicketCodeGenerator.Generate(),
+                UserId = request.UserId ?? reservation?.UserId,
+                ReservationId = request.ReservationId ?? reservation?.ReservationId,
+                VehicleTypeId = request.VehicleTypeId,
+                ZoneId = slot.ZoneId,
+                SlotId = slot.SlotId,
+                LicensePlate = plate,
+                EntryTime = DateTime.UtcNow,
+                EntryGate = request.EntryGate,
+                EntryStaffId = request.EntryStaffId,
+                Note = request.Note,
+                Status = "Active",
+            };
 
-        session.EstimatedFee = await pricing.EstimateFeeAsync(request.VehicleTypeId, session.EntryTime, ct);
+            session.EstimatedFee = await pricing.EstimateFeeAsync(request.VehicleTypeId, session.EntryTime, ct);
 
-        slot.Status = "Occupied";
-        db.ParkingSessions.Add(session);
+            slot.Status = "Occupied";
+            db.ParkingSessions.Add(session);
 
-        if (reservation is not null)
-            reservation.Status = "CheckedIn";
+            if (reservation is not null)
+                reservation.Status = "CheckedIn";
 
-        await db.SaveChangesAsync(ct);
-        if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
+            await db.SaveChangesAsync(ct);
+        }, ct);
 
-        return await MapSessionAsync(session.SessionId, ct)
-            ?? throw new BusinessException("Failed to load session after check-in.", 500);
+        return session is not null && await MapSessionAsync(session.SessionId, ct)
+            is { } dto
+            ? await NotifyCheckInAsync(dto, ct)
+            : throw new BusinessException("Failed to load session after check-in.", 500);
+    }
+
+    private async Task<SessionDto> NotifyCheckInAsync(SessionDto dto, CancellationToken ct)
+    {
+        await realtime.NotifySessionCheckedInAsync(dto, ct);
+        return dto;
     }
 
     public async Task<CheckOutResultDto> CheckOutAsync(int sessionId, CheckOutRequest request, CancellationToken ct)
@@ -113,43 +113,50 @@ public class ParkingSessionService(
             .SumAsync(i => i.PenaltyFee, ct);
         totalFee += penaltyFee;
 
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
-
-        Payment payment;
-        try
+        Payment? payment = null;
+        await ExecuteInTransactionAsync(async () =>
         {
-        payment = new Payment
-        {
-            SessionId = sessionId,
-            Amount = totalFee,
-            PaymentMethod = request.PaymentMethod,
-            PaymentTime = exitTime,
-            Status = "Completed",
-        };
+            if (request.PaymentMethod == "EWallet")
+            {
+                if (!session.UserId.HasValue)
+                    throw new BusinessException("EWallet requires a registered driver account.", 400);
 
-        session.ExitTime = exitTime;
-        session.ExitGate = request.ExitGate;
-        session.ExitStaffId = request.ExitStaffId;
-        session.TotalFee = totalFee;
-        session.Status = "Completed";
-        session.Note = request.Note ?? session.Note;
-        session.Slot.Status = "Available";
+                var driver = await db.Users.FirstAsync(u => u.UserId == session.UserId.Value, ct);
+                if (driver.WalletBalance < totalFee)
+                    throw new BusinessException("Insufficient wallet balance. Please top up your account.", 400);
+                driver.WalletBalance -= totalFee;
+            }
 
-        db.Payments.Add(payment);
-        await db.SaveChangesAsync(ct);
-        if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
+            payment = new Payment
+            {
+                SessionId = sessionId,
+                Amount = totalFee,
+                PaymentMethod = request.PaymentMethod,
+                PaymentTime = exitTime,
+                Status = "Completed",
+            };
+
+            session.ExitTime = exitTime;
+            session.ExitGate = request.ExitGate;
+            session.ExitStaffId = request.ExitStaffId;
+            session.TotalFee = totalFee;
+            session.Status = "Completed";
+            session.Note = request.Note ?? session.Note;
+            session.Slot.Status = "Available";
+
+            db.Payments.Add(payment);
+            await db.SaveChangesAsync(ct);
+        }, ct);
 
         var dto = await MapSessionAsync(sessionId, ct)
             ?? throw new BusinessException("Failed to load session after check-out.", 500);
 
-        return new CheckOutResultDto(dto, totalFee, payment.PaymentId, payment.PaymentMethod);
+        if (payment is null)
+            throw new BusinessException("Failed to persist payment after check-out.", 500);
+
+        var result = new CheckOutResultDto(dto, totalFee, payment.PaymentId, payment.PaymentMethod);
+        await realtime.NotifySessionCheckedOutAsync(result, ct);
+        return result;
     }
 
     public async Task<SessionDto?> GetByTicketCodeAsync(string ticketCode, CancellationToken ct) =>
@@ -195,4 +202,21 @@ public class ParkingSessionService(
             s.EntryStaffId,
             s.ExitStaffId,
             s.Note);
+
+    private async Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken ct)
+    {
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (db.Database.SupportsTransactions())
+            tx = await db.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            await action();
+            if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
+        }
+    }
 }

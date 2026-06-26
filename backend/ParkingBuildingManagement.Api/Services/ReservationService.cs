@@ -13,7 +13,10 @@ public interface IReservationService
     Task<ReservationDto> CancelAsync(int reservationId, CancellationToken ct);
 }
 
-public class ReservationService(ApplicationDbContext db, ISlotAllocationService slotAllocation) : IReservationService
+public class ReservationService(
+    ApplicationDbContext db,
+    ISlotAllocationService slotAllocation,
+    IParkingRealtimeNotifier realtime) : IReservationService
 {
     public async Task<ReservationDto> CreateAsync(CreateReservationRequest request, CancellationToken ct)
     {
@@ -47,8 +50,9 @@ public class ReservationService(ApplicationDbContext db, ISlotAllocationService 
         db.Reservations.Add(reservation);
         await db.SaveChangesAsync(ct);
 
-        return await MapAsync(reservation.ReservationId, ct)
-            ?? throw new BusinessException("Failed to load reservation.", 500);
+        return await MapAsync(reservation.ReservationId, ct) is { } dto
+            ? await NotifyAsync(dto, "created", ct)
+            : throw new BusinessException("Failed to load reservation.", 500);
     }
 
     public async Task<ReservationDto> ConfirmAsync(int reservationId, CancellationToken ct)
@@ -61,39 +65,31 @@ public class ReservationService(ApplicationDbContext db, ISlotAllocationService 
         if (reservation.Status != "Pending")
             throw new BusinessException($"Only pending reservations can be confirmed (status: {reservation.Status}).");
 
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
+        await ExecuteInTransactionAsync(async () =>
         {
-        if (string.IsNullOrWhiteSpace(reservation.SlotId))
-        {
-            var slot = await slotAllocation.FindAvailableSlotAsync(
-                reservation.VehicleTypeId, reservation.ZoneId, null, ct);
-            reservation.SlotId = slot.SlotId;
-            reservation.ZoneId = slot.ZoneId;
-            slot.Status = "Reserved";
-        }
-        else if (reservation.Slot is not null)
-        {
-            if (reservation.Slot.Status != "Available")
-                throw new BusinessException($"Slot '{reservation.SlotId}' is not available.");
+            if (string.IsNullOrWhiteSpace(reservation.SlotId))
+            {
+                var slot = await slotAllocation.FindAvailableSlotAsync(
+                    reservation.VehicleTypeId, reservation.ZoneId, null, ct);
+                reservation.SlotId = slot.SlotId;
+                reservation.ZoneId = slot.ZoneId;
+                slot.Status = "Reserved";
+            }
+            else if (reservation.Slot is not null)
+            {
+                if (reservation.Slot.Status != "Available")
+                    throw new BusinessException($"Slot '{reservation.SlotId}' is not available.");
 
-            reservation.Slot.Status = "Reserved";
-        }
+                reservation.Slot.Status = "Reserved";
+            }
 
-        reservation.Status = "Confirmed";
-        await db.SaveChangesAsync(ct);
-        if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
+            reservation.Status = "Confirmed";
+            await db.SaveChangesAsync(ct);
+        }, ct);
 
-        return await MapAsync(reservationId, ct)
-            ?? throw new BusinessException("Failed to load reservation.", 500);
+        return await MapAsync(reservationId, ct) is { } confirmed
+            ? await NotifyAsync(confirmed, "confirmed", ct)
+            : throw new BusinessException("Failed to load reservation.", 500);
     }
 
     public async Task<ReservationDto> CancelAsync(int reservationId, CancellationToken ct)
@@ -106,26 +102,24 @@ public class ReservationService(ApplicationDbContext db, ISlotAllocationService 
         if (reservation.Status is "CheckedIn" or "Cancelled" or "Expired")
             throw new BusinessException($"Reservation cannot be cancelled (status: {reservation.Status}).");
 
-        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
-        if (db.Database.SupportsTransactions())
-            tx = await db.Database.BeginTransactionAsync(ct);
-
-        try
+        await ExecuteInTransactionAsync(async () =>
         {
-        if (reservation.Slot is not null && reservation.Slot.Status == "Reserved")
-            reservation.Slot.Status = "Available";
+            if (reservation.Slot is not null && reservation.Slot.Status == "Reserved")
+                reservation.Slot.Status = "Available";
 
-        reservation.Status = "Cancelled";
-        await db.SaveChangesAsync(ct);
-        if (tx is not null) await tx.CommitAsync(ct);
-        }
-        finally
-        {
-            if (tx is not null) await tx.DisposeAsync();
-        }
+            reservation.Status = "Cancelled";
+            await db.SaveChangesAsync(ct);
+        }, ct);
 
-        return await MapAsync(reservationId, ct)
-            ?? throw new BusinessException("Failed to load reservation.", 500);
+        return await MapAsync(reservationId, ct) is { } cancelled
+            ? await NotifyAsync(cancelled, "cancelled", ct)
+            : throw new BusinessException("Failed to load reservation.", 500);
+    }
+
+    private async Task<ReservationDto> NotifyAsync(ReservationDto dto, string action, CancellationToken ct)
+    {
+        await realtime.NotifyReservationUpdatedAsync(dto, action, ct);
+        return dto;
     }
 
     private async Task<ReservationDto?> MapAsync(int reservationId, CancellationToken ct) =>
@@ -147,4 +141,21 @@ public class ReservationService(ApplicationDbContext db, ISlotAllocationService 
                 r.Status,
                 r.CreatedAt))
             .FirstOrDefaultAsync(ct);
+
+    private async Task ExecuteInTransactionAsync(Func<Task> action, CancellationToken ct)
+    {
+        Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? tx = null;
+        if (db.Database.SupportsTransactions())
+            tx = await db.Database.BeginTransactionAsync(ct);
+
+        try
+        {
+            await action();
+            if (tx is not null) await tx.CommitAsync(ct);
+        }
+        finally
+        {
+            if (tx is not null) await tx.DisposeAsync();
+        }
+    }
 }
