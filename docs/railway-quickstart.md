@@ -1,18 +1,35 @@
-# Railway — bật API production (5 phút)
+# Railway — bật API production
 
-Domain mục tiêu: `https://parking-building-management-system-production.up.railway.app`
+Domain: `https://parking-building-management-system-production.up.railway.app`
 
-> Repo đã có `Dockerfile` + `railway.json` ở **root** — Railway connect GitHub sẽ build từ root, **không cần** Root Directory.
+## Bước 0 — BẮT BUỘC (ép Railway dùng Dockerfile)
 
-## Bước 1 — Railway dashboard
+Railway mặc định dùng **Railpack** → monorepo sẽ fail `could not determine how to build`.
 
-1. Mở https://railway.app → project **perceptive-purpose**
-2. Click **service API** (Web Service, không phải Postgres)
-3. **Settings → Source** — đảm bảo đã connect repo GitHub `Parking-Building-Management-System`, branch `main`
+Trên **service API** → tab **Variables**, thêm:
 
-## Bước 2 — Variables (tab Variables của service API)
+```env
+RAILWAY_DOCKERFILE_PATH=Dockerfile
+NO_CACHE=1
+```
 
-Thêm từng dòng (Raw Editor):
+(`NO_CACHE=1` chỉ cần lần deploy đầu; xóa sau khi build xanh.)
+
+**Settings → Build** (hoặc **Deploy** → biểu tượng bánh răng):
+- **Config file path** = `/railway.json`  
+  (nếu có ô này — một số UI Railway đặt trong Source / Build)
+
+Sau đó **Redeploy**. Build log phải thấy **Dockerfile**, không phải `railpack-v0.x`.
+
+---
+
+## Bước 1 — Source
+
+1. https://railway.app → project **perceptive-purpose**
+2. Click **service API** (Web Service)
+3. **Settings → Source** — repo `Parking-Building-Management-System`, branch `main`
+
+## Bước 2 — Variables runtime
 
 ```env
 DATABASE_URL=${{Postgres.DATABASE_URL}}
@@ -21,52 +38,34 @@ PayOs__DemoMode=true
 Cors__AllowedOrigins__0=https://parking-management-syste-97d18.web.app
 ```
 
-Thêm riêng biến **Jwt** + `__Secret` trên Railway (chuỗi ngẫu nhiên ≥ 32 ký tự).
+Thêm biến riêng tên `Jwt__Secret` (chuỗi ngẫu nhiên ≥ 32 ký tự).
 
-## Bước 3 — Public domain
+## Bước 3 — Networking
 
-1. Service API → **Settings → Networking**
-2. **Generate Domain** (hoặc gán lại domain cũ nếu có)
-3. Copy domain — ví dụ `parking-building-management-system-production.up.railway.app`
+**Settings → Networking → Generate Domain** → gán domain public.
 
-## Bước 4 — Redeploy
-
-1. Tab **Deployments** → **Deploy** / **Redeploy**
-2. Đợi Build (Docker) xong → Deploy logs không crash
-
-## Bước 5 — Kiểm tra
+## Bước 4 — Redeploy + kiểm tra
 
 ```bash
 curl https://parking-building-management-system-production.up.railway.app/api/health
 ```
 
-Kỳ vọng: `"status":"ok"` và `"database":"connected"`.
+Kỳ vọng: `"status":"ok"`.
 
-## Bước 6 — Frontend Firebase
+---
 
-```bash
-cd frontend
-# Tạo .env.production.local (không commit) hoặc build CI với biến:
-# VITE_API_BASE_URL=https://parking-building-management-system-production.up.railway.app
-npm run build
-npx firebase deploy --only hosting --project parking-management-syste-97d18
-```
+## Lưu ý
 
-## Deploy từ máy local (tùy chọn)
+| Hiện tượng | Giải thích |
+|------------|------------|
+| GitHub Actions Deploy **xanh** | Chỉ chạy `verify` — **không** push lên Railway nếu chưa có `RAILWAY_TOKEN` |
+| `404 Application not found` | Service chưa chạy / domain chưa gán / build fail |
+| Build log vẫn **Railpack** | Thiếu `RAILWAY_DOCKERFILE_PATH` hoặc config path `/railway.json` |
+
+## Deploy từ máy local
 
 ```powershell
-npm i -g @railway/cli
 railway login
-railway link    # chọn perceptive-purpose + service API
+railway link
 .\scripts\railway-deploy-local.ps1
 ```
-
-## Lỗi thường gặp
-
-| Triệu chứng | Cách xử lý |
-|-------------|------------|
-| `404 Application not found` | Domain chưa gán service / service chưa chạy → Generate Domain + Redeploy |
-| Railpack could not build | Đã fix bằng root `Dockerfile` — redeploy từ `main` |
-| Crash startup JWT | Đặt signing secret thật (≥ 32 ký tự) trên Railway Variables |
-| Crash: database | `DATABASE_URL=${{Postgres.DATABASE_URL}}` + Postgres cùng project |
-| GitHub Deployments đỏ | Thiếu GitHub secrets — **bỏ qua** nếu deploy qua Railway dashboard |
