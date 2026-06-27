@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Camera } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import { createWorker } from "tesseract.js";
 
 type Props = {
   disabled?: boolean;
@@ -13,18 +12,15 @@ type Props = {
 export function PlateCameraScanner({ disabled, onScan, scanPlate, onScanPlateChange }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const workerRef = useRef<any>(null);
   const [cameraOn, setCameraOn] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [cameraError, setCameraError] = useState("");
   const [scanHint, setScanHint] = useState("");
+  const scanningRef = useRef(false);
 
   useEffect(() => {
-    // Khởi tạo Tesseract worker sớm để tránh delay lúc quét
-    initWorker();
     return () => {
       stopCamera();
-      terminateWorker();
     };
   }, []);
 
@@ -34,31 +30,13 @@ export function PlateCameraScanner({ disabled, onScan, scanPlate, onScanPlateCha
     setCameraOn(false);
   }
 
-  async function terminateWorker() {
-    if (workerRef.current) {
-      await workerRef.current.terminate();
-      workerRef.current = null;
-    }
-  }
-
-  async function initWorker() {
-    if (!workerRef.current) {
-      const worker = await createWorker();
-      await worker.load();
-      await worker.loadLanguage("eng");
-      await worker.initialize("eng");
-      workerRef.current = worker;
-    }
-    return workerRef.current;
-  }
-
   async function getCameraStream() {
     try {
       return await navigator.mediaDevices.getUserMedia({
         video: {
           facingMode: { ideal: "environment" },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
         },
         audio: false,
       });
@@ -67,8 +45,8 @@ export function PlateCameraScanner({ disabled, onScan, scanPlate, onScanPlateCha
       console.warn("⚠️ Không mở được camera với facingMode=environment, fallback sang camera mặc định:", msg);
       return navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
         },
         audio: false,
       });
@@ -136,50 +114,99 @@ export function PlateCameraScanner({ disabled, onScan, scanPlate, onScanPlateCha
     }
   }
 
-  function normalizePlateText(text: string) {
-    return text
-      .toUpperCase()
-      .replace(/O/g, "0")
-      .replace(/I/g, "1")
-      .replace(/[^A-Z0-9.-]/g, "");
+  function formatRawPlate(raw: string): string | null {
+    if (!raw) return null;
+    
+    const cleaned = raw.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    
+    // Khớp biển số Việt Nam:
+    // Nhóm 1: 2 chữ số mã tỉnh
+    // Nhóm 2: phần chữ/mã hiệu loại xe (1 đến 3 ký tự chữ + số, vd: A, E1, AA, B1, F)
+    // Nhóm 3: phần dãy số (4 hoặc 5 chữ số)
+    const match = cleaned.match(/^([0-9]{2})([A-Z]{1,3}[0-9]?|[A-Z0-9]{1,3})([0-9]{4,5})$/);
+    
+    if (!match) {
+      return cleaned; // Nếu không khớp định dạng chuẩn thì trả về kết quả dọn dẹp ban đầu
+    }
+    
+    const province = match[1];
+    let vehicleClass = match[2];
+    let sequence = match[3];
+
+    // Định dạng lại dãy số: chèn dấu chấm nếu có 5 số (vd: 12345 -> 123.45)
+    if (sequence.length === 5 && !sequence.includes(".")) {
+      sequence = sequence.slice(0, 3) + "." + sequence.slice(3);
+    }
+    
+    return `${province}${vehicleClass}-${sequence}`;
   }
 
-  function extractPlateFromText(text: string) {
-    const cleaned = normalizePlateText(text.replace(/\s+/g, ""));
-    const patterns = [
-      /[0-9]{1,2}[A-Z]{1,3}-[0-9]{2,4}(?:\.[0-9]{2})?/, // 30A-123.45 / 51G-1234
-      /[0-9]{1,2}[A-Z]{1,3}[0-9]{2,4}(?:\.[0-9]{2})?/, // 30A12345
-    ];
+  function preprocessImage(canvas: HTMLCanvasElement) {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return canvas;
 
-    for (const pattern of patterns) {
-      const match = cleaned.match(pattern);
-      if (match?.[0]) {
-        let plate = match[0];
-        if (!plate.includes("-")) {
-          plate = plate.replace(/^([0-9]{1,2}[A-Z]{1,3})([0-9].*)$/, "$1-$2");
-        }
-        return plate;
-      }
+    const width = canvas.width;
+    const height = canvas.height;
+    const imageData = ctx.getImageData(0, 0, width, height);
+    const data = imageData.data;
+
+    // 1. Tính toán độ sáng trung bình để làm ngưỡng nhị phân động (Adaptive Threshold)
+    let sumBrightness = 0;
+    const pixelCount = width * height;
+
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+      // Độ sáng xám BT.601
+      const gray = 0.299 * r + 0.587 * g + 0.114 * b;
+      sumBrightness += gray;
     }
 
-    return null;
+    const averageBrightness = sumBrightness / pixelCount;
+    // Đảm bảo ngưỡng không quá tối hoặc quá sáng (giới hạn trong khoảng 90 - 160)
+    const threshold = Math.max(90, Math.min(averageBrightness, 160));
+
+    // 2. Thực hiện lọc ảnh: Chuyển xám, Tăng tương phản và Nhị phân hóa
+    for (let i = 0; i < data.length; i += 4) {
+      const r = data[i];
+      const g = data[i + 1];
+      const b = data[i + 2];
+
+      let gray = 0.299 * r + 0.587 * g + 0.114 * b;
+
+      // Tăng tương phản nhẹ (C = 50)
+      const C = 50;
+      const factor = (259 * (C + 255)) / (255 * (259 - C));
+      gray = factor * (gray - 128) + 128;
+
+      // Nhị phân hóa: Nếu độ sáng lớn hơn ngưỡng -> chuyển thành Trắng, ngược lại thành Đen
+      const finalColor = gray >= threshold ? 255 : 0;
+
+      data[i] = finalColor;     // R
+      data[i + 1] = finalColor; // G
+      data[i + 2] = finalColor; // B
+    }
+
+    ctx.putImageData(imageData, 0, 0);
+    return canvas;
   }
 
   async function captureFrame() {
     if (!videoRef.current) throw new Error("Camera chưa sẵn sàng.");
-    
+
     const video = videoRef.current;
-    
+
     // ⚠️ Kiểm tra xem video có frame không (tránh blank frame)
     if (video.videoWidth === 0 || video.videoHeight === 0) {
       console.warn("Video metadata not ready:", video.videoWidth, "x", video.videoHeight);
       throw new Error("Video chưa load frame. Hãy đợi 1-2 giây và thử lại.");
     }
-    
+
     if (video.paused || video.ended) {
       throw new Error("Video không phát. Hãy bật camera trước.");
     }
-    
+
     const width = video.videoWidth;
     const height = video.videoHeight;
     const canvas = document.createElement("canvas");
@@ -188,14 +215,17 @@ export function PlateCameraScanner({ disabled, onScan, scanPlate, onScanPlateCha
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new Error("Không tạo được canvas.");
     ctx.drawImage(video, 0, 0, width, height);
-    
+
     // Debug: Check nếu canvas trống
     const imageData = ctx.getImageData(0, 0, width, height);
     const hasPixels = imageData.data.some(byte => byte !== 0);
     if (!hasPixels) {
       console.warn("⚠️ Canvas captured blank frame - video may not be rendering");
     }
-    
+
+    // Áp dụng tiền xử lý hình ảnh
+    preprocessImage(canvas);
+
     return canvas;
   }
 
@@ -205,34 +235,84 @@ export function PlateCameraScanner({ disabled, onScan, scanPlate, onScanPlateCha
       return;
     }
 
+    if (scanningRef.current || isScanning) {
+      return; // Chặn click liên tục (throttle)
+    }
+
     // Kiểm tra video có sẵn sàng không
     if (!videoRef.current || videoRef.current.videoWidth === 0) {
       setCameraError("Camera chưa sẵn sàng. Hãy đợi vài giây và thử lại.");
       return;
     }
 
+    const token = import.meta.env.VITE_PLATE_RECOGNIZER_TOKEN;
+    if (!token || token === "your_free_token_here") {
+      setCameraError("Chưa cấu hình API Token cho ALPR. Vui lòng cấu hình VITE_PLATE_RECOGNIZER_TOKEN trong file .env!");
+      return;
+    }
+
+    scanningRef.current = true;
     setIsScanning(true);
     setCameraError("");
     setScanHint("");
 
     try {
       const canvas = await captureFrame();
-      const worker = await initWorker();
-      const { data } = await worker.recognize(canvas, "eng");
-      const plate = extractPlateFromText(data.text || "");
+      
+      // Chuyển Canvas thành Blob dạng JPEG
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), "image/jpeg", 0.9);
+      });
+
+      if (!blob) {
+        throw new Error("Không thể chuyển đổi dữ liệu hình ảnh.");
+      }
+
+      // Tạo FormData để gửi lên Plate Recognizer API
+      const formData = new FormData();
+      formData.append("upload", blob, "plate.jpg");
+      formData.append("regions", "vn"); // Tối ưu riêng cho biển số Việt Nam
+
+      // Gọi API nhận diện biển số xe chuyên dụng
+      const response = await fetch("https://api.platerecognizer.com/v1/plate-reader/", {
+        method: "POST",
+        headers: {
+          "Authorization": `Token ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        const errMsg = errData.detail || `Lỗi kết nối API ALPR (Mã lỗi ${response.status}).`;
+        throw new Error(errMsg);
+      }
+
+      const data = await response.json();
+      const results = data.results || [];
+
+      if (results.length === 0) {
+        setCameraError("Không phát hiện được biển số xe nào trong ảnh.");
+        return;
+      }
+
+      // Lấy biển số thô được trả về (Plate Recognizer trả về viết liền thường, vd: "89e118896")
+      const rawPlate = results[0].plate || "";
+      const plate = formatRawPlate(rawPlate);
 
       if (!plate) {
-        setCameraError("Không nhận diện được biển số. Hãy thử lại hoặc nhập thủ công.");
+        setCameraError("Biển số nhận diện không đúng định dạng Việt Nam.");
         return;
       }
 
       onScanPlateChange(plate);
-      setScanHint(`Biển số nhận diện: ${plate}`);
+      setScanHint(`Biển số nhận diện (ALPR): ${plate}`);
       await onScan(plate);
     } catch (error) {
       setCameraError(error instanceof Error ? error.message : "Quét biển số thất bại.");
     } finally {
       setIsScanning(false);
+      scanningRef.current = false;
     }
   }
 
