@@ -39,23 +39,7 @@ public class ReservationsController(
 
         var items = await query
             .OrderByDescending(r => r.CreatedAt)
-            .Select(r => new ReservationDto(
-                r.ReservationId,
-                r.UserId,
-                r.User.FullName,
-                r.VehicleTypeId,
-                r.VehicleType.TypeCode,
-                r.ZoneId,
-                r.Zone != null ? r.Zone.ZoneCode : null,
-                r.SlotId,
-                r.LicensePlate,
-                r.ReservedFrom,
-                r.ReservedTo,
-                r.Status,
-                r.PreferVipSlot,
-                r.VipSurcharge,
-                r.Slot != null && r.Slot.Note == "VIP",
-                r.CreatedAt))
+            .Select(DtoProjections.Reservation)
             .ToListAsync(ct);
 
         return Ok(items);
@@ -65,20 +49,15 @@ public class ReservationsController(
     public async Task<IActionResult> GetById(int id, CancellationToken ct)
     {
         var item = await db.Reservations.AsNoTracking()
-            .Include(r => r.User).Include(r => r.VehicleType).Include(r => r.Zone).Include(r => r.Slot)
-            .FirstOrDefaultAsync(r => r.ReservationId == id, ct);
+            .Where(r => r.ReservationId == id)
+            .Select(DtoProjections.Reservation)
+            .FirstOrDefaultAsync(ct);
 
         if (item is null) return NotFound();
-        if (User.GetRoleName() == RoleNames.Driver && item.UserId != User.GetUserId())
+        if (!User.CanAccessUserData(item.UserId))
             return Forbid();
 
-        return Ok(new ReservationDto(
-            item.ReservationId, item.UserId, item.User.FullName, item.VehicleTypeId,
-            item.VehicleType.TypeCode, item.ZoneId, item.Zone?.ZoneCode, item.SlotId,
-            item.LicensePlate, item.ReservedFrom, item.ReservedTo, item.Status,
-            item.PreferVipSlot, item.VipSurcharge,
-            item.Slot?.Note == "VIP",
-            item.CreatedAt));
+        return Ok(item);
     }
 
     [HttpGet("vip-surcharge")]

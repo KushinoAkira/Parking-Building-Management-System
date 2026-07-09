@@ -167,22 +167,6 @@ public class ReservationService(
         await db.Reservations
             .AsNoTracking()
             .Where(r => r.ReservationId == reservationId)
-            .Select(r => new ReservationDto(
-                r.ReservationId,
-                r.UserId,
-                r.User.FullName,
-                r.VehicleTypeId,
-                r.VehicleType.TypeCode,
-                r.ZoneId,
-                r.Zone != null ? r.Zone.ZoneCode : null,
-                r.SlotId,
-                r.LicensePlate,
-                r.ReservedFrom,
-                r.ReservedTo,
-                r.Status,
-                r.PreferVipSlot,
-                r.VipSurcharge,
-                r.Slot != null && r.Slot.Note == "VIP",
-                r.CreatedAt))
+            .Select(DtoProjections.Reservation)
             .FirstOrDefaultAsync(ct);
 }

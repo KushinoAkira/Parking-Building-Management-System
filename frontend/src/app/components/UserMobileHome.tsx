@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Car, MapPin, Clock, CreditCard, ChevronRight, Bell, Search, QrCode, Home, Ticket, Info, X, CheckCircle2, Wallet, History, Tag, ScanLine, Image as ImageIcon, Settings, AlertTriangle, Plus, ArrowUpRight, ArrowDownLeft, Calendar, MessageSquare, Loader2 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
@@ -7,21 +7,19 @@ import { motion, AnimatePresence, Variants } from "motion/react";
 import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
 import { useLocale } from "../lib/i18n/LocaleContext";
-import { useRealtimeRefresh } from "../lib/RealtimeContext";
 import { DriverWalletPanel } from "./DriverWalletPanel";
 import type { DriverTransaction } from "../lib/walletApi";
-import {
-  bookableVehicleTypes,
-  normalizeBookZoneId,
-  zonesForVehicleType,
-  type BookVehicleType,
-  type BookZone,
-} from "../lib/bookZones";
+import { type BookVehicleType, type BookZone } from "../lib/bookZones";
 import { toDriverErrorMessage } from "../lib/driverErrors";
 import { mobileDriverRealtimeRefreshEvents } from "../lib/driverRealtime";
 import { createAndConfirmReservation } from "../lib/bookReservation";
+import { useStableLoader } from "../lib/hooks/useStableLoader";
+import { useBookingForm } from "../lib/hooks/useBookingForm";
+import { useFeedbackForm } from "../lib/hooks/useFeedbackForm";
+import { ErrorBanner } from "./ErrorBanner";
+import { MobileUtilityScreen } from "./MobileUtilityScreen";
 
-const TX_FILTERS = ["all", "topup", "payment", "refund"] as const;
+const TX_FILTERS = ["all", "topup", "payment"] as const;
 type TxFilter = (typeof TX_FILTERS)[number];
 
 export function UserMobileHome() {
@@ -40,17 +38,8 @@ export function UserMobileHome() {
   const [utilityScreen, setUtilityScreen] = useState<string | null>(null);
 
   const [historyFilter, setHistoryFilter] = useState<TxFilter>("all");
-  const [bookPlate, setBookPlate] = useState("");
-  const [bookVehicleTypeId, setBookVehicleTypeId] = useState<number>(1);
-  const [bookZoneId, setBookZoneId] = useState<number | "">("");
-  const [bookPreferVip, setBookPreferVip] = useState(false);
-  const [vipSurchargeAmount, setVipSurchargeAmount] = useState(10_000);
   const [bookSubmitting, setBookSubmitting] = useState(false);
   const [bookMessage, setBookMessage] = useState("");
-  const [feedbackType, setFeedbackType] = useState("Suggestion");
-  const [feedbackContent, setFeedbackContent] = useState("");
-  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
-  const [feedbackMessage, setFeedbackMessage] = useState("");
   const [vehicleTypes, setVehicleTypes] = useState<BookVehicleType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -61,9 +50,26 @@ export function UserMobileHome() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [parkingFloors, setParkingFloors] = useState<BookZone[]>([]);
 
+  const {
+    bookPlate,
+    setBookPlate,
+    bookVehicleTypeId,
+    setBookVehicleTypeId,
+    bookZoneId,
+    setBookZoneId,
+    bookPreferVip,
+    setBookPreferVip,
+    vipSurchargeAmount,
+    setVipSurchargeAmount,
+    bookingVehicleTypes,
+    bookingZones,
+  } = useBookingForm(vehicleTypes, parkingFloors);
+
   const [notifications, setNotifications] = useState<any[]>([]);
 
   const activeSession = home?.activeSession;
+  const feedback = useFeedbackForm(activeSession?.sessionId);
+  const driverError = (e: unknown, fallback: string) => toDriverErrorMessage(e, t, fallback);
   const userName = home?.user?.fullName ?? "Driver";
 
   const ticketsData = useMemo(
@@ -124,9 +130,6 @@ export function UserMobileHome() {
     return Array.from(map.values());
   }, [tickets, t, formatDateTime]);
 
-  const driverErrorMessage = (e: unknown, fallback: string) =>
-    toDriverErrorMessage(e, t, fallback);
-
   const loadData = useCallback(async (opts?: { quiet?: boolean }) => {
     if (!authToken || !userId) return;
     try {
@@ -140,7 +143,7 @@ export function UserMobileHome() {
     } catch (e) {
       if (!opts?.quiet) {
         if (isNetworkError(e) || isTimeoutError(e)) setApiOffline(true);
-        else setError(driverErrorMessage(e, t("driver.loadFailed")));
+        else setError(driverError(e, t("driver.loadFailed")));
       }
       return;
     }
@@ -161,10 +164,9 @@ export function UserMobileHome() {
     if (vipRes.status === "fulfilled" && typeof vipRes.value?.amount === "number") {
       setVipSurchargeAmount(vipRes.value.amount);
     }
-  }, [authToken, userId, t]);
+  }, [authToken, userId, t, setBookPlate, setVipSurchargeAmount]);
 
-  const loadDataRef = useRef(loadData);
-  loadDataRef.current = loadData;
+  const { reload, reloadQuiet } = useStableLoader(loadData, mobileDriverRealtimeRefreshEvents);
 
   useEffect(() => {
     if (!authToken || authRole !== "driver") {
@@ -173,20 +175,13 @@ export function UserMobileHome() {
     }
 
     setLoading(true);
-    loadDataRef.current()
+    reload()
       .catch((e) => {
         if (isNetworkError(e) || isTimeoutError(e)) setApiOffline(true);
-        else setError(driverErrorMessage(e, t("driver.loadFailed")));
+        else setError(driverError(e, t("driver.loadFailed")));
       })
       .finally(() => setLoading(false));
-  }, [navigate, authToken, authRole, t]);
-
-  useRealtimeRefresh(
-    mobileDriverRealtimeRefreshEvents,
-    () => {
-      loadDataRef.current({ quiet: true }).catch(() => {});
-    },
-  );
+  }, [navigate, authToken, authRole, t, reload]);
 
   const handleCheckout = () => {
     if (!activeSession) {
@@ -205,11 +200,11 @@ export function UserMobileHome() {
         { paymentMethod: "EWallet", exitGate: "Driver-Mobile" },
         authToken,
       );
-      await loadDataRef.current({ quiet: true });
+      await reloadQuiet();
       setPaymentDone(true);
       setTimeout(() => setShowPayment(false), 1800);
     } catch (e) {
-      setError(driverErrorMessage(e, t("driver.checkoutFailed")));
+      setError(driverError(e, t("driver.checkoutFailed")));
     }
   };
 
@@ -227,23 +222,6 @@ export function UserMobileHome() {
       };
     });
   }, [parkingFloors]);
-
-  const bookingVehicleTypes = useMemo(() => bookableVehicleTypes(vehicleTypes), [vehicleTypes]);
-  const bookingZones = useMemo(
-    () => zonesForVehicleType(parkingFloors, bookVehicleTypeId),
-    [parkingFloors, bookVehicleTypeId],
-  );
-
-  useEffect(() => {
-    if (bookingVehicleTypes.length === 0) return;
-    if (!bookingVehicleTypes.some((vt) => vt.vehicleTypeId === bookVehicleTypeId)) {
-      setBookVehicleTypeId(bookingVehicleTypes[0].vehicleTypeId);
-    }
-  }, [bookingVehicleTypes, bookVehicleTypeId]);
-
-  useEffect(() => {
-    setBookZoneId((prev) => normalizeBookZoneId(prev, bookingZones));
-  }, [bookVehicleTypeId, bookingZones]);
 
   async function handleBookSlot() {
     if (!authToken || !userId || !bookPlate.trim()) {
@@ -271,39 +249,17 @@ export function UserMobileHome() {
         authToken,
       );
       setBookMessage(t("driver.bookSuccessExtended"));
-      await loadDataRef.current({ quiet: true });
+      await reloadQuiet();
     } catch (e) {
-      setBookMessage(driverErrorMessage(e, t("driver.bookFailed")));
+      setBookMessage(driverError(e, t("driver.bookFailed")));
     } finally {
       setBookSubmitting(false);
     }
   }
 
   async function handleSendFeedback() {
-    if (!authToken || !userId || !feedbackContent.trim()) {
-      setFeedbackMessage(t("driver.feedbackValidation"));
-      return;
-    }
-    setFeedbackSubmitting(true);
-    setFeedbackMessage("");
-    try {
-      await apiPost(
-        "/api/feedbacks",
-        {
-          userId,
-          sessionId: activeSession?.sessionId ?? null,
-          feedbackType: feedbackType,
-          content: feedbackContent.trim(),
-        },
-        authToken,
-      );
-      setFeedbackContent("");
-      setFeedbackMessage(t("driver.feedbackSuccess"));
-    } catch (e) {
-      setFeedbackMessage(driverErrorMessage(e, t("driver.feedbackFailed")));
-    } finally {
-      setFeedbackSubmitting(false);
-    }
+    if (!authToken || !userId) return;
+    await feedback.submit(authToken, userId, t);
   }
 
   const screenVariants: Variants = {
@@ -852,30 +808,20 @@ export function UserMobileHome() {
         {/* Utility Screens */}
         <AnimatePresence>
           {utilityScreen === "topup" && (
-            <motion.div
+            <MobileUtilityScreen
+              title={t("driver.wallet.topUpTitle")}
+              onBack={() => setUtilityScreen(null)}
               variants={screenVariants}
-              initial="hidden"
-              animate="show"
-              exit="exit"
-              className="absolute inset-0 bg-gray-50 dark:bg-[#121212] z-50 flex flex-col rounded-[36px]"
             >
-              <div className="pt-12 pb-4 px-6 bg-white dark:bg-[#1A1A1A] border-b border-gray-100 dark:border-gray-800 flex items-center gap-4 shadow-sm shrink-0">
-                <button onClick={() => setUtilityScreen(null)} className="p-2 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-500 dark:text-gray-400">
-                  <ChevronRight className="w-5 h-5 rotate-180" />
-                </button>
-                <h2 className="font-bold text-xl text-gray-900 dark:text-white">{t("driver.wallet.topUpTitle")}</h2>
-              </div>
-              <div className="flex-1 overflow-y-auto p-6" style={{ scrollbarWidth: "none" }}>
-                <DriverWalletPanel
-                  userId={userId}
-                  authToken={authToken}
-                  balance={walletBalance}
-                  onBalanceChange={setWalletBalance}
-                  onSuccess={() => loadDataRef.current({ quiet: true }).catch(() => {})}
-                  compact
-                />
-              </div>
-            </motion.div>
+              <DriverWalletPanel
+                userId={userId}
+                authToken={authToken}
+                balance={walletBalance}
+                onBalanceChange={setWalletBalance}
+                onSuccess={() => reloadQuiet().catch(() => {})}
+                compact
+              />
+            </MobileUtilityScreen>
           )}
 
           {/* Đặt chỗ Panel */}
@@ -975,8 +921,8 @@ export function UserMobileHome() {
               </div>
               <div className="flex-1 overflow-y-auto p-6 space-y-4" style={{ scrollbarWidth: 'none' }}>
                 <select
-                  value={feedbackType}
-                  onChange={(e) => setFeedbackType(e.target.value)}
+                  value={feedback.feedbackType}
+                  onChange={(e) => feedback.setFeedbackType(e.target.value)}
                   className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white"
                 >
                   <option value="Suggestion">{t("driver.suggestion")}</option>
@@ -986,20 +932,20 @@ export function UserMobileHome() {
                 <textarea
                   rows={5}
                   placeholder={t("driver.feedbackContentPlaceholder")}
-                  value={feedbackContent}
-                  onChange={(e) => setFeedbackContent(e.target.value)}
+                  value={feedback.feedbackContent}
+                  onChange={(e) => feedback.setFeedbackContent(e.target.value)}
                   className="w-full bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-xl py-3 px-4 text-gray-900 dark:text-white resize-none"
                 />
-                {feedbackMessage && (
-                  <p className={`text-sm ${feedbackMessage === t("driver.feedbackSuccess") ? "text-green-600" : "text-red-500"}`}>{feedbackMessage}</p>
+                {feedback.message && (
+                  <p className={`text-sm ${feedback.message === t("driver.feedbackSuccess") ? "text-green-600" : "text-red-500"}`}>{feedback.message}</p>
                 )}
                 <motion.button
                   whileTap={{ scale: 0.98 }}
                   onClick={handleSendFeedback}
-                  disabled={feedbackSubmitting}
+                  disabled={feedback.submitting}
                   className="w-full bg-blue-600 text-white font-bold py-4 rounded-2xl disabled:opacity-60 flex justify-center gap-2"
                 >
-                  {feedbackSubmitting && <Loader2 className="w-4 h-4 animate-spin" />}
+                  {feedback.submitting && <Loader2 className="w-4 h-4 animate-spin" />}
                   {t("driver.submitFeedback")}
                 </motion.button>
               </div>
@@ -1025,7 +971,7 @@ export function UserMobileHome() {
               <div className="px-6 py-4 bg-white dark:bg-[#1A1A1A] border-b border-gray-100 dark:border-gray-800 shrink-0 overflow-x-auto whitespace-nowrap" style={{ scrollbarWidth: 'none' }}>
                 <div className="flex gap-2">
                   {TX_FILTERS.map((filter) => {
-                    const labelKey = filter === "all" ? "driver.txFilterAll" : filter === "topup" ? "driver.txFilterTopUp" : filter === "payment" ? "driver.txFilterPayment" : "driver.txFilterRefund";
+                    const labelKey = filter === "all" ? "driver.txFilterAll" : filter === "topup" ? "driver.txFilterTopUp" : "driver.txFilterPayment";
                     return (
                     <button
                       key={filter}

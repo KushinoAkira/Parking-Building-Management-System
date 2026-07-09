@@ -42,7 +42,15 @@ build/
 .cursor/
 cursor-pre-push-security-rules.mdc
 
+# Local extension tooling monorepo + agent integration (never push)
+ExtentionProject(donotpush)/
+.agents/
+.impeccable/
+CONTEXT.md
+
 # Generated SWP391 exports (local; keep committed deliverables)
 docs/PBMS_*.docx
 docs/PBMS_*.pdf
 !docs/PBMS_Basic_CRUD_Master_Data_Setup.docx
+# CocoIndex Code (ccc)
+/.cocoindex_code/

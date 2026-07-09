@@ -200,7 +200,10 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.EntryStaffId).HasColumnName("EntryStaffID");
             entity.Property(e => e.ExitStaffId).HasColumnName("ExitStaffID");
             entity.Property(e => e.Note).HasMaxLength(500);
-            entity.HasIndex(e => e.LicensePlate).HasDatabaseName("IX_Session_LicensePlate");
+            entity.HasIndex(e => e.LicensePlate)
+                .IsUnique()
+                .HasFilter("\"Status\" = 'Active'")
+                .HasDatabaseName("IX_Session_LicensePlate");
             entity.HasIndex(e => e.Status).HasDatabaseName("IX_Session_Status");
             entity.HasIndex(e => e.SlotId).HasDatabaseName("IX_Session_Slot");
             entity.HasIndex(e => e.TicketCode).IsUnique();

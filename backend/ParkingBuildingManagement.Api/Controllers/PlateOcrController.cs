@@ -20,6 +20,10 @@ public class PlateOcrController(IPlateOcrService ocr) : ControllerBase
         {
             ready = ocr.IsAvailable,
             available = ocr.IsAvailable,
+            fallback = ocr.IsAvailable ? null : "browser-alpr",
+            hint = ocr.IsAvailable
+                ? null
+                : "Server OCR unavailable on Linux. Use browser Tesseract or Plate Recognizer (VITE_PLATE_RECOGNIZER_TOKEN).",
         });
     }
 
@@ -37,7 +41,12 @@ public class PlateOcrController(IPlateOcrService ocr) : ControllerBase
         var result = await ocr.RecognizeAsync(stream, cancellationToken);
 
         if (!result.Available)
-            return StatusCode(503, new { error = "OCR engine is unavailable on this server." });
+            return StatusCode(503, new
+            {
+                error = "OCR engine is unavailable on this server.",
+                fallback = "browser-alpr",
+                hint = "Use browser scan (Tesseract) or configure VITE_PLATE_RECOGNIZER_TOKEN on the frontend.",
+            });
 
         return Ok(new
         {

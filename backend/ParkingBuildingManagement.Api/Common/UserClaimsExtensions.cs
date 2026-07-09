@@ -24,4 +24,10 @@ public static class UserClaimsExtensions
         if (user.IsStaffOrAbove()) return true;
         return user.GetUserId() == userId;
     }
+
+    public static bool CanAccessSession(this ClaimsPrincipal user, int? sessionUserId)
+    {
+        if (user.GetRoleName() != RoleNames.Driver) return true;
+        return sessionUserId == user.GetUserId();
+    }
 }

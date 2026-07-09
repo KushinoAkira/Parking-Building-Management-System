@@ -3,13 +3,14 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
+using ParkingBuildingManagement.Api.Services;
 
 namespace ParkingBuildingManagement.Api.Controllers;
 
 [ApiController]
 [Authorize(Roles = RoleNames.ManagerOnly)]
 [Route("api/reports")]
-public class ReportsController(ApplicationDbContext db) : ControllerBase
+public class ReportsController(ApplicationDbContext db, IReportSnapshotService snapshots) : ControllerBase
 {
     [HttpGet("dashboard")]
     public async Task<IActionResult> GetDashboard(CancellationToken ct)
@@ -121,5 +122,32 @@ public class ReportsController(ApplicationDbContext db) : ControllerBase
             .ToListAsync(ct);
 
         return Ok(zones);
+    }
+
+    [HttpGet("snapshots")]
+    public async Task<IActionResult> GetSnapshots([FromQuery] int days = 30, CancellationToken ct = default)
+    {
+        var items = await snapshots.ListAsync(days, ct);
+        return Ok(items.Select(s => new
+        {
+            s.ReportId,
+            s.ReportDate,
+            s.TotalEntries,
+            s.TotalExits,
+            s.TotalRevenue,
+            s.OccupancyRate,
+            s.PeakHour,
+            s.CreatedAt,
+        }));
+    }
+
+    [HttpPost("snapshots/daily")]
+    public async Task<IActionResult> GenerateDailySnapshot(
+        [FromQuery] DateOnly? date,
+        CancellationToken ct = default)
+    {
+        var target = date ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var snapshot = await snapshots.GenerateDailyAsync(target, ct);
+        return Ok(snapshot);
     }
 }

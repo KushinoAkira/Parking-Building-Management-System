@@ -24,7 +24,7 @@ public class AuthService(ApplicationDbContext db, IConfiguration config) : IAuth
         var email = request.Email.Trim().ToLowerInvariant();
         var user = await db.Users
             .Include(u => u.Role)
-            .FirstOrDefaultAsync(u => u.Email.ToLower() == email, ct)
+            .FirstOrDefaultAsync(u => u.Email == email, ct)
             ?? throw new BusinessException("Invalid email or password.", 401);
 
         if (user.Status == "Locked")
@@ -44,7 +44,7 @@ public class AuthService(ApplicationDbContext db, IConfiguration config) : IAuth
         if (string.IsNullOrEmpty(fullName))
             throw new BusinessException("Full name is required.");
 
-        if (await db.Users.AnyAsync(u => u.Email.ToLower() == email, ct))
+        if (await db.Users.AnyAsync(u => u.Email == email, ct))
             throw new BusinessException("Email already registered.");
 
         var driverRole = await db.Roles.FirstOrDefaultAsync(r => r.RoleName == "Driver", ct)

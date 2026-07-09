@@ -36,12 +36,7 @@ public class ParkingSessionsController(
 
         var sessions = await query
             .OrderByDescending(s => s.EntryTime)
-            .Select(s => new SessionDto(
-                s.SessionId, s.TicketCode, s.UserId, s.ReservationId,
-                s.VehicleTypeId, s.VehicleType.TypeCode, s.ZoneId, s.Zone.ZoneCode,
-                s.SlotId, s.LicensePlate, s.EntryTime, s.ExitTime,
-                s.EntryGate, s.ExitGate, s.EstimatedFee, s.TotalFee, s.Status,
-                s.EntryStaffId, s.ExitStaffId, s.Note))
+            .Select(DtoProjections.Session)
             .ToListAsync(ct);
 
         return Ok(sessions);
@@ -54,12 +49,7 @@ public class ParkingSessionsController(
         var session = await db.ParkingSessions.AsNoTracking()
             .Include(s => s.VehicleType).Include(s => s.Zone)
             .Where(s => s.SessionId == id)
-            .Select(s => new SessionDto(
-                s.SessionId, s.TicketCode, s.UserId, s.ReservationId,
-                s.VehicleTypeId, s.VehicleType.TypeCode, s.ZoneId, s.Zone.ZoneCode,
-                s.SlotId, s.LicensePlate, s.EntryTime, s.ExitTime,
-                s.EntryGate, s.ExitGate, s.EstimatedFee, s.TotalFee, s.Status,
-                s.EntryStaffId, s.ExitStaffId, s.Note))
+            .Select(DtoProjections.Session)
             .FirstOrDefaultAsync(ct);
 
         return session is null ? NotFound() : Ok(session);
@@ -83,8 +73,12 @@ public class ParkingSessionsController(
 
     [HttpPost("check-in")]
     [Authorize(Roles = RoleNames.StaffOrAbove)]
-    public async Task<IActionResult> CheckIn([FromBody] CheckInRequest request, CancellationToken ct) =>
-        Ok(await sessionService.CheckInAsync(request, ct));
+    public async Task<IActionResult> CheckIn([FromBody] CheckInRequest request, CancellationToken ct)
+    {
+        var staffId = User.GetUserId();
+        var req = request with { EntryStaffId = staffId ?? request.EntryStaffId };
+        return Ok(await sessionService.CheckInAsync(req, ct));
+    }
 
     [HttpGet("{id:int}/estimate-fee")]
     public async Task<IActionResult> EstimateFee(int id, [FromQuery] bool lostTicket = false, CancellationToken ct = default)
@@ -93,20 +87,20 @@ public class ParkingSessionsController(
             .FirstOrDefaultAsync(s => s.SessionId == id, ct);
         if (session is null) return NotFound();
 
-        if (User.GetRoleName() == RoleNames.Driver && session.UserId != User.GetUserId())
+        if (!User.CanAccessSession(session.UserId))
             return Forbid();
 
         var parkingFee = await pricing.CalculateFeeAsync(
             session.VehicleTypeId, session.EntryTime, DateTime.UtcNow, lostTicket, ct);
-        var penaltyFee = await db.Incidents
-            .Where(i => i.SessionId == id && i.Status == "Open")
-            .SumAsync(i => i.PenaltyFee, ct);
+        var (penaltyFee, vipSurcharge) = await SessionCheckoutFees.GetExtrasAsync(
+            db, id, session.ReservationId, ct);
 
         return Ok(new
         {
             parkingFee,
             penaltyFee,
-            totalFee = parkingFee + penaltyFee,
+            vipSurcharge,
+            totalFee = parkingFee + penaltyFee + vipSurcharge,
             estimatedAtCheckIn = session.EstimatedFee,
         });
     }
@@ -119,8 +113,14 @@ public class ParkingSessionsController(
             var session = await db.ParkingSessions.AsNoTracking()
                 .FirstOrDefaultAsync(s => s.SessionId == id, ct);
             if (session is null) return NotFound();
-            if (session.UserId != User.GetUserId())
+            if (!User.CanAccessSession(session.UserId))
                 return Forbid();
+        }
+        else
+        {
+            var staffId = User.GetUserId();
+            if (staffId.HasValue)
+                request = request with { ExitStaffId = staffId };
         }
 
         return Ok(await sessionService.CheckOutAsync(id, request, ct));

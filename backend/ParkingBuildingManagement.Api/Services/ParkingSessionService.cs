@@ -1,3 +1,4 @@
+using System.Data;
 using Microsoft.EntityFrameworkCore;
 using ParkingBuildingManagement.Api.Common;
 using ParkingBuildingManagement.Api.Data;
@@ -24,9 +25,6 @@ public class ParkingSessionService(
     {
         var plate = request.LicensePlate.Trim().ToUpperInvariant();
 
-        if (await db.ParkingSessions.AnyAsync(s => s.LicensePlate == plate && s.Status == "Active", ct))
-            throw new BusinessException($"License plate '{plate}' already has an active session.");
-
         Reservation? reservation = null;
         if (request.ReservationId.HasValue)
         {
@@ -43,18 +41,22 @@ public class ParkingSessionService(
                 throw new BusinessException("License plate does not match reservation.");
         }
 
-        var slot = reservation?.SlotId is not null
-            ? await db.ParkingSlots.Include(s => s.Zone)
-                .FirstAsync(s => s.SlotId == reservation.SlotId, ct)
-            : await slotAllocation.FindAvailableSlotAsync(
-                request.VehicleTypeId, request.ZoneId, request.SlotId, reservation?.PreferVipSlot ?? false, ct);
-
-        if (slot.Status is not ("Available" or "Reserved"))
-            throw new BusinessException($"Slot '{slot.SlotId}' is not available.");
+        var slotId = reservation?.SlotId
+            ?? (await slotAllocation.FindAvailableSlotAsync(
+                request.VehicleTypeId, request.ZoneId, request.SlotId, reservation?.PreferVipSlot ?? false, ct)).SlotId;
 
         ParkingSession? session = null;
         await db.ExecuteInTransactionAsync(async () =>
         {
+            if (await db.ParkingSessions.AnyAsync(s => s.LicensePlate == plate && s.Status == "Active", ct))
+                throw new BusinessException($"License plate '{plate}' already has an active session.");
+
+            var slot = await db.ParkingSlots.Include(s => s.Zone)
+                .FirstAsync(s => s.SlotId == slotId, ct);
+
+            if (slot.Status is not ("Available" or "Reserved"))
+                throw new BusinessException($"Slot '{slot.SlotId}' is not available.");
+
             session = new ParkingSession
             {
                 TicketCode = TicketCodeGenerator.Generate(),
@@ -80,7 +82,7 @@ public class ParkingSessionService(
                 reservation.Status = "CheckedIn";
 
             await db.SaveChangesAsync(ct);
-        }, ct);
+        }, IsolationLevel.Serializable, ct);
 
         return session is not null && await MapSessionAsync(session.SessionId, ct)
             is { } dto
@@ -96,36 +98,27 @@ public class ParkingSessionService(
 
     public async Task<CheckOutResultDto> CheckOutAsync(int sessionId, CheckOutRequest request, CancellationToken ct)
     {
-        var session = await db.ParkingSessions
-            .Include(s => s.Slot)
-            .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct)
-            ?? throw new BusinessException("Session not found.", 404);
-
-        if (session.Status != "Active" && session.Status != "Unpaid")
-            throw new BusinessException($"Session cannot be checked out (status: {session.Status}).");
-
         var exitTime = DateTime.UtcNow;
-        var totalFee = await pricing.CalculateFeeAsync(
-            session.VehicleTypeId, session.EntryTime, exitTime, request.LostTicket, ct);
-
-        var penaltyFee = await db.Incidents
-            .Where(i => i.SessionId == sessionId && i.Status == "Open")
-            .SumAsync(i => i.PenaltyFee, ct);
-        totalFee += penaltyFee;
-
-        if (session.ReservationId.HasValue)
-        {
-            var vipSurcharge = await db.Reservations.AsNoTracking()
-                .Where(r => r.ReservationId == session.ReservationId.Value)
-                .Select(r => r.VipSurcharge)
-                .FirstOrDefaultAsync(ct);
-            if (vipSurcharge is > 0)
-                totalFee += vipSurcharge.Value;
-        }
-
         Payment? payment = null;
+        decimal totalFee = 0;
+
         await db.ExecuteInTransactionAsync(async () =>
         {
+            var session = await db.ParkingSessions
+                .Include(s => s.Slot)
+                .FirstOrDefaultAsync(s => s.SessionId == sessionId, ct)
+                ?? throw new BusinessException("Session not found.", 404);
+
+            if (session.Status != "Active" && session.Status != "Unpaid")
+                throw new BusinessException($"Session cannot be checked out (status: {session.Status}).");
+
+            totalFee = await pricing.CalculateFeeAsync(
+                session.VehicleTypeId, session.EntryTime, exitTime, request.LostTicket, ct);
+
+            var (penaltyFee, vipSurcharge) = await SessionCheckoutFees.GetExtrasAsync(
+                db, sessionId, session.ReservationId, ct);
+            totalFee += penaltyFee + vipSurcharge;
+
             if (request.PaymentMethod == "EWallet")
             {
                 if (!session.UserId.HasValue)
@@ -156,7 +149,7 @@ public class ParkingSessionService(
 
             db.Payments.Add(payment);
             await db.SaveChangesAsync(ct);
-        }, ct);
+        }, IsolationLevel.Serializable, ct);
 
         var dto = await MapSessionAsync(sessionId, ct)
             ?? throw new BusinessException("Failed to load session after check-out.", 500);
@@ -173,43 +166,21 @@ public class ParkingSessionService(
         await db.ParkingSessions
             .AsNoTracking()
             .Where(s => s.TicketCode == ticketCode)
-            .Select(SessionProjection)
+            .Select(DtoProjections.Session)
             .FirstOrDefaultAsync(ct);
 
     public async Task<SessionDto?> GetActiveByLicensePlateAsync(string licensePlate, CancellationToken ct) =>
         await db.ParkingSessions
             .AsNoTracking()
             .Where(s => s.LicensePlate == licensePlate.ToUpperInvariant() && s.Status == "Active")
-            .Select(SessionProjection)
+            .Select(DtoProjections.Session)
             .FirstOrDefaultAsync(ct);
 
     private async Task<SessionDto?> MapSessionAsync(int sessionId, CancellationToken ct) =>
         await db.ParkingSessions
             .AsNoTracking()
             .Where(s => s.SessionId == sessionId)
-            .Select(SessionProjection)
+            .Select(DtoProjections.Session)
             .FirstOrDefaultAsync(ct);
 
-    private static readonly System.Linq.Expressions.Expression<Func<ParkingSession, SessionDto>> SessionProjection =
-        s => new SessionDto(
-            s.SessionId,
-            s.TicketCode,
-            s.UserId,
-            s.ReservationId,
-            s.VehicleTypeId,
-            s.VehicleType.TypeCode,
-            s.ZoneId,
-            s.Zone.ZoneCode,
-            s.SlotId,
-            s.LicensePlate,
-            s.EntryTime,
-            s.ExitTime,
-            s.EntryGate,
-            s.ExitGate,
-            s.EstimatedFee,
-            s.TotalFee,
-            s.Status,
-            s.EntryStaffId,
-            s.ExitStaffId,
-            s.Note);
 }

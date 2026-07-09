@@ -102,7 +102,19 @@ public class IncidentsController(
 
     [HttpPost("{id:int}/resolve")]
     [Authorize(Roles = RoleNames.ManagerOnly)]
-    public async Task<IActionResult> Resolve(int id, CancellationToken ct)
+    public Task<IActionResult> Resolve(int id, CancellationToken ct) =>
+        TransitionIncidentAsync(id, "Resolved", "resolved", ct);
+
+    [HttpPost("{id:int}/cancel")]
+    [Authorize(Roles = RoleNames.ManagerOnly)]
+    public Task<IActionResult> Cancel(int id, CancellationToken ct) =>
+        TransitionIncidentAsync(id, "Cancelled", "cancelled", ct);
+
+    private async Task<IActionResult> TransitionIncidentAsync(
+        int id,
+        string nextStatus,
+        string notifyAction,
+        CancellationToken ct)
     {
         var incident = await db.Incidents
             .Include(i => i.Session)
@@ -112,34 +124,18 @@ public class IncidentsController(
         if (incident.Status != "Open")
             throw new BusinessException($"Incident is not open (status: {incident.Status}).");
 
-        incident.Status = "Resolved";
+        incident.Status = nextStatus;
         incident.ResolvedAt = DateTime.UtcNow;
         await db.SaveChangesAsync(ct);
 
         await realtime.NotifyIncidentUpdatedAsync(
-            new IncidentEventData(incident.IncidentId, incident.IncidentType, incident.Status, incident.PenaltyFee, incident.Session?.LicensePlate),
-            "resolved",
-            ct);
-
-        return Ok(incident);
-    }
-
-    [HttpPost("{id:int}/cancel")]
-    [Authorize(Roles = RoleNames.ManagerOnly)]
-    public async Task<IActionResult> Cancel(int id, CancellationToken ct)
-    {
-        var incident = await db.Incidents
-            .Include(i => i.Session)
-            .FirstOrDefaultAsync(i => i.IncidentId == id, ct)
-            ?? throw new BusinessException("Incident not found.", 404);
-
-        incident.Status = "Cancelled";
-        incident.ResolvedAt = DateTime.UtcNow;
-        await db.SaveChangesAsync(ct);
-
-        await realtime.NotifyIncidentUpdatedAsync(
-            new IncidentEventData(incident.IncidentId, incident.IncidentType, incident.Status, incident.PenaltyFee, incident.Session?.LicensePlate),
-            "cancelled",
+            new IncidentEventData(
+                incident.IncidentId,
+                incident.IncidentType,
+                incident.Status,
+                incident.PenaltyFee,
+                incident.Session?.LicensePlate),
+            notifyAction,
             ct);
 
         return Ok(incident);

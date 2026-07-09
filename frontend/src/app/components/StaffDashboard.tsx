@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Camera, Car, CheckCircle, LogOut, ShieldAlert, List, Calendar, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ThemeToggle } from "./ThemeToggle";
@@ -12,10 +12,13 @@ import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
 import { stopRealtimeConnection } from "../lib/realtime";
 import { preloadOcrWorker, terminateOcrWorker, normalizePlateDisplay } from "../lib/licensePlateOcr";
-import { useRealtimeRefresh } from "../lib/RealtimeContext";
 import { RealtimeEventTypes } from "../lib/realtime";
 import { useLocale } from "../lib/i18n/LocaleContext";
 import { bookableVehicleTypes, type BookVehicleType } from "../lib/bookZones";
+import { toDriverErrorMessage } from "../lib/driverErrors";
+import { useStableLoader } from "../lib/hooks/useStableLoader";
+import { TAB_ACTIVE, TAB_INACTIVE } from "../lib/uiClasses";
+import { ErrorBanner } from "./ErrorBanner";
 
 type Tab = "control" | "violations" | "history" | "reservations";
 
@@ -89,12 +92,7 @@ export function StaffDashboard() {
   const auth = getAuth();
   const authToken = auth?.token ?? "";
   const authRole = auth?.roleName?.toLowerCase() ?? "";
-
-  function staffErrorMessage(e: unknown, fallback: string) {
-    if (isNetworkError(e)) return t("common.networkError");
-    if (isTimeoutError(e)) return t("common.timeoutError");
-    return e instanceof Error ? e.message : fallback;
-  }
+  const staffError = (e: unknown, fallback: string) => toDriverErrorMessage(e, t, fallback);
 
   async function loadFloors() {
     const data = await apiGet<StaffFloor[]>("/api/portal/staff/floors", authToken);
@@ -133,7 +131,7 @@ export function StaffDashboard() {
     } catch (e) {
       if (!opts?.quiet) {
         if (isNetworkError(e) || isTimeoutError(e)) setApiOffline(true);
-        else setActionError(staffErrorMessage(e, t("staff.loadFailed")));
+        else setActionError(staffError(e, t("staff.loadFailed")));
       }
       return;
     }
@@ -145,33 +143,25 @@ export function StaffDashboard() {
     ]);
   }, [authToken, t]);
 
-  const loadAllRef = useRef(loadAll);
-  loadAllRef.current = loadAll;
+  const { reload, reloadQuiet } = useStableLoader(loadAll, [
+    RealtimeEventTypes.SlotUpdated,
+    RealtimeEventTypes.SessionCheckedIn,
+    RealtimeEventTypes.SessionCheckedOut,
+    RealtimeEventTypes.ReservationUpdated,
+    RealtimeEventTypes.IncidentUpdated,
+  ]);
 
   useEffect(() => {
     if (!authToken || authRole !== "staff") {
       navigate("/login");
       return;
     }
-    loadAllRef.current().catch((e) => {
+    reload().catch((e) => {
       if (isNetworkError(e) || isTimeoutError(e)) setApiOffline(true);
-      else setActionError(staffErrorMessage(e, t("staff.loadFailed")));
+      else setActionError(staffError(e, t("staff.loadFailed")));
     });
     preloadOcrWorker(authToken).catch(() => {});
-  }, [navigate, authToken, authRole, t]);
-
-  useRealtimeRefresh(
-    [
-      RealtimeEventTypes.SlotUpdated,
-      RealtimeEventTypes.SessionCheckedIn,
-      RealtimeEventTypes.SessionCheckedOut,
-      RealtimeEventTypes.ReservationUpdated,
-      RealtimeEventTypes.IncidentUpdated,
-    ],
-    () => {
-      loadAllRef.current({ quiet: true }).catch(() => {});
-    },
-  );
+  }, [navigate, authToken, authRole, t, reload]);
 
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
@@ -222,10 +212,10 @@ export function StaffDashboard() {
 
       setPlate("");
       setLostTicket(false);
-      await loadAllRef.current({ quiet: true });
+      await reloadQuiet();
       return true;
     } catch (e) {
-      setActionError(staffErrorMessage(e, t("staff.plateFailed")));
+      setActionError(staffError(e, t("staff.plateFailed")));
       return false;
     } finally {
       setLoadingAction(false);
@@ -330,44 +320,25 @@ export function StaffDashboard() {
 
       <main className="p-6 space-y-6">
         <div className="flex gap-3">
-          <button
-            onClick={() => setActiveTab("control")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${activeTab === "control" ? "bg-blue-600 text-white" : "bg-white dark:bg-[#1A1A1A]"}`}
-          >
-            <Camera className="w-4 h-4 inline mr-2" />
-            {t("staff.control")}
-          </button>
-          <button
-            onClick={() => setActiveTab("violations")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${activeTab === "violations" ? "bg-blue-600 text-white" : "bg-white dark:bg-[#1A1A1A]"}`}
-          >
-            <ShieldAlert className="w-4 h-4 inline mr-2" />
-            {t("staff.violationsTab")}
-          </button>
-          <button
-            onClick={() => setActiveTab("history")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${activeTab === "history" ? "bg-blue-600 text-white" : "bg-white dark:bg-[#1A1A1A]"}`}
-          >
-            <List className="w-4 h-4 inline mr-2" />
-            {t("staff.historyTab")}
-          </button>
-          <button
-            onClick={() => setActiveTab("reservations")}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold ${activeTab === "reservations" ? "bg-blue-600 text-white" : "bg-white dark:bg-[#1A1A1A]"}`}
-          >
-            <Calendar className="w-4 h-4 inline mr-2" />
-            {t("staff.reservationsTab")}
-          </button>
+          {([
+            { id: "control" as const, icon: Camera, label: t("staff.control") },
+            { id: "violations" as const, icon: ShieldAlert, label: t("staff.violationsTab") },
+            { id: "history" as const, icon: List, label: t("staff.historyTab") },
+            { id: "reservations" as const, icon: Calendar, label: t("staff.reservationsTab") },
+          ]).map(({ id, icon: Icon, label }) => (
+            <button
+              key={id}
+              onClick={() => setActiveTab(id)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold ${activeTab === id ? TAB_ACTIVE : TAB_INACTIVE}`}
+            >
+              <Icon className="w-4 h-4 inline mr-2" />
+              {label}
+            </button>
+          ))}
         </div>
 
-        {(apiOffline && floors.length === 0) && (
-          <div className="text-sm text-red-600 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg break-words">
-            {t("common.networkError")}
-          </div>
-        )}
-        {actionError && (
-          <div className="text-sm text-red-600 bg-red-50 dark:bg-red-500/10 p-3 rounded-lg break-words">{actionError}</div>
-        )}
+        <ErrorBanner offline={apiOffline && floors.length === 0} offlineMessage={t("common.networkError")} />
+        <ErrorBanner error={actionError} />
         {result && activeTab !== "control" && (
           <div className="text-sm text-green-700 bg-green-50 dark:bg-green-500/10 p-3 rounded-lg">{result}</div>
         )}
