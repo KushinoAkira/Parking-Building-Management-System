@@ -1,5 +1,7 @@
 namespace ParkingBuildingManagement.Api.Dtos;
 
+using System.ComponentModel.DataAnnotations;
+
 public record UserDto(
     int UserId,
     string FullName,
@@ -13,7 +15,7 @@ public record UserDto(
 public record CreateUserRequest(
     string FullName,
     string Email,
-    string Password,
+    [MinLength(8)] string Password,
     string? Phone,
     int RoleId,
     string Status = "Active");
@@ -24,6 +26,6 @@ public record UpdateUserRequest(
     int RoleId,
     string Status);
 
-public record ResetPasswordRequest(string NewPassword);
+public record ResetPasswordRequest([MinLength(8)] string NewPassword);
 
 public record ChangePasswordRequest(string CurrentPassword, string NewPassword);

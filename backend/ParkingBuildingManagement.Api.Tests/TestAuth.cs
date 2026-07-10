@@ -25,4 +25,14 @@ public static class TestAuth
             ?? throw new InvalidOperationException("Login returned no auth payload.");
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
     }
+
+    public static async Task AuthenticateAsManagerAsync(HttpClient client)
+    {
+        var response = await client.PostAsJsonAsync("/api/auth/login", new LoginRequest(
+            TestData.ManagerEmail, TestData.ManagerPassword));
+        response.EnsureSuccessStatusCode();
+        var auth = await response.Content.ReadFromJsonAsync<AuthResponse>()
+            ?? throw new InvalidOperationException("Login returned no auth payload.");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", auth.Token);
+    }
 }

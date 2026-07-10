@@ -27,11 +27,6 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
             query = query.Where(z => z.Status == status);
 
         var zones = await query
-            .ToListAsync(ct);
-
-        var ordered = zones
-            .OrderBy(z => ParkingFloorCatalog.GetSortOrder(z.ZoneCode))
-            .ThenBy(z => z.ZoneCode)
             .Select(z => new
             {
                 z.ZoneId,
@@ -43,6 +38,23 @@ public class ParkingZonesController(ApplicationDbContext db) : ControllerBase
                 z.Status,
                 AvailableSlots = z.ParkingSlots.Count(s => s.Status == "Available"),
                 OccupiedSlots = z.ParkingSlots.Count(s => s.Status == "Occupied"),
+            })
+            .ToListAsync(ct);
+
+        var ordered = zones
+            .OrderBy(z => ParkingFloorCatalog.GetSortOrder(z.ZoneCode))
+            .ThenBy(z => z.ZoneCode)
+            .Select(z => new
+            {
+                z.ZoneId,
+                z.ZoneCode,
+                z.ZoneName,
+                z.VehicleTypeId,
+                z.VehicleTypeCode,
+                z.Capacity,
+                z.Status,
+                z.AvailableSlots,
+                z.OccupiedSlots,
                 FloorNumber = ParkingFloorCatalog.GetFloorNumber(z.ZoneCode),
             })
             .ToList();

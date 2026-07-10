@@ -35,11 +35,23 @@ public class PortalController(ApplicationDbContext db, IWalletService wallet) : 
     [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetStaffFloors(CancellationToken ct)
     {
+        var activeBySlot = await db.ParkingSessions
+            .AsNoTracking()
+            .Where(ps => ps.Status == "Active")
+            .Select(ps => new
+            {
+                ps.SlotId,
+                ps.SessionId,
+                ps.LicensePlate,
+                ps.EntryTime,
+                ps.TicketCode,
+            })
+            .ToDictionaryAsync(x => x.SlotId, ct);
+
         var zones = await db.ParkingZones
             .AsNoTracking()
             .Include(z => z.VehicleType)
             .Include(z => z.ParkingSlots)
-            .ThenInclude(s => s.ParkingSessions)
             .Where(z => z.Status == "Active")
             .ToListAsync(ct);
 
@@ -81,10 +93,9 @@ public class PortalController(ApplicationDbContext db, IWalletService wallet) : 
                             status = s.Status,
                             note = s.Note,
                             isVip = ParkingSlotRules.IsVipSlot(s.SlotId),
-                            activeSession = s.ParkingSessions
-                                .Where(ps => ps.Status == "Active")
-                                .Select(ps => new { ps.SessionId, ps.LicensePlate, ps.EntryTime, ps.TicketCode })
-                                .FirstOrDefault(),
+                            activeSession = activeBySlot.TryGetValue(s.SlotId, out var active)
+                                ? new { active.SessionId, active.LicensePlate, active.EntryTime, active.TicketCode }
+                                : null,
                         }),
                     }),
                 };
@@ -358,15 +369,25 @@ public class PortalController(ApplicationDbContext db, IWalletService wallet) : 
             });
         }
 
-        notifications.Add(new
+        var upcomingReservation = await db.Reservations
+            .AsNoTracking()
+            .Include(r => r.Slot)
+            .Where(r => r.UserId == userId && r.Status == "Confirmed" && r.ReservedFrom > DateTime.UtcNow)
+            .OrderBy(r => r.ReservedFrom)
+            .FirstOrDefaultAsync(ct);
+
+        if (upcomingReservation != null)
         {
-            id = 2,
-            title = "Giảm 20% phí đỗ xe",
-            desc = "Áp dụng cho lần thanh toán tiếp theo qua ví.",
-            time = DateTime.UtcNow.AddDays(-1),
-            unread = false,
-            type = "promotion"
-        });
+            notifications.Add(new
+            {
+                id = 2,
+                title = "Đặt chỗ sắp tới",
+                desc = $"Slot {upcomingReservation.SlotId ?? "—"} lúc {upcomingReservation.ReservedFrom:dd/MM HH:mm}. Biển {upcomingReservation.LicensePlate}.",
+                time = upcomingReservation.ReservedFrom,
+                unread = true,
+                type = "reservation"
+            });
+        }
 
         return Ok(notifications);
     }

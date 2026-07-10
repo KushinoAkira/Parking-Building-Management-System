@@ -35,45 +35,7 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
         await DeactivateNonCatalogZonesAsync(ct);
         await EnsureDefaultZonesAndSlotsAsync(ct);
 
-        if (!await db.PricingPolicies.AnyAsync(ct))
-        {
-            var now = DateTime.UtcNow;
-            db.PricingPolicies.AddRange(
-                new PricingPolicy
-                {
-                    VehicleTypeId = 1,
-                    PolicyName = "Motorbike Standard",
-                    PricePerHour = 5000,
-                    DailyMaxFee = 50000,
-                    LostTicketFee = 20000,
-                    OvertimeFee = 0,
-                    Status = "Active",
-                    CreatedAt = now,
-                },
-                new PricingPolicy
-                {
-                    VehicleTypeId = 2,
-                    PolicyName = "Car Standard",
-                    PricePerHour = 20000,
-                    DailyMaxFee = 200000,
-                    LostTicketFee = 50000,
-                    OvertimeFee = 0,
-                    Status = "Active",
-                    CreatedAt = now,
-                },
-                new PricingPolicy
-                {
-                    VehicleTypeId = 3,
-                    PolicyName = "EV Standard",
-                    PricePerHour = 25000,
-                    DailyMaxFee = 250000,
-                    LostTicketFee = 50000,
-                    OvertimeFee = 0,
-                    Status = "Active",
-                    CreatedAt = now,
-                });
-        }
-
+        await EnsureDefaultPricingAsync(ct);
         await EnsureEvPricingAsync(ct);
 
         if (!await db.SystemConfigs.AnyAsync(ct))
@@ -213,6 +175,37 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
                 TypeCode = code,
                 TypeName = name,
                 Status = "Active",
+            });
+        }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureDefaultPricingAsync(CancellationToken ct)
+    {
+        var now = DateTime.UtcNow;
+        var defaults = new (int TypeId, string Name, decimal Hour, decimal Daily, decimal Lost)[]
+        {
+            (1, "Motorbike Standard", 5000, 50000, 20000),
+            (2, "Car Standard", 20000, 200000, 50000),
+            (3, "EV Standard", 25000, 250000, 50000),
+        };
+
+        foreach (var (typeId, name, hour, daily, lost) in defaults)
+        {
+            if (await db.PricingPolicies.AnyAsync(p => p.VehicleTypeId == typeId && p.Status == "Active", ct))
+                continue;
+
+            db.PricingPolicies.Add(new PricingPolicy
+            {
+                VehicleTypeId = typeId,
+                PolicyName = name,
+                PricePerHour = hour,
+                DailyMaxFee = daily,
+                LostTicketFee = lost,
+                OvertimeFee = 0,
+                Status = "Active",
+                CreatedAt = now,
             });
         }
 

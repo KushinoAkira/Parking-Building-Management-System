@@ -9,6 +9,8 @@ public static class TestData
     public const string StaffPassword = "Staff@Test123";
     public const string DriverEmail = "driver@test.pbms";
     public const string DriverPassword = "Driver@Test123";
+    public const string ManagerEmail = "manager@test.pbms";
+    public const string ManagerPassword = "Manager@Test123";
 
     public static void Seed(ApplicationDbContext db)
     {
@@ -16,6 +18,7 @@ public static class TestData
 
         var staffRole = db.Roles.First(r => r.RoleName == "Staff");
         var driverRole = db.Roles.First(r => r.RoleName == "Driver");
+        var managerRole = db.Roles.First(r => r.RoleName == "Manager");
 
         db.Users.AddRange(
             new User
@@ -35,6 +38,16 @@ public static class TestData
                 PasswordHash = BCrypt.Net.BCrypt.HashPassword(DriverPassword),
                 Phone = "0900333444",
                 RoleId = driverRole.RoleId,
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow,
+            },
+            new User
+            {
+                FullName = "Test Manager",
+                Email = ManagerEmail,
+                PasswordHash = BCrypt.Net.BCrypt.HashPassword(ManagerPassword),
+                Phone = "0900555666",
+                RoleId = managerRole.RoleId,
                 Status = "Active",
                 CreatedAt = DateTime.UtcNow,
             });

@@ -38,6 +38,7 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IReservationService, ReservationService>();
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IWalletService, WalletService>();
+        services.AddScoped<IReportSnapshotService, ReportSnapshotService>();
 
         if (!isTesting)
         {

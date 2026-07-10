@@ -13,3 +13,8 @@ export function toDriverErrorMessage(
     fallback,
   });
 }
+
+/** Shorthand for admin/manager panels — same i18n network/timeout handling. */
+export function apiErrorMessage(t: Translator, fallback: string) {
+  return (error: unknown) => toDriverErrorMessage(error, t, fallback);
+}

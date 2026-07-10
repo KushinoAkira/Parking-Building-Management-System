@@ -1,23 +1,24 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Car, Home, Ticket, History, LogOut, Calendar, MessageSquare, XCircle, Wallet } from "lucide-react";
 import { useNavigate } from "react-router";
 import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
 import { stopRealtimeConnection } from "../lib/realtime";
 import { useLocale } from "../lib/i18n/LocaleContext";
-import { useRealtimeRefresh } from "../lib/RealtimeContext";
 import { DriverWalletPanel } from "./DriverWalletPanel";
 import type { DriverTransaction } from "../lib/walletApi";
 import {
-  bookableVehicleTypes,
-  normalizeBookZoneId,
-  zonesForVehicleType,
   type BookVehicleType,
   type BookZone,
 } from "../lib/bookZones";
 import { toDriverErrorMessage } from "../lib/driverErrors";
 import { driverRealtimeRefreshEvents } from "../lib/driverRealtime";
 import { createAndConfirmReservation } from "../lib/bookReservation";
+import { useStableLoader } from "../lib/hooks/useStableLoader";
+import { useBookingForm } from "../lib/hooks/useBookingForm";
+import { useFeedbackForm } from "../lib/hooks/useFeedbackForm";
+import { TAB_ACTIVE, TAB_INACTIVE, SECTION_CARD } from "../lib/uiClasses";
+import { ErrorBanner } from "./ErrorBanner";
 
 type ReservationRow = {
   reservationId: number;
@@ -58,20 +59,27 @@ export function UserWebDashboard() {
   const [reservations, setReservations] = useState<ReservationRow[]>([]);
   const [vehicleTypes, setVehicleTypes] = useState<BookVehicleType[]>([]);
   const [zones, setZones] = useState<BookZone[]>([]);
-  const [bookPlate, setBookPlate] = useState("");
-  const [bookVehicleTypeId, setBookVehicleTypeId] = useState(1);
-  const [bookZoneId, setBookZoneId] = useState<number | "">("");
-  const [bookPreferVip, setBookPreferVip] = useState(false);
-  const [vipSurchargeAmount, setVipSurchargeAmount] = useState(10_000);
   const [bookFrom, setBookFrom] = useState("");
   const [bookTo, setBookTo] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<(typeof PAYMENT_METHODS)[number]>("EWallet");
   const [currentFee, setCurrentFee] = useState<number | null>(null);
-  const [feedbackType, setFeedbackType] = useState("Suggestion");
-  const [feedbackContent, setFeedbackContent] = useState("");
 
-  const driverErrorMessage = (e: unknown, fallback: string) =>
-    toDriverErrorMessage(e, t, fallback);
+  const {
+    bookPlate,
+    setBookPlate,
+    bookVehicleTypeId,
+    setBookVehicleTypeId,
+    bookZoneId,
+    setBookZoneId,
+    bookPreferVip,
+    setBookPreferVip,
+    vipSurchargeAmount,
+    setVipSurchargeAmount,
+    bookingVehicleTypes,
+    bookingZones,
+  } = useBookingForm(vehicleTypes, zones);
+
+  const driverError = (e: unknown, fallback: string) => toDriverErrorMessage(e, t, fallback);
 
   async function loadFeeEstimate(sessionId: number) {
     if (!authToken) return;
@@ -102,7 +110,7 @@ export function UserWebDashboard() {
     } catch (e) {
       if (!opts?.quiet) {
         if (isNetworkError(e) || isTimeoutError(e)) setApiOffline(true);
-        else setError(driverErrorMessage(e, t("driver.loadFailed")));
+        else setError(driverError(e, t("driver.loadFailed")));
       }
       return;
     }
@@ -122,10 +130,9 @@ export function UserWebDashboard() {
     if (vipRes.status === "fulfilled" && typeof vipRes.value?.amount === "number") {
       setVipSurchargeAmount(vipRes.value.amount);
     }
-  }, [authToken, userId, t]);
+  }, [authToken, userId, t, setBookPlate, setVipSurchargeAmount]);
 
-  const loadAllRef = useRef(loadAll);
-  loadAllRef.current = loadAll;
+  const { reload, reloadQuiet } = useStableLoader(loadAll, driverRealtimeRefreshEvents);
 
   useEffect(() => {
     const from = new Date();
@@ -142,36 +149,16 @@ export function UserWebDashboard() {
       return;
     }
     setLoading(true);
-    loadAllRef.current()
+    reload()
       .catch((e) => {
         if (isNetworkError(e) || isTimeoutError(e)) setApiOffline(true);
-        else setError(driverErrorMessage(e, t("driver.loadFailed")));
+        else setError(driverError(e, t("driver.loadFailed")));
       })
       .finally(() => setLoading(false));
-  }, [navigate, authToken, authRole, t]);
-
-  useRealtimeRefresh(driverRealtimeRefreshEvents, () => {
-      loadAllRef.current({ quiet: true }).catch(() => {});
-    });
+  }, [navigate, authToken, authRole, t, reload]);
 
   const activeSession = home?.activeSession;
-
-  const bookingVehicleTypes = useMemo(() => bookableVehicleTypes(vehicleTypes), [vehicleTypes]);
-  const bookingZones = useMemo(
-    () => zonesForVehicleType(zones, bookVehicleTypeId),
-    [zones, bookVehicleTypeId],
-  );
-
-  useEffect(() => {
-    if (bookingVehicleTypes.length === 0) return;
-    if (!bookingVehicleTypes.some((vt) => vt.vehicleTypeId === bookVehicleTypeId)) {
-      setBookVehicleTypeId(bookingVehicleTypes[0].vehicleTypeId);
-    }
-  }, [bookingVehicleTypes, bookVehicleTypeId]);
-
-  useEffect(() => {
-    setBookZoneId((prev) => normalizeBookZoneId(prev, bookingZones));
-  }, [bookVehicleTypeId, bookingZones]);
+  const feedback = useFeedbackForm(activeSession?.sessionId);
 
   const completedTickets = useMemo(
     () => tickets.filter((t) => t.status === "Completed"),
@@ -187,9 +174,9 @@ export function UserWebDashboard() {
         authToken,
       );
       setMessage(t("driver.checkoutSuccess"));
-      await loadAllRef.current({ quiet: true });
+      await reloadQuiet();
     } catch (e) {
-      setError(driverErrorMessage(e, t("driver.checkoutFailed")));
+      setError(driverError(e, t("driver.checkoutFailed")));
     }
   }
 
@@ -214,9 +201,9 @@ export function UserWebDashboard() {
         authToken,
       );
       setMessage(t("driver.bookSuccess"));
-      await loadAllRef.current({ quiet: true });
+      await reloadQuiet();
     } catch (e) {
-      setMessage(driverErrorMessage(e, t("driver.bookFailed")));
+      setMessage(driverError(e, t("driver.bookFailed")));
     }
   }
 
@@ -225,34 +212,15 @@ export function UserWebDashboard() {
     try {
       await apiPost(`/api/reservations/${id}/cancel`, {}, authToken);
       setMessage(t("driver.cancelSuccess"));
-      await loadAllRef.current({ quiet: true });
+      await reloadQuiet();
     } catch (e) {
-      setError(driverErrorMessage(e, t("driver.cancelFailed")));
+      setError(driverError(e, t("driver.cancelFailed")));
     }
   }
 
   async function handleFeedback() {
-    if (!authToken || !userId || !feedbackContent.trim()) {
-      setMessage(t("driver.feedbackValidation"));
-      return;
-    }
-    setMessage("");
-    try {
-      await apiPost(
-        "/api/feedbacks",
-        {
-          userId,
-          sessionId: activeSession?.sessionId ?? null,
-          feedbackType,
-          content: feedbackContent.trim(),
-        },
-        authToken,
-      );
-      setFeedbackContent("");
-      setMessage(t("driver.feedbackSuccess"));
-    } catch (e) {
-      setMessage(driverErrorMessage(e, t("driver.feedbackFailed")));
-    }
+    if (!authToken || !userId) return;
+    await feedback.submit(authToken, userId, t);
   }
 
   return (
@@ -285,7 +253,7 @@ export function UserWebDashboard() {
             <button
               key={x.id}
               onClick={() => { setTab(x.id as any); setMessage(""); }}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === x.id ? "bg-blue-600 text-white" : "bg-white dark:bg-[#1A1A1A]"}`}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold ${tab === x.id ? TAB_ACTIVE : TAB_INACTIVE}`}
             >
               {x.icon}
               {x.label}
@@ -294,17 +262,13 @@ export function UserWebDashboard() {
         </div>
 
         {loading && <div className="text-sm text-gray-500">{t("driver.loading")}</div>}
-        {(apiOffline && !home) && (
-          <div className="text-sm text-red-600 bg-red-50 dark:bg-red-500/10 dark:text-red-400 p-3 rounded-lg">
-            {t("common.networkError")}
-          </div>
-        )}
-        {error && <div className="text-sm text-red-600 bg-red-50 dark:bg-red-500/10 dark:text-red-400 p-3 rounded-lg">{error}</div>}
+        <ErrorBanner offline={apiOffline && !home} offlineMessage={t("common.networkError")} />
+        <ErrorBanner error={error} />
         {message && <div className="text-sm text-blue-600 bg-blue-50 p-3 rounded-lg">{message}</div>}
 
         {!loading && tab === "home" && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800">
+            <section className={SECTION_CARD}>
               <h2 className="font-semibold mb-3">{t("driver.accountInfo")}</h2>
               <p className="text-sm">{t("auth.fullName")}: <strong>{home?.user?.fullName ?? "-"}</strong></p>
               <p className="text-sm">{t("auth.email")}: <strong>{home?.user?.email ?? "-"}</strong></p>
@@ -312,7 +276,7 @@ export function UserWebDashboard() {
               <p className="text-sm">{t("driver.wallet.balance")}: <strong className="text-blue-600">{formatMoney(walletBalance)}</strong></p>
             </section>
 
-            <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800">
+            <section className={SECTION_CARD}>
               <h2 className="font-semibold mb-3">{t("driver.currentSession")}</h2>
               {activeSession ? (
                 <>
@@ -345,7 +309,7 @@ export function UserWebDashboard() {
         )}
 
         {!loading && tab === "tickets" && (
-          <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800">
+          <section className={SECTION_CARD}>
             <h2 className="font-semibold mb-3">{t("driver.allTickets")}</h2>
             <div className="overflow-auto">
               <table className="w-full text-sm">
@@ -375,7 +339,7 @@ export function UserWebDashboard() {
         )}
 
         {!loading && tab === "history" && (
-          <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800">
+          <section className={SECTION_CARD}>
             <h2 className="font-semibold mb-3">{t("driver.txHistory")}</h2>
             <p className="text-sm text-gray-500 mb-2">{t("driver.completedCount", { count: completedTickets.length })}</p>
             <div className="overflow-auto">
@@ -420,7 +384,7 @@ export function UserWebDashboard() {
               authToken={authToken}
               balance={walletBalance}
               onBalanceChange={setWalletBalance}
-              onSuccess={() => loadAllRef.current({ quiet: true }).catch(() => {})}
+              onSuccess={() => reloadQuiet().catch(() => {})}
             />
           </section>
         )}
@@ -499,7 +463,7 @@ export function UserWebDashboard() {
         )}
 
         {!loading && tab === "reservations" && (
-          <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800">
+          <section className={SECTION_CARD}>
             <h2 className="font-semibold mb-3">{t("driver.yourReservations")}</h2>
             <div className="overflow-auto">
               <table className="w-full text-sm">
@@ -555,8 +519,8 @@ export function UserWebDashboard() {
             <h2 className="font-semibold mb-1">{t("driver.sendFeedback")}</h2>
             <select
               className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700"
-              value={feedbackType}
-              onChange={(e) => setFeedbackType(e.target.value)}
+              value={feedback.feedbackType}
+              onChange={(e) => feedback.setFeedbackType(e.target.value)}
             >
               <option value="Suggestion">{t("driver.suggestion")}</option>
               <option value="Complaint">{t("driver.complaint")}</option>
@@ -566,10 +530,15 @@ export function UserWebDashboard() {
               rows={4}
               className="w-full border rounded-lg px-3 py-2 text-sm dark:bg-[#121212] dark:border-gray-700"
               placeholder={t("driver.content")}
-              value={feedbackContent}
-              onChange={(e) => setFeedbackContent(e.target.value)}
+              value={feedback.feedbackContent}
+              onChange={(e) => feedback.setFeedbackContent(e.target.value)}
             />
-            <button onClick={handleFeedback} className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold">
+            {feedback.message && <p className="text-sm text-blue-600">{feedback.message}</p>}
+            <button
+              onClick={handleFeedback}
+              disabled={feedback.submitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold disabled:opacity-60"
+            >
               {t("driver.submitFeedback")}
             </button>
           </section>

@@ -5,6 +5,13 @@ import { Camera, ScanLine, Upload } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 
 import { recognizePlateFromVideo, recognizePlateFromFile, preloadOcrWorker, whenOcrReady, waitForVideoReady, normalizePlateDisplay } from "../lib/licensePlateOcr";
+import {
+  isPlateRecognizerConfigured,
+  captureVideoFrame,
+  canvasToJpegBlob,
+  recognizePlateFromBlob,
+  recognizePlateFromFileViaApi,
+} from "../lib/plateRecognizer";
 
 import { useLocale } from "../lib/i18n/LocaleContext";
 
@@ -27,6 +34,8 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const streamRef = useRef<MediaStream | null>(null);
+  const scanningRef = useRef(false);
+  const alprEnabled = isPlateRecognizerConfigured();
 
   const [cameraOn, setCameraOn] = useState(false);
 
@@ -95,82 +104,66 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
     ]);
   }
 
-  async function startCamera() {
+  async function getCameraStream(): Promise<MediaStream> {
+    try {
+      return await openWebcam({
+        video: {
+          facingMode: { ideal: "environment" },
+          width: { ideal: 1920, max: 3840 },
+          height: { ideal: 1080, max: 2160 },
+        },
+        audio: false,
+      });
+    } catch {
+      return openWebcam({
+        video: {
+          facingMode: { ideal: "user" },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+        audio: false,
+      });
+    }
+  }
 
+  async function attachStream(stream: MediaStream) {
+    streamRef.current = stream;
+    const video = videoRef.current;
+    if (!video) return;
+
+    video.muted = true;
+    video.playsInline = true;
+    video.autoplay = true;
+    video.srcObject = stream;
+    video.onloadedmetadata = () => {
+      if (video.videoWidth > 0) video.play().catch(() => {});
+    };
+    try {
+      await video.play();
+    } catch {
+      /* autoplay may be blocked briefly */
+    }
+    setCameraOn(true);
+  }
+
+  async function startCamera() {
     if (streamRef.current) return;
 
     setCameraError("");
+    stopCamera();
 
     try {
-
-      const stream = await openWebcam({
-
-        video: {
-
-          facingMode: { ideal: "user" },
-
-          width: { ideal: 1280 },
-
-          height: { ideal: 720 },
-
-        },
-
-        audio: false,
-
-      });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-
-        videoRef.current.srcObject = stream;
-
-        await videoRef.current.play();
-
-      }
-
-      setCameraOn(true);
+      const stream = await getCameraStream();
+      await attachStream(stream);
       if (authToken) preloadOcrWorker(authToken);
-
     } catch (err) {
-
       if (err instanceof Error && err.message === "camera-timeout") {
-
         setCameraError(t("staff.cameraTimeout"));
-
-        stopCamera();
-
-        return;
-
-      }
-
-      try {
-
-        const fallback = await openWebcam({ video: true, audio: false });
-
-        streamRef.current = fallback;
-
-        if (videoRef.current) {
-
-          videoRef.current.srcObject = fallback;
-
-          await videoRef.current.play();
-
-        }
-
-        setCameraOn(true);
-        if (authToken) preloadOcrWorker(authToken);
-
-      } catch {
-
+      } else {
         setCameraError(t("staff.cameraPermission"));
-
-        stopCamera();
-
       }
-
+      stopCamera();
     }
-
   }
 
 
@@ -190,86 +183,88 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
     }
   }
 
-  async function handleScan() {
-
-    if (!videoRef.current || !cameraOn) {
-
-      setCameraError(t("staff.cameraHint"));
-
-      return;
-
+  async function runLocalOcrFromVideo(video: HTMLVideoElement) {
+    if (!ocrReady) {
+      const ready = await whenOcrReady();
+      setOcrState(ready ? "ready" : "failed");
     }
+    setModelLoading(false);
+    const { plate, previewUrl: captured } = await recognizePlateFromVideo(video, authToken);
+    await applyOcrResult(plate, captured);
+  }
 
+  async function handleScan() {
+    if (!videoRef.current || !cameraOn) {
+      setCameraError(t("staff.cameraHint"));
+      return;
+    }
+    if (scanningRef.current || isScanning) return;
 
-
+    scanningRef.current = true;
     setIsScanning(true);
-
-    setModelLoading(!ocrReady);
-
-    setOcrStatus(ocrReady ? t("staff.scanProcessing") : t("staff.scanModelLoad"));
-
+    setModelLoading(!alprEnabled && !ocrReady);
+    setOcrStatus(
+      alprEnabled ? t("staff.scanAlpr") : ocrReady ? t("staff.scanProcessing") : t("staff.scanModelLoad"),
+    );
     setCameraError("");
 
-
-
     try {
-
-      if (!ocrReady) {
-        const ready = await whenOcrReady();
-        setOcrState(ready ? "ready" : "failed");
-      }
-
-      setModelLoading(false);
-
-      setOcrStatus(t("staff.scanProcessing"));
-
       await waitForVideoReady(videoRef.current);
 
-      const { plate, previewUrl: captured } = await recognizePlateFromVideo(videoRef.current, authToken);
+      if (alprEnabled) {
+        try {
+          const canvas = captureVideoFrame(videoRef.current);
+          const blob = await canvasToJpegBlob(canvas);
+          const plate = await recognizePlateFromBlob(blob);
+          if (plate) {
+            await applyOcrResult(plate, canvas.toDataURL("image/jpeg"));
+            return;
+          }
+        } catch (alprErr) {
+          console.warn("Plate Recognizer failed, falling back to local OCR:", alprErr);
+        }
+      }
 
-      await applyOcrResult(plate, captured);
-
+      setOcrStatus(t("staff.scanProcessing"));
+      setModelLoading(!ocrReady);
+      await runLocalOcrFromVideo(videoRef.current);
     } catch (e) {
-
       setPendingPlate(null);
-
       setOcrStatus("");
-
       setCameraError(e instanceof Error ? e.message : t("staff.plateFailed"));
-
     } finally {
-
+      scanningRef.current = false;
       setModelLoading(false);
-
       setIsScanning(false);
-
     }
-
   }
 
 
 
   async function handleUploadPhoto(e: React.ChangeEvent<HTMLInputElement>) {
-
     const file = e.target.files?.[0];
-
     e.target.value = "";
+    if (!file || disabled || isScanning || scanningRef.current) return;
 
-    if (!file || disabled || isScanning) return;
-
-
-
+    scanningRef.current = true;
     setIsScanning(true);
-
-    setModelLoading(!ocrReady);
-
+    setModelLoading(!alprEnabled && !ocrReady);
     setOcrStatus(t("staff.scanProcessing"));
-
     setCameraError("");
 
-
-
     try {
+      if (alprEnabled) {
+        try {
+          const plate = await recognizePlateFromFileViaApi(file);
+          if (plate) {
+            const preview = URL.createObjectURL(file);
+            await applyOcrResult(plate, preview);
+            return;
+          }
+        } catch (alprErr) {
+          console.warn("Plate Recognizer upload failed, falling back:", alprErr);
+        }
+      }
 
       if (!ocrReady) {
         const ready = await whenOcrReady();
@@ -277,25 +272,16 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
       }
 
       const { plate, previewUrl: captured } = await recognizePlateFromFile(file, authToken);
-
       await applyOcrResult(plate, captured);
-
     } catch (err) {
-
       setPendingPlate(null);
-
       setOcrStatus("");
-
       setCameraError(err instanceof Error ? err.message : t("staff.plateFailed"));
-
     } finally {
-
+      scanningRef.current = false;
       setModelLoading(false);
-
       setIsScanning(false);
-
     }
-
   }
 
 
@@ -361,6 +347,11 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
             <span className={`w-1.5 h-1.5 rounded-full bg-blue-600 ${cameraOn ? "animate-pulse" : "opacity-40"}`} />
             {cameraOn ? t("staff.cameraWebcam") : t("staff.cameraOff")}
           </span>
+          {alprEnabled && (
+            <span className="text-xs font-semibold text-violet-600 bg-violet-600/10 px-2.5 py-1 rounded-full border border-violet-600/20">
+              ALPR
+            </span>
+          )}
         </div>
 
       </div>

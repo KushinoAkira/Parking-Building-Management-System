@@ -14,6 +14,7 @@ public interface IPricingService
 public class PricingService(ApplicationDbContext db) : IPricingService
 {
     public const string VipSlotSurchargeKey = "VIP_SLOT_SURCHARGE";
+    public const string GracePeriodMinutesKey = "GRACE_PERIOD_MINUTES";
     public const decimal DefaultVipSurcharge = 10_000m;
 
     public async Task<decimal> GetVipSlotSurchargeAsync(CancellationToken ct)
@@ -50,6 +51,10 @@ public class PricingService(ApplicationDbContext db) : IPricingService
         if (duration < TimeSpan.Zero)
             throw new BusinessException("Exit time cannot be before entry time.");
 
+        var graceMinutes = await GetGracePeriodMinutesAsync(ct);
+        if (duration.TotalMinutes <= graceMinutes)
+            return lostTicket ? policy.LostTicketFee : 0m;
+
         var hours = Math.Max(1, (int)Math.Ceiling(duration.TotalHours));
         var fee = hours * policy.PricePerHour;
 
@@ -59,6 +64,25 @@ public class PricingService(ApplicationDbContext db) : IPricingService
         if (lostTicket)
             fee += policy.LostTicketFee;
 
+        if (policy.OvertimeFee > 0)
+        {
+            var extraDays = Math.Max(0, (int)Math.Ceiling(duration.TotalHours / 24) - 1);
+            if (extraDays > 0)
+                fee += extraDays * policy.OvertimeFee;
+        }
+
         return fee;
+    }
+
+    private async Task<int> GetGracePeriodMinutesAsync(CancellationToken ct)
+    {
+        var config = await db.SystemConfigs.AsNoTracking()
+            .FirstOrDefaultAsync(c => c.ConfigKey == GracePeriodMinutesKey, ct);
+
+        return config is not null
+            && int.TryParse(config.ConfigValue, out var minutes)
+            && minutes >= 0
+            ? minutes
+            : 0;
     }
 }

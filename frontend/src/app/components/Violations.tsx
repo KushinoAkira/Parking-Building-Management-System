@@ -2,9 +2,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Search, ShieldAlert, Car, MoreHorizontal, CheckCircle2, Loader2 } from "lucide-react";
 import { apiGet, apiPost } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { apiErrorMessage } from "../lib/driverErrors";
 import { useLocale } from "../lib/i18n/LocaleContext";
 import { useRealtimeRefresh } from "../lib/RealtimeContext";
 import { RealtimeEventTypes } from "../lib/realtime";
+import { ErrorBanner } from "./ErrorBanner";
+import { CenteredSpinner } from "./CenteredSpinner";
 
 type Incident = {
   incidentId: number;
@@ -37,7 +40,7 @@ export function Violations() {
       const data = await apiGet<Incident[]>("/api/incidents", auth?.token);
       setIncidents(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("violations.loadFailed"));
+      setError(apiErrorMessage(t, t("violations.loadFailed"))(e));
       setIncidents([]);
     } finally {
       setLoading(false);
@@ -76,7 +79,7 @@ export function Violations() {
       await apiPost(`/api/incidents/${id}/resolve`, {}, auth?.token);
       await load();
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("violations.resolveFailed"));
+      setError(apiErrorMessage(t, t("violations.resolveFailed"))(e));
     } finally {
       setResolvingId(null);
     }
@@ -117,11 +120,7 @@ export function Violations() {
         </div>
       </div>
 
-      {error && (
-        <div className="mb-4 p-3 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 text-sm border border-red-200 dark:border-red-500/20">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} className="mb-4" />
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         {[
@@ -138,9 +137,7 @@ export function Violations() {
 
       <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-12 flex justify-center text-gray-500">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
+          <CenteredSpinner />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">

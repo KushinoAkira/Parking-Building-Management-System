@@ -1,9 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, Calendar, Car, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import { Search, Calendar, Car, ArrowRight, ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
 import { apiGet } from "../lib/api";
 import { getAuth } from "../lib/auth";
+import { apiErrorMessage } from "../lib/driverErrors";
 import { useLocale } from "../lib/i18n/LocaleContext";
+import { ErrorBanner } from "./ErrorBanner";
+import { CenteredSpinner } from "./CenteredSpinner";
 
 type SessionRow = {
   sessionId: number;
@@ -46,7 +49,7 @@ export function VehicleHistory() {
       );
       setSessions(data);
     } catch (e) {
-      setError(e instanceof Error ? e.message : t("history.loadFailed"));
+      setError(apiErrorMessage(t, t("history.loadFailed"))(e));
       setSessions([]);
     } finally {
       setLoading(false);
@@ -116,17 +119,11 @@ export function VehicleHistory() {
         </div>
       </div>
 
-      {error && (
-        <div className="p-3 rounded-xl bg-red-50 dark:bg-red-500/10 text-red-600 text-sm border border-red-200 dark:border-red-500/20">
-          {error}
-        </div>
-      )}
+      <ErrorBanner error={error} />
 
       <div className="bg-white dark:bg-[#1A1A1A] border border-gray-100 dark:border-gray-800 rounded-2xl shadow-sm overflow-hidden">
         {loading ? (
-          <div className="p-12 flex justify-center text-gray-500">
-            <Loader2 className="w-6 h-6 animate-spin" />
-          </div>
+          <CenteredSpinner />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left border-collapse">
