@@ -53,11 +53,16 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.Property(e => e.Email).HasMaxLength(100).IsRequired();
             entity.Property(e => e.PasswordHash).HasMaxLength(255).IsRequired();
             entity.Property(e => e.Phone).HasMaxLength(20);
+            entity.Property(e => e.GoogleSubject).HasMaxLength(128);
+            entity.Property(e => e.HasLocalPassword).HasDefaultValue(true);
             entity.Property(e => e.RoleId).HasColumnName("RoleID");
             entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Active");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
             entity.Property(e => e.WalletBalance).HasColumnType("decimal(12,2)").HasDefaultValue(0m);
             entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.GoogleSubject)
+                .IsUnique()
+                .HasFilter("\"GoogleSubject\" IS NOT NULL");
             entity.HasOne(e => e.Role)
                 .WithMany(r => r.Users)
                 .HasForeignKey(e => e.RoleId)

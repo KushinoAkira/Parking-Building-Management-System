@@ -19,6 +19,7 @@ import { useBookingForm } from "../lib/hooks/useBookingForm";
 import { useFeedbackForm } from "../lib/hooks/useFeedbackForm";
 import { TAB_ACTIVE, TAB_INACTIVE, SECTION_CARD } from "../lib/uiClasses";
 import { ErrorBanner } from "./ErrorBanner";
+import { LinkGoogleAccount } from "./LinkGoogleAccount";
 
 type ReservationRow = {
   reservationId: number;
@@ -274,6 +275,9 @@ export function UserWebDashboard() {
               <p className="text-sm">{t("auth.email")}: <strong>{home?.user?.email ?? "-"}</strong></p>
               <p className="text-sm">{t("settings.phone")}: <strong>{home?.user?.phone ?? "-"}</strong></p>
               <p className="text-sm">{t("driver.wallet.balance")}: <strong className="text-blue-600">{formatMoney(walletBalance)}</strong></p>
+              <div className="mt-4 pt-4 border-t border-gray-100 dark:border-gray-800">
+                <LinkGoogleAccount />
+              </div>
             </section>
 
             <section className={SECTION_CARD}>

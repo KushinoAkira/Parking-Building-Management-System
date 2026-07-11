@@ -32,6 +32,7 @@ public static class ServiceRegistrationExtensions
     {
         services.AddScoped<IParkingRealtimeNotifier, ParkingRealtimeNotifier>();
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IGoogleTokenValidator, GoogleTokenValidator>();
         services.AddScoped<ISlotAllocationService, SlotAllocationService>();
         services.AddScoped<IPricingService, PricingService>();
         services.AddScoped<IParkingSessionService, ParkingSessionService>();

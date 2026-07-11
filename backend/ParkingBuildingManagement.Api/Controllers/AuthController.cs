@@ -18,9 +18,31 @@ public class AuthController(IAuthService auth) : ControllerBase
         Ok(await auth.LoginAsync(request, ct));
 
     [AllowAnonymous]
+    [HttpPost("google")]
+    public async Task<IActionResult> GoogleLogin([FromBody] GoogleLoginRequest request, CancellationToken ct) =>
+        Ok(await auth.LoginWithGoogleAsync(request, ct));
+
+    [AllowAnonymous]
     [HttpPost("register")]
     public async Task<IActionResult> Register([FromBody] RegisterRequest request, CancellationToken ct) =>
         Ok(await auth.RegisterAsync(request, ct));
+
+    [HttpGet("providers")]
+    public async Task<IActionResult> GetProviders(CancellationToken ct)
+    {
+        var userId = User.GetUserId()
+            ?? throw new BusinessException("Unauthorized.", 401);
+        return Ok(await auth.GetProvidersAsync(userId, ct));
+    }
+
+    [HttpPost("link-google")]
+    public async Task<IActionResult> LinkGoogle([FromBody] GoogleLoginRequest request, CancellationToken ct)
+    {
+        var userId = User.GetUserId()
+            ?? throw new BusinessException("Unauthorized.", 401);
+        await auth.LinkGoogleAsync(userId, request, ct);
+        return Ok(new { message = "Google account linked.", providers = await auth.GetProvidersAsync(userId, ct) });
+    }
 
     [HttpPost("change-password")]
     public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken ct)

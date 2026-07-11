@@ -6,6 +6,11 @@ public record LoginRequest(
     [Required][EmailAddress][MaxLength(100)] string Email,
     [Required][MinLength(6)][MaxLength(100)] string Password);
 
+public record GoogleLoginRequest(
+    [Required][MaxLength(4096)] string IdToken);
+
+public record AuthProvidersResponse(bool HasLocalPassword, bool GoogleLinked);
+
 public record RegisterRequest(
     [Required][MaxLength(150)] string FullName,
     [Required][EmailAddress][MaxLength(100)] string Email,
