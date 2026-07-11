@@ -17,6 +17,8 @@ Table Users {
   RoleID       int          [not null, ref: > Roles.RoleID]
   Status       varchar(20)  [not null, default: 'Active', note: 'Active | Locked']
   WalletBalance decimal(14,2) [not null, default: 0]
+  GoogleSubject varchar(128) [unique, note: 'Google OpenID sub; null until linked']
+  HasLocalPassword bool [not null, default: true, note: 'false = Google-only account']
   CreatedAt    datetime     [not null, default: `GETDATE()`]
 }
 

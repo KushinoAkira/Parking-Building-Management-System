@@ -152,6 +152,12 @@ export const vi = {
     strengthStrong: "MẠNH",
     orDivider: "hoặc",
     loginGoogle: "Đăng nhập với Google",
+    loginGoogleFailed: "Đăng nhập Google thất bại. Vui lòng thử lại.",
+    loginGoogleNotConfigured: "Chưa cấu hình Google Client ID.",
+    googleAccountExistsLink:
+      "Tài khoản đã tồn tại. Vui lòng đăng nhập bằng email/mật khẩu, rồi vào Cài đặt để liên kết Google.",
+    staffPasswordOnly:
+      "Tài khoản Admin, Manager, Staff chỉ đăng nhập bằng email/mật khẩu được cấp. Google chỉ dành cho tài xế.",
     copyright: "© 2024 ParkingPro. All rights reserved.",
     fullNameRequired: "Vui lòng nhập họ và tên.",
     validationCheck: "Vui lòng kiểm tra lại điều kiện hợp lệ.",
@@ -402,6 +408,12 @@ export const vi = {
     activeDevice: "Đang hoạt động (Thiết bị này)",
     lastActive2h: "Hoạt động lần cuối: 2 giờ trước",
     logoutDevice: "Đăng xuất thiết bị này",
+    googleLinkTitle: "Liên kết tài khoản Google",
+    googleLinkDesc: "Sau khi liên kết, bạn có thể đăng nhập bằng Google với cùng email.",
+    googleLinked: "Đã liên kết Google",
+    googleLinkSuccess: "Liên kết Google thành công.",
+    googleLinkFailed: "Không liên kết được tài khoản Google.",
+    googleLinkLoadFailed: "Không tải được phương thức đăng nhập.",
   },
   users: {
     title: "Quản Lý Người Dùng",

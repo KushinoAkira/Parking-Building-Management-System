@@ -15,6 +15,7 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
     {
         await db.Database.MigrateAsync(ct);
         await EnsureReservationVipColumnsAsync(ct);
+        await EnsureGoogleAuthColumnsAsync(ct);
 
         await EnsureDemoUsersAsync(ct);
         await EnsureEvVehicleTypesAsync(ct);
@@ -274,6 +275,17 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
         await db.Database.ExecuteSqlRawAsync("""
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "PreferVipSlot" boolean NOT NULL DEFAULT FALSE;
             ALTER TABLE "Reservations" ADD COLUMN IF NOT EXISTS "VipSurcharge" numeric(12,2);
+            """, ct);
+    }
+
+    private async Task EnsureGoogleAuthColumnsAsync(CancellationToken ct)
+    {
+        await db.Database.ExecuteSqlRawAsync("""
+            ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "GoogleSubject" character varying(128);
+            ALTER TABLE "Users" ADD COLUMN IF NOT EXISTS "HasLocalPassword" boolean NOT NULL DEFAULT TRUE;
+            CREATE UNIQUE INDEX IF NOT EXISTS "IX_Users_GoogleSubject"
+                ON "Users" ("GoogleSubject")
+                WHERE "GoogleSubject" IS NOT NULL;
             """, ct);
     }
 

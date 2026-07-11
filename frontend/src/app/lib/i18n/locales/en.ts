@@ -152,6 +152,12 @@ export const en = {
     strengthStrong: "STRONG",
     orDivider: "or",
     loginGoogle: "Sign in with Google",
+    loginGoogleFailed: "Google sign-in failed. Please try again.",
+    loginGoogleNotConfigured: "Google Client ID is not configured.",
+    googleAccountExistsLink:
+      "This account already exists. Please sign in with email/password, then link Google in Settings.",
+    staffPasswordOnly:
+      "Admin, Manager, and Staff accounts use email/password only (issued by the system). Google sign-in is for drivers.",
     copyright: "© 2024 ParkingPro. All rights reserved.",
     fullNameRequired: "Please enter your full name.",
     validationCheck: "Please check the validation requirements.",
@@ -402,6 +408,12 @@ export const en = {
     activeDevice: "Active (this device)",
     lastActive2h: "Last active: 2 hours ago",
     logoutDevice: "Log out this device",
+    googleLinkTitle: "Link Google account",
+    googleLinkDesc: "After linking, you can sign in with Google using the same email.",
+    googleLinked: "Google linked",
+    googleLinkSuccess: "Google account linked successfully.",
+    googleLinkFailed: "Could not link Google account.",
+    googleLinkLoadFailed: "Could not load linked sign-in methods.",
   },
   users: {
     title: "User Management",

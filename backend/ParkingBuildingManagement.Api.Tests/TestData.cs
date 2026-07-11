@@ -29,6 +29,7 @@ public static class TestData
                 Phone = "0900111222",
                 RoleId = staffRole.RoleId,
                 Status = "Active",
+                HasLocalPassword = true,
                 CreatedAt = DateTime.UtcNow,
             },
             new User
@@ -39,6 +40,7 @@ public static class TestData
                 Phone = "0900333444",
                 RoleId = driverRole.RoleId,
                 Status = "Active",
+                HasLocalPassword = true,
                 CreatedAt = DateTime.UtcNow,
             },
             new User
@@ -49,6 +51,7 @@ public static class TestData
                 Phone = "0900555666",
                 RoleId = managerRole.RoleId,
                 Status = "Active",
+                HasLocalPassword = true,
                 CreatedAt = DateTime.UtcNow,
             });
 

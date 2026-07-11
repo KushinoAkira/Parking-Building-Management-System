@@ -12,4 +12,8 @@ public static class RoleNames
     public const string ManagerOrAdmin = $"{Manager},{Admin}";
     public const string StaffOrAbove = $"{Staff},{Manager},{Admin}";
     public const string DriverOrAbove = $"{Driver},{Staff},{Manager},{Admin}";
+
+    /// <summary>Admin / Manager / Staff — provisioned accounts; password login only.</summary>
+    public static bool IsInternalStaffRole(string? roleName) =>
+        roleName is Admin or Manager or Staff;
 }
