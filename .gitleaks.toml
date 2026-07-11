@@ -1,0 +1,12 @@
+title = "PBMS gitleaks"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Business error codes / non-credentials that trip hashicorp-tf-password"
+regexTarget = "match"
+regexes = [
+  '''STAFF_PASSWORD_ONLY''',
+  '''STAFF_LOCAL_AUTH_ONLY''',
+]
