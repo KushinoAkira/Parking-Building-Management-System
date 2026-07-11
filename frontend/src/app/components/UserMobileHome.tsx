@@ -18,6 +18,7 @@ import { useBookingForm } from "../lib/hooks/useBookingForm";
 import { useFeedbackForm } from "../lib/hooks/useFeedbackForm";
 import { ErrorBanner } from "./ErrorBanner";
 import { MobileUtilityScreen } from "./MobileUtilityScreen";
+import { LinkGoogleAccount } from "./LinkGoogleAccount";
 
 const TX_FILTERS = ["all", "topup", "payment"] as const;
 type TxFilter = (typeof TX_FILTERS)[number];
@@ -659,6 +660,9 @@ export function UserMobileHome() {
                     </div>
                     <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800">
                       <LocaleSwitcher />
+                    </div>
+                    <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800">
+                      <LinkGoogleAccount compact />
                     </div>
                     <div
                       className="bg-white dark:bg-[#1A1A1A] rounded-2xl p-4 shadow-sm border border-gray-100 dark:border-gray-800 flex justify-between items-center cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800"

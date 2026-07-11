@@ -11,6 +11,10 @@ public class User
     public string Status { get; set; } = "Active";
     public DateTime CreatedAt { get; set; }
     public decimal WalletBalance { get; set; }
+    /// <summary>Google OpenID subject (`sub`). Null until Google is linked or account was created via Google.</summary>
+    public string? GoogleSubject { get; set; }
+    /// <summary>True when the user can sign in with email/password (registered locally).</summary>
+    public bool HasLocalPassword { get; set; } = true;
 
     public Role Role { get; set; } = null!;
     public ICollection<Reservation> Reservations { get; set; } = [];
