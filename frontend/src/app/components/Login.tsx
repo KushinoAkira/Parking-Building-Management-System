@@ -137,7 +137,7 @@ export function Login() {
           const msg = err instanceof Error ? err.message : "";
           if (msg === "ACCOUNT_EXISTS_LINK_GOOGLE") {
             setError(t("auth.googleAccountExistsLink"));
-          } else if (msg === "STAFF_PASSWORD_ONLY") {
+          } else if (msg === "STAFF_LOCAL_AUTH_ONLY") {
             setError(t("auth.staffPasswordOnly"));
           } else {
             setError(msg || t("auth.loginGoogleFailed"));

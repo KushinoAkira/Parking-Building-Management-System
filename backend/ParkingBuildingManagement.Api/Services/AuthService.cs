@@ -23,7 +23,7 @@ public interface IAuthService
 public class AuthService(ApplicationDbContext db, IConfiguration config, IGoogleTokenValidator googleTokens) : IAuthService
 {
     public const string AccountExistsLinkGoogleCode = "ACCOUNT_EXISTS_LINK_GOOGLE";
-    public const string StaffPasswordOnlyCode = "STAFF_PASSWORD_ONLY";
+    public const string StaffLocalAuthOnlyCode = "STAFF_LOCAL_AUTH_ONLY";
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken ct)
     {
@@ -68,7 +68,7 @@ public class AuthService(ApplicationDbContext db, IConfiguration config, IGoogle
         if (byEmail is not null)
         {
             if (RoleNames.IsInternalStaffRole(byEmail.Role.RoleName))
-                throw new BusinessException(StaffPasswordOnlyCode, 403);
+                throw new BusinessException(StaffLocalAuthOnlyCode, 403);
 
             // Driver password account without Google link — do not auto-merge.
             if (string.IsNullOrEmpty(byEmail.GoogleSubject))
@@ -187,7 +187,7 @@ public class AuthService(ApplicationDbContext db, IConfiguration config, IGoogle
     private static void EnsureDriverMayUseGoogle(User user)
     {
         if (RoleNames.IsInternalStaffRole(user.Role.RoleName))
-            throw new BusinessException(StaffPasswordOnlyCode, 403);
+            throw new BusinessException(StaffLocalAuthOnlyCode, 403);
     }
 
     private AuthResponse CreateToken(User user)
