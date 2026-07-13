@@ -14,7 +14,8 @@ namespace ParkingBuildingManagement.Api.Controllers;
 public class ParkingSessionsController(
     ApplicationDbContext db,
     IParkingSessionService sessionService,
-    IPricingService pricing) : ControllerBase
+    IPricingService pricing,
+    ISubscriptionService subscriptions) : ControllerBase
 {
     [HttpGet]
     [Authorize(Roles = RoleNames.StaffOrAbove)]
@@ -90,8 +91,13 @@ public class ParkingSessionsController(
         if (!User.CanAccessSession(session.UserId))
             return Forbid();
 
-        var parkingFee = await pricing.CalculateFeeAsync(
-            session.VehicleTypeId, session.EntryTime, DateTime.UtcNow, lostTicket, ct);
+        var subscription = await subscriptions.GetActiveForPlateAsync(
+            session.LicensePlate, session.VehicleTypeId, session.ZoneId, ct);
+        var coveredBySubscription = subscription is not null;
+
+        var parkingFee = coveredBySubscription
+            ? 0m
+            : await pricing.CalculateFeeAsync(session.VehicleTypeId, session.EntryTime, DateTime.UtcNow, lostTicket, ct);
         var (penaltyFee, vipSurcharge) = await SessionCheckoutFees.GetExtrasAsync(
             db, id, session.ReservationId, ct);
 
@@ -102,6 +108,7 @@ public class ParkingSessionsController(
             vipSurcharge,
             totalFee = parkingFee + penaltyFee + vipSurcharge,
             estimatedAtCheckIn = session.EstimatedFee,
+            coveredBySubscription,
         });
     }
 

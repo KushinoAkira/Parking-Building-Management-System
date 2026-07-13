@@ -239,10 +239,25 @@ public class PortalController(ApplicationDbContext db, IWalletService wallet) : 
             })
             .FirstOrDefaultAsync(ct);
 
+        var activeSubscription = await db.Subscriptions
+            .AsNoTracking()
+            .Include(s => s.Zone)
+            .Where(s => s.UserId == userId && s.Status == "Active" && s.EndDate > DateTime.UtcNow)
+            .OrderByDescending(s => s.EndDate)
+            .Select(s => new
+            {
+                s.SubscriptionId,
+                s.LicensePlate,
+                s.EndDate,
+                zoneCode = s.Zone != null ? s.Zone.ZoneCode : null,
+            })
+            .FirstOrDefaultAsync(ct);
+
         return Ok(new
         {
             user = new { user.UserId, user.FullName, user.Email, user.Phone, walletBalance = user.WalletBalance },
             activeSession,
+            activeSubscription,
             slots = slotsSummary ?? new { total = 0, available = 0, occupied = 0, reserved = 0 },
         });
     }
@@ -386,6 +401,26 @@ public class PortalController(ApplicationDbContext db, IWalletService wallet) : 
                 time = upcomingReservation.ReservedFrom,
                 unread = true,
                 type = "reservation"
+            });
+        }
+
+        var expiringSubscription = await db.Subscriptions
+            .AsNoTracking()
+            .Where(s => s.UserId == userId && s.Status == "Active"
+                && s.EndDate > DateTime.UtcNow && s.EndDate < DateTime.UtcNow.AddDays(3))
+            .OrderBy(s => s.EndDate)
+            .FirstOrDefaultAsync(ct);
+
+        if (expiringSubscription != null)
+        {
+            notifications.Add(new
+            {
+                id = 3,
+                title = "Vé tháng sắp hết hạn",
+                desc = $"Vé tháng cho biển số {expiringSubscription.LicensePlate} hết hạn lúc {expiringSubscription.EndDate:dd/MM HH:mm}.",
+                time = expiringSubscription.EndDate,
+                unread = true,
+                type = "subscription"
             });
         }
 

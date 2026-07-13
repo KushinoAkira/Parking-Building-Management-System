@@ -13,4 +13,6 @@ public class ParkingZone
     public ICollection<ParkingSlot> ParkingSlots { get; set; } = [];
     public ICollection<Reservation> Reservations { get; set; } = [];
     public ICollection<ParkingSession> ParkingSessions { get; set; } = [];
+    public ICollection<SubscriptionPlan> SubscriptionPlans { get; set; } = [];
+    public ICollection<Subscription> Subscriptions { get; set; } = [];
 }

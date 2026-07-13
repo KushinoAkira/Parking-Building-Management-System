@@ -19,6 +19,7 @@ public class ParkingSessionService(
     ApplicationDbContext db,
     ISlotAllocationService slotAllocation,
     IPricingService pricing,
+    ISubscriptionService subscriptions,
     IParkingRealtimeNotifier realtime) : IParkingSessionService
 {
     public async Task<SessionDto> CheckInAsync(CheckInRequest request, CancellationToken ct)
@@ -101,6 +102,7 @@ public class ParkingSessionService(
         var exitTime = DateTime.UtcNow;
         Payment? payment = null;
         decimal totalFee = 0;
+        var coveredBySubscription = false;
 
         await db.ExecuteInTransactionAsync(async () =>
         {
@@ -112,12 +114,18 @@ public class ParkingSessionService(
             if (session.Status != "Active" && session.Status != "Unpaid")
                 throw new BusinessException($"Session cannot be checked out (status: {session.Status}).");
 
-            totalFee = await pricing.CalculateFeeAsync(
-                session.VehicleTypeId, session.EntryTime, exitTime, request.LostTicket, ct);
+            var subscription = await subscriptions.GetActiveForPlateAsync(
+                session.LicensePlate, session.VehicleTypeId, session.ZoneId, ct);
+            coveredBySubscription = subscription is not null;
+
+            var parkingFee = coveredBySubscription
+                ? 0m
+                : await pricing.CalculateFeeAsync(
+                    session.VehicleTypeId, session.EntryTime, exitTime, request.LostTicket, ct);
 
             var (penaltyFee, vipSurcharge) = await SessionCheckoutFees.GetExtrasAsync(
                 db, sessionId, session.ReservationId, ct);
-            totalFee += penaltyFee + vipSurcharge;
+            totalFee = parkingFee + penaltyFee + vipSurcharge;
 
             if (request.PaymentMethod == "EWallet")
             {
@@ -157,7 +165,7 @@ public class ParkingSessionService(
         if (payment is null)
             throw new BusinessException("Failed to persist payment after check-out.", 500);
 
-        var result = new CheckOutResultDto(dto, totalFee, payment.PaymentId, payment.PaymentMethod);
+        var result = new CheckOutResultDto(dto, totalFee, payment.PaymentId, payment.PaymentMethod, coveredBySubscription);
         await realtime.NotifySessionCheckedOutAsync(result, ct);
         return result;
     }

@@ -20,4 +20,5 @@ public class User
     public ICollection<Incident> ReportedIncidents { get; set; } = [];
     public ICollection<Feedback> Feedbacks { get; set; } = [];
     public ICollection<WalletTopUp> WalletTopUps { get; set; } = [];
+    public ICollection<Subscription> Subscriptions { get; set; } = [];
 }
