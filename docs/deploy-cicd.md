@@ -27,7 +27,9 @@ Migration DB chạy tự động khi API khởi động (`DatabaseSeeder.Migrate
 
 | Variable | Ví dụ | Mô tả |
 |----------|-------|--------|
+| `ENABLE_FIREBASE_DEPLOY` | `true` | Bật job deploy Firebase (mặc định **tắt** → web production không cập nhật) |
 | `VITE_API_BASE_URL` | `https://parking-building-management-system-production.up.railway.app` | URL public API (dùng lúc build frontend) |
+| `VITE_GOOGLE_CLIENT_ID` | `xxxx.apps.googleusercontent.com` | OAuth Web Client ID (public) — nút Google Sign-In Driver |
 | `FIREBASE_HOSTING_URL` | `https://parking-management-syste-97d18.web.app` | URL hosting để smoke test |
 | `RAILWAY_SERVICE_NAME` | tên service trên Railway dashboard | Tên hiển thị của service API (không phải UUID) |
 | `RAILWAY_ENVIRONMENT` | `production` | Environment Railway cần deploy |
@@ -68,6 +70,7 @@ Nếu Railway đã connect GitHub repo: redeploy sau mỗi merge vào `main`.
 | `Jwt__Secret` | Chuỗi ≥ 32 ký tự (không placeholder) |
 | `ASPNETCORE_ENVIRONMENT` | `Production` |
 | `Cors__AllowedOrigins__0` | `https://parking-management-syste-97d18.web.app` |
+| `Google__ClientId` | Cùng `VITE_GOOGLE_CLIENT_ID` (xác thực Google ID token ở API) |
 | `PayOs__DemoMode` | `true` nếu chưa có key PayOS thật |
 
 **Logs:** Deployments → deploy fail → Build logs (Docker/.NET) hoặc Deploy logs (JWT, DB, PayOS).
@@ -91,4 +94,6 @@ GitHub → **Actions** → **Deploy** → **Run workflow** → branch `main`.
 | Railway `Not signed in` | Kiểm tra `RAILWAY_SERVICE_NAME` đúng tên friendly trên dashboard |
 | Firebase auth fail | JSON service account đầy đủ; bật Firebase Hosting API |
 | Frontend gọi sai API | Kiểm tra `VITE_API_BASE_URL` variable trước khi build |
+| Google Sign-In không hoạt động (production) | (1) Variable `VITE_GOOGLE_CLIENT_ID` + redeploy Firebase; (2) Railway `Google__ClientId`; (3) Google Console → Authorized JavaScript origins = URL Firebase (+ `http://localhost:5173` cho local). **Redirect URI để trống** được (GIS dùng ID token, không redirect) |
+| Nút Google xám / không bấm được | Web production chưa build lại — bật `ENABLE_FIREBASE_DEPLOY=true` và chạy workflow Deploy |
 | Railway Railpack "could not determine how to build" | Service đang build từ **root monorepo** thay vì thư mục API. Đặt **Root Directory** = `backend/ParkingBuildingManagement.Api` **hoặc** dùng `Dockerfile` + `railway.toml` ở root repo (sau merge fix monorepo). |
