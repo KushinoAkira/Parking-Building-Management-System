@@ -21,6 +21,7 @@ Migration DB chạy tự động khi API khởi động (`DatabaseSeeder.Migrate
 |--------|--------|
 | `RAILWAY_TOKEN` | **Project token** tạo trong Railway → Project → Settings → Tokens |
 | `FIREBASE_SERVICE_ACCOUNT` | JSON service account Firebase (quyền Firebase Hosting Admin) |
+| `VITE_PLATE_RECOGNIZER_TOKEN` | Token [Plate Recognizer](https://platerecognizer.com/) — nhúng lúc build frontend (quét biển Staff) |
 
 ## GitHub Variables (Settings → Secrets and variables → Actions → Variables)
 

@@ -51,8 +51,10 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
 
   const [pendingPlate, setPendingPlate] = useState<string | null>(null);
 
-  const [ocrState, setOcrState] = useState<"loading" | "ready" | "failed">("loading");
-  const ocrReady = ocrState === "ready";
+  const [backendOcrState, setBackendOcrState] = useState<"loading" | "ready" | "failed">("loading");
+  const scanEngine = alprEnabled ? "alpr" : backendOcrState;
+  const scanReady = alprEnabled || backendOcrState === "ready";
+  const ocrReady = scanReady;
 
 
 
@@ -62,9 +64,13 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
       return;
     }
 
-    preloadOcrWorker(authToken)
-      .then((ready) => setOcrState(ready ? "ready" : "failed"))
-      .catch(() => setOcrState("failed"));
+    if (alprEnabled) {
+      setBackendOcrState("failed");
+    } else {
+      preloadOcrWorker(authToken)
+        .then((ready) => setBackendOcrState(ready ? "ready" : "failed"))
+        .catch(() => setBackendOcrState("failed"));
+    }
 
     if (!navigator.mediaDevices?.getUserMedia) {
 
@@ -184,9 +190,9 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
   }
 
   async function runLocalOcrFromVideo(video: HTMLVideoElement) {
-    if (!ocrReady) {
+    if (!scanReady) {
       const ready = await whenOcrReady();
-      setOcrState(ready ? "ready" : "failed");
+      setBackendOcrState(ready ? "ready" : "failed");
     }
     setModelLoading(false);
     const { plate, previewUrl: captured } = await recognizePlateFromVideo(video, authToken);
@@ -266,9 +272,9 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
         }
       }
 
-      if (!ocrReady) {
+      if (!scanReady) {
         const ready = await whenOcrReady();
-        setOcrState(ready ? "ready" : "failed");
+        setBackendOcrState(ready ? "ready" : "failed");
       }
 
       const { plate, previewUrl: captured } = await recognizePlateFromFile(file, authToken);
@@ -324,24 +330,26 @@ export function PlateCameraScanner({ authToken, disabled, onScan, scanPlate, onS
 
         <div className="flex items-center gap-2">
           <span className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${
-            ocrState === "ready"
+            scanEngine === "alpr" || scanEngine === "ready"
               ? "text-green-600 bg-green-600/10 border-green-600/20"
-              : ocrState === "failed"
+              : scanEngine === "failed"
                 ? "text-red-600 bg-red-600/10 border-red-600/20"
                 : "text-amber-600 bg-amber-600/10 border-amber-600/20"
           }`}>
             <span className={`w-1.5 h-1.5 rounded-full ${
-              ocrState === "ready"
+              scanEngine === "alpr" || scanEngine === "ready"
                 ? "bg-green-600"
-                : ocrState === "failed"
+                : scanEngine === "failed"
                   ? "bg-red-600"
                   : "bg-amber-600 animate-pulse"
             }`} />
-            {ocrState === "ready"
-              ? t("staff.ocrReady")
-              : ocrState === "failed"
-                ? t("staff.ocrUnavailable")
-                : t("staff.scanModelLoad")}
+            {scanEngine === "alpr"
+              ? t("staff.alprReady")
+              : scanEngine === "ready"
+                ? t("staff.ocrReady")
+                : scanEngine === "failed"
+                  ? t("staff.ocrUnavailable")
+                  : t("staff.scanModelLoad")}
           </span>
           <span className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-600/10 px-2.5 py-1 rounded-full border border-blue-600/20">
             <span className={`w-1.5 h-1.5 rounded-full bg-blue-600 ${cameraOn ? "animate-pulse" : "opacity-40"}`} />

@@ -224,7 +224,9 @@ export const en = {
     ocrTip: "Recommended: photograph the plate and use Upload plate photo — server OCR (PaddleOCR) is faster and more accurate than browser. Or type XX-XX XXX.XX manually.",
     uploadPlatePhoto: "Upload plate photo (recommended)",
     ocrReady: "AI OCR ready",
-    ocrUnavailable: "OCR unavailable — type plate manually or retry upload",
+    alprReady: "ALPR ready (Plate Recognizer)",
+    ocrUnavailable:
+      "OCR unavailable — add VITE_PLATE_RECOGNIZER_TOKEN to frontend/.env (scan branch style), or run API on Windows; manual entry still works",
     ocrDetected: "Detected: {plate}",
     ocrNoPlate: "No plate detected. Point the camera at the license plate inside the frame.",
     confirmCheckIn: "Confirm check-in / check-out",
