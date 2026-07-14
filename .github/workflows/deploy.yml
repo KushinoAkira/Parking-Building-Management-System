@@ -34,6 +34,7 @@ jobs:
           npm run build
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_PLATE_RECOGNIZER_TOKEN: ${{ secrets.VITE_PLATE_RECOGNIZER_TOKEN }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -94,6 +95,7 @@ jobs:
           npm run build
         env:
           VITE_API_BASE_URL: ${{ vars.VITE_API_BASE_URL }}
+          VITE_PLATE_RECOGNIZER_TOKEN: ${{ secrets.VITE_PLATE_RECOGNIZER_TOKEN }}
 
       - name: Authenticate to Firebase
         uses: google-github-actions/auth@v2

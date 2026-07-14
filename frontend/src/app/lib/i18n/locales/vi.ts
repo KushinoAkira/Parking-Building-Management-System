@@ -224,7 +224,9 @@ export const vi = {
     ocrTip: "Khuyến nghị: chụp ảnh biển rồi bấm Tải ảnh biển — OCR trên server (PaddleOCR) nhanh và chính xác hơn. Hoặc nhập tay XX-XX XXX.XX.",
     uploadPlatePhoto: "Tải ảnh biển (khuyến nghị)",
     ocrReady: "AI OCR sẵn sàng",
-    ocrUnavailable: "OCR chưa sẵn sàng — nhập tay hoặc tải ảnh thử lại",
+    alprReady: "ALPR sẵn sàng (Plate Recognizer)",
+    ocrUnavailable:
+      "OCR chưa sẵn sàng — thêm VITE_PLATE_RECOGNIZER_TOKEN vào frontend/.env (như nhánh scan), hoặc chạy API trên Windows; nhập tay vẫn được",
     ocrDetected: "Nhận diện: {plate}",
     ocrNoPlate: "Không nhận diện được biển số. Hướng camera vào biển xe trong khung quét.",
     confirmCheckIn: "Xác nhận check-in / check-out",
