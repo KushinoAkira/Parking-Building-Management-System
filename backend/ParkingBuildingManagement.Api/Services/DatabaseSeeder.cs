@@ -38,6 +38,7 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
 
         await EnsureDefaultPricingAsync(ct);
         await EnsureEvPricingAsync(ct);
+        await EnsureSubscriptionPlansAsync(ct);
 
         if (!await db.SystemConfigs.AnyAsync(ct))
         {
@@ -233,6 +234,35 @@ public class DatabaseSeeder(ApplicationDbContext db) : IDatabaseSeeder
                 CreatedAt = now,
             });
         }
+
+        await db.SaveChangesAsync(ct);
+    }
+
+    private async Task EnsureSubscriptionPlansAsync(CancellationToken ct)
+    {
+        if (await db.SubscriptionPlans.AnyAsync(ct)) return;
+
+        db.SubscriptionPlans.AddRange(
+            new SubscriptionPlan
+            {
+                PlanName = "Vé tháng xe máy - 30 ngày",
+                VehicleTypeId = 1,
+                ZoneId = null,
+                DurationDays = 30,
+                Price = 300000m,
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow,
+            },
+            new SubscriptionPlan
+            {
+                PlanName = "Vé tháng ô tô - 30 ngày",
+                VehicleTypeId = 2,
+                ZoneId = null,
+                DurationDays = 30,
+                Price = 1500000m,
+                Status = "Active",
+                CreatedAt = DateTime.UtcNow,
+            });
 
         await db.SaveChangesAsync(ct);
     }

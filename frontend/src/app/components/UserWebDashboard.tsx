@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Car, Home, Ticket, History, LogOut, Calendar, MessageSquare, XCircle, Wallet } from "lucide-react";
+import { Car, Home, Ticket, History, LogOut, Calendar, MessageSquare, XCircle, Wallet, Tag } from "lucide-react";
 import { useNavigate } from "react-router";
 import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
 import { stopRealtimeConnection } from "../lib/realtime";
 import { useLocale } from "../lib/i18n/LocaleContext";
 import { DriverWalletPanel } from "./DriverWalletPanel";
+import { DriverSubscriptionPanel } from "./DriverSubscriptionPanel";
 import type { DriverTransaction } from "../lib/walletApi";
 import {
   type BookVehicleType,
@@ -48,7 +49,7 @@ export function UserWebDashboard() {
   const authToken = auth?.token ?? "";
   const authRole = auth?.roleName?.toLowerCase() ?? "";
   const userId = auth?.userId ?? 0;
-  const [tab, setTab] = useState<"home" | "tickets" | "history" | "wallet" | "book" | "reservations" | "feedback">("home");
+  const [tab, setTab] = useState<"home" | "tickets" | "history" | "wallet" | "subscription" | "book" | "reservations" | "feedback">("home");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [apiOffline, setApiOffline] = useState(false);
@@ -247,6 +248,7 @@ export function UserWebDashboard() {
             { id: "tickets", label: t("driver.tickets"), icon: <Ticket className="w-4 h-4 inline mr-1" /> },
             { id: "history", label: t("driver.transactions"), icon: <History className="w-4 h-4 inline mr-1" /> },
             { id: "wallet", label: t("driver.walletTab"), icon: <Wallet className="w-4 h-4 inline mr-1" /> },
+            { id: "subscription", label: t("driver.subscription.title"), icon: <Tag className="w-4 h-4 inline mr-1" /> },
             { id: "book", label: t("driver.book"), icon: <Calendar className="w-4 h-4 inline mr-1" /> },
             { id: "reservations", label: t("driver.reservations"), icon: <Calendar className="w-4 h-4 inline mr-1" /> },
             { id: "feedback", label: t("driver.feedback"), icon: <MessageSquare className="w-4 h-4 inline mr-1" /> },
@@ -388,6 +390,17 @@ export function UserWebDashboard() {
               authToken={authToken}
               balance={walletBalance}
               onBalanceChange={setWalletBalance}
+              onSuccess={() => reloadQuiet().catch(() => {})}
+            />
+          </section>
+        )}
+
+        {!loading && tab === "subscription" && (
+          <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800 max-w-xl">
+            <h2 className="font-semibold mb-4">{t("driver.subscription.title")}</h2>
+            <DriverSubscriptionPanel
+              userId={userId}
+              authToken={authToken}
               onSuccess={() => reloadQuiet().catch(() => {})}
             />
           </section>

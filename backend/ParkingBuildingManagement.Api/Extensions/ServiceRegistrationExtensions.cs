@@ -40,10 +40,13 @@ public static class ServiceRegistrationExtensions
         services.AddScoped<IDatabaseSeeder, DatabaseSeeder>();
         services.AddScoped<IWalletService, WalletService>();
         services.AddScoped<IReportSnapshotService, ReportSnapshotService>();
+        services.AddScoped<ISubscriptionPlanService, SubscriptionPlanService>();
+        services.AddScoped<ISubscriptionService, SubscriptionService>();
 
         if (!isTesting)
         {
             services.AddHostedService<ReservationExpiryHostedService>();
+            services.AddHostedService<SubscriptionExpiryHostedService>();
             services.AddHostedService<DatabaseSeedHostedService>();
         }
 

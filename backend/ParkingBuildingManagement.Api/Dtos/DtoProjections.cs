@@ -46,4 +46,35 @@ public static class DtoProjections
             r.VipSurcharge,
             r.Slot != null && r.Slot.Note == "VIP",
             r.CreatedAt);
+
+    public static readonly Expression<Func<SubscriptionPlan, SubscriptionPlanDto>> SubscriptionPlan =
+        p => new SubscriptionPlanDto(
+            p.PlanId,
+            p.PlanName,
+            p.VehicleTypeId,
+            p.VehicleType.TypeCode,
+            p.ZoneId,
+            p.Zone != null ? p.Zone.ZoneCode : null,
+            p.DurationDays,
+            p.Price,
+            p.Status,
+            p.CreatedAt);
+
+    public static readonly Expression<Func<Subscription, SubscriptionDto>> Subscription =
+        s => new SubscriptionDto(
+            s.SubscriptionId,
+            s.UserId,
+            s.PlanId,
+            s.Plan.PlanName,
+            s.VehicleTypeId,
+            s.VehicleType.TypeCode,
+            s.ZoneId,
+            s.Zone != null ? s.Zone.ZoneCode : null,
+            s.LicensePlate,
+            s.StartDate,
+            s.EndDate,
+            s.PricePaid,
+            s.Status,
+            s.Status == "Active" && s.EndDate > DateTime.UtcNow,
+            s.CreatedAt);
 }

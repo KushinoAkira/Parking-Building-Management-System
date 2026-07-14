@@ -22,6 +22,7 @@ const adminLayoutRoute = async () => ({ Component: (await import("./components/A
 const dashboardRoute = async () => ({ Component: (await import("./components/Dashboard")).Dashboard });
 const slotManagementRoute = async () => ({ Component: (await import("./components/SlotManagement")).SlotManagement });
 const pricingPoliciesRoute = async () => ({ Component: (await import("./components/PricingPolicies")).PricingPolicies });
+const subscriptionPlansRoute = async () => ({ Component: (await import("./components/SubscriptionPlans")).SubscriptionPlans });
 const reportsAnalyticsRoute = async () => ({ Component: (await import("./components/ReportsAnalytics")).ReportsAnalytics });
 const violationsRoute = async () => ({ Component: (await import("./components/Violations")).Violations });
 const feedbacksRoute = async () => ({ Component: (await import("./components/Feedbacks")).Feedbacks });
@@ -78,6 +79,7 @@ export const router = createBrowserRouter([
           { index: true, lazy: dashboardRoute },
           { path: "slots", lazy: slotManagementRoute },
           { path: "pricing", lazy: pricingPoliciesRoute },
+          { path: "subscription-plans", lazy: subscriptionPlansRoute },
           { path: "reports", lazy: reportsAnalyticsRoute },
           { path: "feedbacks", lazy: feedbacksRoute },
           { path: "violations", lazy: violationsRoute },

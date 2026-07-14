@@ -20,12 +20,15 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
     public DbSet<ReportSnapshot> ReportSnapshots => Set<ReportSnapshot>();
     public DbSet<SystemConfig> SystemConfigs => Set<SystemConfig>();
     public DbSet<WalletTopUp> WalletTopUps => Set<WalletTopUp>();
+    public DbSet<SubscriptionPlan> SubscriptionPlans => Set<SubscriptionPlan>();
+    public DbSet<Subscription> Subscriptions => Set<Subscription>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         ConfigureAuth(modelBuilder);
         ConfigureFacility(modelBuilder);
         ConfigurePricing(modelBuilder);
+        ConfigureSubscription(modelBuilder);
         ConfigureOperations(modelBuilder);
         ConfigureFeedbackAndReports(modelBuilder);
         ConfigureSystem(modelBuilder);
@@ -178,6 +181,64 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasOne(e => e.Slot)
                 .WithMany(s => s.Reservations)
                 .HasForeignKey(e => e.SlotId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+    }
+
+    private static void ConfigureSubscription(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SubscriptionPlan>(entity =>
+        {
+            entity.ToTable("SubscriptionPlans");
+            entity.HasKey(e => e.PlanId);
+            entity.Property(e => e.PlanId).HasColumnName("PlanID");
+            entity.Property(e => e.PlanName).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.VehicleTypeId).HasColumnName("VehicleTypeID");
+            entity.Property(e => e.ZoneId).HasColumnName("ZoneID");
+            entity.Property(e => e.DurationDays).IsRequired();
+            entity.Property(e => e.Price).HasColumnType("decimal(12,2)");
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Active");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasOne(e => e.VehicleType)
+                .WithMany(v => v.SubscriptionPlans)
+                .HasForeignKey(e => e.VehicleTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Zone)
+                .WithMany(z => z.SubscriptionPlans)
+                .HasForeignKey(e => e.ZoneId)
+                .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        modelBuilder.Entity<Subscription>(entity =>
+        {
+            entity.ToTable("Subscriptions");
+            entity.HasKey(e => e.SubscriptionId);
+            entity.Property(e => e.SubscriptionId).HasColumnName("SubscriptionID");
+            entity.Property(e => e.UserId).HasColumnName("UserID");
+            entity.Property(e => e.PlanId).HasColumnName("PlanID");
+            entity.Property(e => e.VehicleTypeId).HasColumnName("VehicleTypeID");
+            entity.Property(e => e.ZoneId).HasColumnName("ZoneID");
+            entity.Property(e => e.LicensePlate).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.PricePaid).HasColumnType("decimal(12,2)");
+            entity.Property(e => e.Status).HasMaxLength(20).IsRequired().HasDefaultValue("Active");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("CURRENT_TIMESTAMP");
+            entity.HasIndex(e => new { e.UserId, e.Status }).HasDatabaseName("IX_Subscription_User_Status");
+            entity.HasIndex(e => new { e.LicensePlate, e.Status }).HasDatabaseName("IX_Subscription_Plate_Status");
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.Subscriptions)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Plan)
+                .WithMany(p => p.Subscriptions)
+                .HasForeignKey(e => e.PlanId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.VehicleType)
+                .WithMany(v => v.Subscriptions)
+                .HasForeignKey(e => e.VehicleTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(e => e.Zone)
+                .WithMany(z => z.Subscriptions)
+                .HasForeignKey(e => e.ZoneId)
                 .OnDelete(DeleteBehavior.Restrict);
         });
     }

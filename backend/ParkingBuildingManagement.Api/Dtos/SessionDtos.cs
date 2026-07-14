@@ -46,4 +46,5 @@ public record CheckOutResultDto(
     SessionDto Session,
     decimal TotalFee,
     int PaymentId,
-    string PaymentMethod);
+    string PaymentMethod,
+    bool CoveredBySubscription);

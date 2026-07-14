@@ -12,6 +12,7 @@ import {
   PhoneCall,
   List,
   MessageSquare,
+  Tag,
 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
@@ -40,6 +41,7 @@ export function Layout() {
       { name: t("nav.history"), href: "/manager/history", icon: List },
       { name: t("nav.violations"), href: "/manager/violations", icon: ShieldAlert },
       { name: t("nav.pricing"), href: "/manager/pricing", icon: Banknote },
+      { name: t("nav.subscriptionPlans"), href: "/manager/subscription-plans", icon: Tag },
       { name: t("nav.reports"), href: "/manager/reports", icon: BarChart3 },
       { name: t("nav.feedbacks"), href: "/manager/feedbacks", icon: MessageSquare },
       { name: t("nav.settings"), href: "/manager/settings", icon: Settings },

@@ -12,4 +12,6 @@ public class VehicleType
     public ICollection<Reservation> Reservations { get; set; } = [];
     public ICollection<ParkingSession> ParkingSessions { get; set; } = [];
     public ICollection<ReportSnapshot> ReportSnapshots { get; set; } = [];
+    public ICollection<SubscriptionPlan> SubscriptionPlans { get; set; } = [];
+    public ICollection<Subscription> Subscriptions { get; set; } = [];
 }

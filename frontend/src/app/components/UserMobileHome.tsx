@@ -8,6 +8,7 @@ import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
 import { clearAuth, getAuth } from "../lib/auth";
 import { useLocale } from "../lib/i18n/LocaleContext";
 import { DriverWalletPanel } from "./DriverWalletPanel";
+import { DriverSubscriptionPanel } from "./DriverSubscriptionPanel";
 import type { DriverTransaction } from "../lib/walletApi";
 import { type BookVehicleType, type BookZone } from "../lib/bookZones";
 import { toDriverErrorMessage } from "../lib/driverErrors";
@@ -435,6 +436,7 @@ export function UserMobileHome() {
                   <div className="grid grid-cols-3 gap-3">
                     {[
                       { id: "topup", icon: <Wallet className="w-5 h-5" />, label: t("driver.utilityTopUp"), color: "text-blue-600 bg-blue-50 dark:bg-blue-500/10" },
+                      { id: "subscription", icon: <Tag className="w-5 h-5" />, label: t("driver.utilitySubscription"), color: "text-indigo-500 bg-indigo-50 dark:bg-indigo-500/10" },
                       { id: "book", icon: <Calendar className="w-5 h-5" />, label: t("driver.utilityBook"), color: "text-green-500 bg-green-50 dark:bg-green-500/10" },
                       { id: "feedback", icon: <MessageSquare className="w-5 h-5" />, label: t("driver.utilityFeedback"), color: "text-pink-500 bg-pink-50 dark:bg-pink-500/10" },
                       { id: "history", icon: <History className="w-5 h-5" />, label: t("driver.utilityTxHistory"), color: "text-orange-500 bg-orange-50 dark:bg-orange-500/10" },
@@ -824,6 +826,20 @@ export function UserMobileHome() {
                 onBalanceChange={setWalletBalance}
                 onSuccess={() => reloadQuiet().catch(() => {})}
                 compact
+              />
+            </MobileUtilityScreen>
+          )}
+
+          {utilityScreen === "subscription" && (
+            <MobileUtilityScreen
+              title={t("driver.subscription.title")}
+              onBack={() => setUtilityScreen(null)}
+              variants={screenVariants}
+            >
+              <DriverSubscriptionPanel
+                userId={userId}
+                authToken={authToken}
+                onSuccess={() => reloadQuiet().catch(() => {})}
               />
             </MobileUtilityScreen>
           )}
