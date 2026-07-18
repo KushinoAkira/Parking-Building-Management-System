@@ -64,6 +64,11 @@ public class ParkingSessionsController(
         return session is null ? NotFound() : Ok(session);
     }
 
+    [HttpGet("search")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
+    public async Task<IActionResult> SearchActive([FromQuery] string? plate, CancellationToken ct)
+        => Ok(await sessionService.SearchActiveByPlateAsync(plate ?? "", ct));
+
     [HttpGet("active/{licensePlate}")]
     [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetActiveByPlate(string licensePlate, CancellationToken ct)
