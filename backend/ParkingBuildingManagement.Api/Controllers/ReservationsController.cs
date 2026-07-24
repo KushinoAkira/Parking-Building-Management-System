@@ -93,20 +93,26 @@ public class ReservationsController(
     [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetActiveByPlate(string plate, CancellationToken ct)
     {
-        var normalized = plate.Trim().ToUpperInvariant();
+        // Strip all whitespace so "45F28889" matches "45F  28889" stored in DB
+        var normalized = System.Text.RegularExpressions.Regex.Replace(
+            plate.Trim().ToUpperInvariant(), @"\s+", "");
         var reservation = await db.Reservations
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.VehicleType)
             .Where(r =>
-                r.LicensePlate == normalized &&
                 (r.Status == "Confirmed" || r.Status == "Pending"))
             .OrderBy(r => r.ReservedFrom)
             .Select(DtoProjections.Reservation)
-            .FirstOrDefaultAsync(ct);
+            .ToListAsync(ct);
 
-        if (reservation is null) return NotFound();
-        return Ok(reservation);
+        var match = reservation.FirstOrDefault(r =>
+            r.LicensePlate != null &&
+            System.Text.RegularExpressions.Regex.Replace(
+                r.LicensePlate.Trim().ToUpperInvariant(), @"\s+", "") == normalized);
+
+        if (match is null) return NotFound();
+        return Ok(match);
     }
 
     [HttpPost("{id:int}/cancel")]

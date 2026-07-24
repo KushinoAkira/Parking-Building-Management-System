@@ -25,7 +25,9 @@ public class ParkingSessionService(
 {
     public async Task<SessionDto> CheckInAsync(CheckInRequest request, CancellationToken ct)
     {
-        var plate = request.LicensePlate.Trim().ToUpperInvariant();
+        // Normalize: strip all internal whitespace so "45F  28889" == "45F28889"
+        var plate = System.Text.RegularExpressions.Regex.Replace(
+            request.LicensePlate.Trim().ToUpperInvariant(), @"\s+", "");
 
         Reservation? reservation = null;
         if (request.ReservationId.HasValue)
@@ -38,9 +40,13 @@ public class ParkingSessionService(
             if (reservation.Status is not ("Confirmed" or "Pending"))
                 throw new BusinessException($"Reservation cannot be checked in (status: {reservation.Status}).");
 
-            if (!string.IsNullOrWhiteSpace(reservation.LicensePlate) &&
-                reservation.LicensePlate.ToUpperInvariant() != plate)
-                throw new BusinessException("License plate does not match reservation.");
+            if (!string.IsNullOrWhiteSpace(reservation.LicensePlate))
+            {
+                var reservedPlate = System.Text.RegularExpressions.Regex.Replace(
+                    reservation.LicensePlate.Trim().ToUpperInvariant(), @"\s+", "");
+                if (reservedPlate != plate)
+                    throw new BusinessException("License plate does not match reservation.");
+            }
         }
 
         var slotId = reservation?.SlotId
