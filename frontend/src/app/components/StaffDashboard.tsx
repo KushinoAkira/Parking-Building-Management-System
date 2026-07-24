@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Camera, Car, CheckCircle, Clock, CreditCard, LogOut, ShieldAlert, List, Calendar, X, Ticket } from "lucide-react";
-import { AlertTriangle, Camera, Car, CheckCircle, LogOut, MapPin, ShieldAlert, List, Calendar, X } from "lucide-react";
+import { AlertTriangle, Camera, Car, CheckCircle, Clock, CreditCard, LogOut, MapPin, ShieldAlert, List, Calendar, X, Ticket } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
@@ -8,7 +7,6 @@ import { NotificationDropdown } from "./NotificationDropdown";
 import { ParkingSlotMap } from "./ParkingSlotMap";
 import type { StaffFloor, StaffFloorSlot } from "../lib/parkingFloors";
 import { VehicleLocator } from "./VehicleLocator";
-import type { StaffFloor } from "../lib/parkingFloors";
 import { PlateCameraScanner } from "./PlateCameraScanner";
 import { useNavigate } from "react-router";
 import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
