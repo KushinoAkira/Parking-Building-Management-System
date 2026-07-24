@@ -13,6 +13,7 @@ type Incident = {
   incidentId: number;
   sessionId: number | null;
   ticketCode: string | null;
+  licensePlate: string | null;
   reportedByName: string | null;
   incidentType: string;
   description: string | null;
@@ -20,7 +21,6 @@ type Incident = {
   status: string;
   createdAt: string;
   resolvedAt: string | null;
-  plate?: string;
 };
 
 export function Violations() {
@@ -161,8 +161,8 @@ export function Violations() {
                           <Car className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                         </div>
                         <div>
-                          <div className="font-mono font-bold text-gray-900 dark:text-white">{v.ticketCode ?? "—"}</div>
-                          <div className="text-xs text-gray-500 dark:text-gray-400">INC-{v.incidentId}</div>
+                          <div className="font-mono font-bold text-gray-900 dark:text-white">{v.licensePlate ?? v.ticketCode ?? "—"}</div>
+                          <div className="text-xs text-gray-500 dark:text-gray-400">INC-{v.incidentId} · {v.ticketCode ?? "—"}</div>
                         </div>
                       </div>
                     </td>

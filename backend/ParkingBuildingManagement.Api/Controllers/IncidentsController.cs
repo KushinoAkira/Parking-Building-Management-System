@@ -40,6 +40,7 @@ public class IncidentsController(
                 i.IncidentId,
                 i.SessionId,
                 TicketCode = i.Session != null ? i.Session.TicketCode : null,
+                LicensePlate = i.Session != null ? i.Session.LicensePlate : null,
                 i.ReportedById,
                 ReportedByName = i.ReportedBy != null ? i.ReportedBy.FullName : null,
                 i.IncidentType,
