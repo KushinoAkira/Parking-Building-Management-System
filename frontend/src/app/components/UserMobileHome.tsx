@@ -34,6 +34,8 @@ export function UserMobileHome() {
   const [activeTab, setActiveTab] = useState("home");
   const [showPayment, setShowPayment] = useState(false);
   const [paymentDone, setPaymentDone] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<"EWallet" | "Cash" | "BankTransfer">("EWallet");
+  const [paymentError, setPaymentError] = useState("");
   const [showNotifications, setShowNotifications] = useState(false);
   const [showQRScanner, setShowQRScanner] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
