@@ -193,7 +193,10 @@ public class ParkingSessionService(
 
     public async Task<List<SessionDto>> SearchActiveByPlateAsync(string plateTerm, CancellationToken ct)
     {
-        var term = plateTerm.Trim().ToUpperInvariant();
+        // Strip internal whitespace to match how plates are stored (check-in normalizes the same way).
+        // e.g. user types "99-E1 222.68" → term becomes "99-E1222.68" → matches DB value.
+        var term = System.Text.RegularExpressions.Regex.Replace(
+            plateTerm.Trim().ToUpperInvariant(), @"\s+", "");
         if (term.Length == 0)
             return [];
 
