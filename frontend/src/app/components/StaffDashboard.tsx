@@ -88,6 +88,7 @@ export function StaffDashboard() {
   const [vehicleTypes, setVehicleTypes] = useState<BookVehicleType[]>([]);
   const [selectedVehicleType, setSelectedVehicleType] = useState<number | "">("");
   const [selectedGate, setSelectedGate] = useState<string>("Gate-A");
+  const [preferVip, setPreferVip] = useState(false);
 
   const staffVehicleTypes = bookableVehicleTypes(vehicleTypes);
   
@@ -186,9 +187,12 @@ export function StaffDashboard() {
   }, []);
 
   // ── Check-in: always creates a new session ──────────────────────────────
-  async function doCheckIn(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
-    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
-    if (!normalizedPlate) return false;
+  async function doCheckIn(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number; preferVipSlot?: boolean }): Promise<boolean> {
+    // rawApiPlate: strip all whitespace for DB/API matching (backend normalizes the same way)
+    const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
+    // displayPlate: formatted for UI messages only
+    const displayPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase() || rawApiPlate;
+    if (!rawApiPlate) return false;
     setLoadingAction(true);
     setActionError("");
     setResult("");
@@ -197,9 +201,9 @@ export function StaffDashboard() {
       let reservationId = options?.reservationId ?? null;
 
       if (!reservationId) {
-        // Auto-lookup active reservation for this plate
+        // Auto-lookup active reservation for this plate using the stripped plate
         const reservation = await apiGet<{ reservationId: number; vehicleTypeId: number; status: string } | null>(
-          `/api/reservations/by-plate/${encodeURIComponent(normalizedPlate)}`,
+          `/api/reservations/by-plate/${encodeURIComponent(rawApiPlate)}`,
           authToken,
         ).catch(() => null);
 
@@ -214,16 +218,17 @@ export function StaffDashboard() {
       const checkIn = await apiPost<{ slotId: string }>(
         "/api/parking-sessions/check-in",
         {
-          licensePlate: normalizedPlate,
+          licensePlate: rawApiPlate,
           vehicleTypeId,
           entryStaffId: auth?.userId,
           entryGate: selectedGate,
           reservationId,
+          preferVipSlot: options?.preferVipSlot ?? false,
         },
         authToken,
       );
       
-      const successMsg = t("staff.checkinSuccess", { plate: normalizedPlate, slot: checkIn.slotId });
+      const successMsg = t("staff.checkinSuccess", { plate: displayPlate, slot: checkIn.slotId });
       setResult(reservationId ? `${successMsg} (Từ đặt chỗ)` : successMsg);
       
       setPlate("");
@@ -239,8 +244,8 @@ export function StaffDashboard() {
 
   // ── Open checkout modal: fetch active session then show modal ─────────────
   async function openCheckoutModal(rawPlate: string) {
-    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
-    if (!normalizedPlate) return;
+    const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
+    if (!rawApiPlate) return;
     setLoadingAction(true);
     setActionError("");
     setResult("");
@@ -253,12 +258,12 @@ export function StaffDashboard() {
         coveredBySubscription?: boolean;
         estimatedFee?: number;
       } | null>(
-        `/api/parking-sessions/active/${encodeURIComponent(normalizedPlate)}`,
+        `/api/parking-sessions/active/${encodeURIComponent(rawApiPlate)}`,
         authToken,
       ).catch(() => null);
 
       if (!active?.sessionId) {
-        setActionError(t("staff.noActiveSession") || `No active session found for ${normalizedPlate}`);
+        setActionError(t("staff.noActiveSession") || `No active session found for ${rawApiPlate}`);
         return;
       }
       setModalPaymentMethod("Cash");
@@ -328,22 +333,22 @@ export function StaffDashboard() {
   }
 
   // ── Smart plate submit: check-in if no active session, else open modal ───
-  async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
-    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
-    if (!normalizedPlate) return false;
+  async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number; preferVipSlot?: boolean }): Promise<boolean> {
+    const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
+    if (!rawApiPlate) return false;
     setLoadingAction(true);
     setActionError("");
     setResult("");
     try {
       const active = await apiGet<{ sessionId: number } | null>(
-        `/api/parking-sessions/active/${encodeURIComponent(normalizedPlate)}`,
+        `/api/parking-sessions/active/${encodeURIComponent(rawApiPlate)}`,
         authToken,
       ).catch(() => null);
 
       if (active?.sessionId) {
         // Has active session → open confirmation modal instead of auto-checkout
         setLoadingAction(false);
-        await openCheckoutModal(normalizedPlate);
+        await openCheckoutModal(rawApiPlate);
         return true;
       } else {
         return await doCheckIn(rawPlate, options);
@@ -516,7 +521,7 @@ export function StaffDashboard() {
                   className="space-y-3"
                   onSubmit={async (e) => {
                     e.preventDefault();
-                    await processPlate(plate);
+                    await processPlate(plate, { preferVipSlot: preferVip });
                   }}
                 >
                   <div className="grid grid-cols-2 gap-2">
@@ -541,6 +546,20 @@ export function StaffDashboard() {
                       <option value="Gate-VIP">{t("staff.gateVip")}</option>
                     </select>
                   </div>
+
+                  {/* VIP slot checkbox */}
+                  <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+                    <input
+                      type="checkbox"
+                      checked={preferVip}
+                      onChange={(e) => setPreferVip(e.target.checked)}
+                      className="w-4 h-4 rounded accent-yellow-500"
+                    />
+                    <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                      ⭐ {t("staff.preferVip") || "Ưu tiên chỗ VIP"}
+                    </span>
+                  </label>
+
                   <input
                     value={plate}
                     onChange={(e) => setPlate(e.target.value.toUpperCase())}
