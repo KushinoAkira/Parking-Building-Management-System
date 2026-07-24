@@ -192,21 +192,27 @@ export function UserMobileHome() {
     }
     setShowPayment(true);
     setPaymentDone(false);
+    setPaymentMethod("EWallet");
+    setPaymentError("");
   };
+
+  const [paymentMethod, setPaymentMethod] = useState<"EWallet" | "Cash" | "BankTransfer">("EWallet");
+  const [paymentError, setPaymentError] = useState("");
 
   const handleConfirmPayment = async () => {
     if (!authToken || !activeSession) return;
+    setPaymentError("");
     try {
       await apiPost(
         `/api/parking-sessions/${activeSession.sessionId}/check-out`,
-        { paymentMethod: "EWallet", exitGate: "Driver-Mobile" },
+        { paymentMethod, exitGate: "Driver-Mobile" },
         authToken,
       );
       await reloadQuiet();
       setPaymentDone(true);
       setTimeout(() => setShowPayment(false), 1800);
     } catch (e) {
-      setError(driverError(e, t("driver.checkoutFailed")));
+      setPaymentError(driverError(e, t("driver.checkoutFailed")));
     }
   };
 
@@ -725,22 +731,35 @@ export function UserMobileHome() {
                         <X className="w-5 h-5" />
                       </button>
                     </div>
-                    <div className="flex justify-center mb-4">
-                      <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#121212] px-4 py-2 rounded-xl border border-gray-100 dark:border-gray-800">
-                        <span className="text-sm font-semibold text-gray-500 dark:text-gray-400">{t("driver.autoPayVia")}</span>
-                        <span className="text-blue-600 font-black text-lg tracking-tight">payOS</span>
+
+                    {/* Payment method selector */}
+                    <div className="mb-4">
+                      <p className="text-xs font-semibold text-gray-500 dark:text-gray-400 mb-2">{t("staff.paymentMethod") || "Phương thức thanh toán"}</p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(["EWallet", "Cash", "BankTransfer"] as const).map((m) => (
+                          <button
+                            key={m}
+                            type="button"
+                            onClick={() => setPaymentMethod(m)}
+                            className={`py-2 rounded-xl text-xs font-bold border transition-all ${
+                              paymentMethod === m
+                                ? "bg-blue-600 text-white border-blue-600"
+                                : "bg-white dark:bg-[#121212] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700"
+                            }`}
+                          >
+                            {m === "EWallet" ? "💳 Ví" : m === "Cash" ? "💵 Tiền mặt" : "🏦 Chuyển khoản"}
+                          </button>
+                        ))}
                       </div>
+                      {paymentMethod === "EWallet" && (
+                        <p className="text-xs text-gray-400 mt-1.5">
+                          Số dư hiện tại: <span className="font-bold text-blue-600">{formatMoney(walletBalance)}</span>
+                        </p>
+                      )}
                     </div>
-                    <div className="flex justify-center mb-4">
-                      <div className="w-48 h-48 bg-white border-4 border-blue-600/20 rounded-3xl flex items-center justify-center shadow-inner relative overflow-hidden">
-                        <QrCode className="w-32 h-32 text-gray-800 relative z-10" />
-                        <div className="absolute inset-0 bg-blue-600/5 z-0" />
-                      </div>
-                    </div>
-                    <p className="text-center text-sm text-gray-400 mb-6">{t("driver.scanVietQR")}</p>
+
                     <div className="bg-gray-50 dark:bg-[#121212] rounded-2xl p-4 border border-gray-100 dark:border-gray-800 space-y-2.5 mb-4">
                       {[
-                        { label: t("driver.parkingLot"), value: "Vincom Center" },
                         { label: t("common.slot"), value: activeSession ? `${activeSession.zoneCode} - ${activeSession.slotId}` : "--" },
                         { label: t("driver.entryTimeLabel"), value: formatDateTime(activeSession?.entryTime) },
                         { label: t("driver.parkingFeeLabel"), value: formatMoney(activeSession?.estimatedFee), green: true },
@@ -751,6 +770,11 @@ export function UserMobileHome() {
                         </div>
                       ))}
                     </div>
+
+                    {paymentError && (
+                      <div className="mb-3 rounded-xl bg-red-50 dark:bg-red-500/10 px-4 py-2 text-sm text-red-600 dark:text-red-400">{paymentError}</div>
+                    )}
+
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={handleConfirmPayment}
