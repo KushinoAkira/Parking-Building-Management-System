@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Camera, Car, CheckCircle, Clock, CreditCard, LogOut, ShieldAlert, List, Calendar, X, Ticket } from "lucide-react";
+import { AlertTriangle, Camera, Car, CheckCircle, LogOut, MapPin, ShieldAlert, List, Calendar, X } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { ParkingSlotMap } from "./ParkingSlotMap";
 import type { StaffFloor, StaffFloorSlot } from "../lib/parkingFloors";
+import { VehicleLocator } from "./VehicleLocator";
+import type { StaffFloor } from "../lib/parkingFloors";
 import { PlateCameraScanner } from "./PlateCameraScanner";
 import { useNavigate } from "react-router";
 import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
@@ -20,7 +23,7 @@ import { useStableLoader } from "../lib/hooks/useStableLoader";
 import { TAB_ACTIVE, TAB_INACTIVE } from "../lib/uiClasses";
 import { ErrorBanner } from "./ErrorBanner";
 
-type Tab = "control" | "violations" | "history" | "reservations";
+type Tab = "control" | "locate" | "violations" | "history" | "reservations";
 
 type Incident = {
   incidentId: number;
@@ -476,6 +479,7 @@ export function StaffDashboard() {
         <div className="flex gap-3">
           {([
             { id: "control" as const, icon: Camera, label: t("staff.control") },
+            { id: "locate" as const, icon: MapPin, label: t("staff.locateTab") },
             { id: "violations" as const, icon: ShieldAlert, label: t("staff.violationsTab") },
             { id: "history" as const, icon: List, label: t("staff.historyTab") },
             { id: "reservations" as const, icon: Calendar, label: t("staff.reservationsTab") },
@@ -745,6 +749,7 @@ export function StaffDashboard() {
             </motion.div>
           )}
         </AnimatePresence>
+        {activeTab === "locate" && <VehicleLocator authToken={authToken} />}
 
         {activeTab === "violations" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

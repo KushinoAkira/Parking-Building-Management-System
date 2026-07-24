@@ -66,6 +66,49 @@ public class ParkingSessionFlowTests : IClassFixture<PbmsWebApplicationFactory>
     }
 
     [Fact]
+    public async Task SearchActive_PartialPlate_ReturnsLocationAndExcludesCompleted()
+    {
+        var client = await CreateStaffClientAsync();
+        const string plate = "59A1-SRCH-77";
+        var checkIn = await client.PostAsJsonAsync("/api/parking-sessions/check-in", new CheckInRequest(
+            plate, 2, null, null, null, null, null, "Gate-Test", null));
+        Assert.Equal(HttpStatusCode.OK, checkIn.StatusCode);
+        var session = await checkIn.Content.ReadFromJsonAsync<SessionDto>();
+        Assert.NotNull(session);
+
+        var matches = await client.GetFromJsonAsync<List<SessionDto>>("/api/parking-sessions/search?plate=SRCH");
+        Assert.NotNull(matches);
+        var found = Assert.Single(matches, s => s.LicensePlate == plate);
+        Assert.Equal(session.SlotId, found.SlotId);
+        Assert.Equal(session.ZoneCode, found.ZoneCode);
+        Assert.False(string.IsNullOrEmpty(found.TicketCode));
+
+        var noMatch = await client.GetFromJsonAsync<List<SessionDto>>("/api/parking-sessions/search?plate=ZZZZZZ");
+        Assert.NotNull(noMatch);
+        Assert.Empty(noMatch);
+
+        var checkOut = await client.PostAsJsonAsync(
+            $"/api/parking-sessions/{session.SessionId}/check-out",
+            new CheckOutRequest(null, "Gate-Test", "Cash"));
+        Assert.Equal(HttpStatusCode.OK, checkOut.StatusCode);
+
+        var afterCheckOut = await client.GetFromJsonAsync<List<SessionDto>>("/api/parking-sessions/search?plate=SRCH");
+        Assert.NotNull(afterCheckOut);
+        Assert.Empty(afterCheckOut);
+    }
+
+    [Fact]
+    public async Task SearchActive_AsDriver_Returns403()
+    {
+        var client = _factory.CreateClient();
+        await TestAuth.AuthenticateAsDriverAsync(client);
+
+        var response = await client.GetAsync("/api/parking-sessions/search?plate=59A1");
+
+        Assert.Equal(HttpStatusCode.Forbidden, response.StatusCode);
+    }
+
+    [Fact]
     public async Task CheckIn_DuplicateActivePlate_Returns400()
     {
         var client = await CreateStaffClientAsync();
