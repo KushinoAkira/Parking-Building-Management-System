@@ -1,0 +1,83 @@
+@startuml PBMS_Context_Diagram
+skinparam rectangle {
+  BackgroundColor AliceBlue
+  BorderColor SteelBlue
+  FontSize 12
+}
+skinparam actor {
+  BackgroundColor LightSkyBlue
+  BorderColor DarkSlateGray
+  FontSize 11
+}
+skinparam arrow {
+  Color DarkSlateGray
+  FontSize 9
+}
+
+title PBMS — System Context Diagram\nParking Building Management System — SU26SWP08
+
+' Human actors
+actor "System\nAdministrator" as Admin
+actor "Parking\nManager" as Manager
+actor "Parking\nStaff" as Staff
+actor "Parking Driver\n(Registered)" as Driver
+actor "Guest Driver\n(Unregistered)" as Guest
+
+' Central system
+rectangle "Parking Building\nManagement System\n(PBMS)\n──────────────────\nASP.NET Core .NET 10\nReact + Vite Frontend\nPostgreSQL Database\nSignalR Real-Time" as PBMS #AliceBlue
+
+' External systems
+rectangle "Google\nOAuth 2.0\naccounts.google.com" as Google #MistyRose
+rectangle "PayOS\nPayment Gateway\napi.payos.vn" as PayOS #LightSalmon
+rectangle "PaddleOCR Engine\n(On-Premise, Windows)" as PaddleOCR #LightYellow
+rectangle "Plate Recognizer\nCloud API\n(Linux Fallback / Browser)" as PlateRec #LightYellow
+rectangle "GitHub Actions\nCI/CD Pipeline" as CICD #LavenderBlush
+rectangle "Railway\nCloud Hosting\n(Docker + PostgreSQL)" as Railway #Lavender
+rectangle "Firebase Hosting\n(CDN, Global)" as Firebase #Lavender
+
+' Admin flows
+Admin --> PBMS : Manage user accounts\nProvision roles\nConfigure system settings
+PBMS --> Admin : User records\nConfig confirmation
+
+' Manager flows
+Manager --> PBMS : Configure pricing & zones\nManage subscriptions\nView reports & dashboard\nResolve incidents
+PBMS --> Manager : Revenue charts\nOccupancy data\nIncident queue\nReal-time KPIs
+
+' Staff flows
+Staff --> PBMS : Check-in vehicles\nCheck-out vehicles\nCollect payments\nReport incidents\nView slot map
+PBMS --> Staff : Slot assignment + TicketCode\nFee amount + receipt\nReal-time slot updates (SignalR)\nReservation queue
+
+' Driver flows
+Driver --> PBMS : Register / login\nCreate reservations\nTop-up wallet\nBuy subscriptions\nSelf-checkout
+PBMS --> Driver : JWT token\nReservation + slot confirmation\nWallet balance updates (SignalR)\nPayOS QR code\nParking history
+
+' Guest flows
+Guest --> PBMS : Physical vehicle arrival\nPresent paper ticket\nCash / bank transfer payment
+PBMS --> Guest : Ticket code\nFee receipt
+
+' Google OAuth flows
+Driver --> Google : Google Sign-In request
+Google --> PBMS : Google ID Token\n(sub, email, name)
+PBMS --> Google : Token verification call\n(Google.Apis.Auth)
+
+' PayOS flows
+PBMS --> PayOS : Create payment link\n(amount, orderCode, returnURL)
+PayOS --> Driver : Checkout URL + QR code
+Driver --> PayOS : Scan QR → bank payment
+PayOS --> PBMS : POST /api/payos/webhook\n(payment confirmed + HMAC sig)
+
+' OCR flows
+Staff --> PBMS : Upload plate image\n(multipart/form-data, 10MB max)
+PBMS --> PaddleOCR : Image bytes (Windows only)
+PaddleOCR --> PBMS : Plate text string
+PBMS --> PlateRec : Image (Linux fallback)
+PlateRec --> PBMS : Plate text string
+
+' CI/CD & infrastructure
+CICD --> Railway : Auto-deploy API Docker container\n(on push to main branch)
+CICD --> Firebase : Auto-deploy React SPA\n(Vite build + firebase deploy)
+Railway --> PBMS : Hosts API + manages PostgreSQL
+Firebase --> Driver : Serve React SPA (CDN)
+Firebase --> Staff : Serve React SPA (CDN)
+Firebase --> Manager : Serve React SPA (CDN)
+@enduml

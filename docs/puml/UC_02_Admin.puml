@@ -1,0 +1,45 @@
+@startuml PBMS_Admin_Use_Case
+skinparam actorStyle awesome
+skinparam usecase { BackgroundColor WhiteSmoke; BorderColor DarkBlue; FontSize 11 }
+skinparam actor { BackgroundColor LightSkyBlue; BorderColor DarkBlue }
+skinparam package { BackgroundColor AliceBlue; BorderColor SteelBlue }
+title PBMS — System Administrator · Detailed Use Case Diagram
+
+actor "System\nAdministrator" as Admin #LightSkyBlue
+
+rectangle "PBMS — Admin Scope" {
+  package "Authentication" {
+    usecase "Login with\nEmail & Password" as UC_Login
+    usecase "Change Own\nPassword" as UC_ChangePass
+  }
+  package "User Account Management" {
+    usecase "Manage User\nAccounts" as UC_ManageUsers
+    usecase "Create User\nAccount" as UC_CreateUser
+    usecase "View User\nList" as UC_ViewUsers
+    usecase "Update User\nProfile & Role" as UC_UpdateUser
+    usecase "Lock User\nAccount" as UC_LockUser
+    usecase "Unlock User\nAccount" as UC_UnlockUser
+    usecase "Reset User\nPassword" as UC_ResetPass
+
+    UC_ManageUsers ..> UC_CreateUser : <<include>>
+    UC_ManageUsers ..> UC_ViewUsers  : <<include>>
+    UC_ManageUsers ..> UC_UpdateUser : <<include>>
+    UC_ManageUsers ..> UC_LockUser   : <<include>>
+    UC_ManageUsers ..> UC_UnlockUser : <<include>>
+    UC_ManageUsers ..> UC_ResetPass  : <<include>>
+  }
+  package "System Configuration" {
+    usecase "Manage System\nConfiguration" as UC_Config
+    usecase "View Configuration\nKey-Value List" as UC_ViewConfig
+    usecase "Update Configuration\nValue" as UC_UpdateConfig
+
+    UC_Config ..> UC_ViewConfig   : <<include>>
+    UC_Config ..> UC_UpdateConfig : <<include>>
+  }
+}
+
+Admin --> UC_Login
+Admin --> UC_ChangePass
+Admin --> UC_ManageUsers
+Admin --> UC_Config
+@enduml

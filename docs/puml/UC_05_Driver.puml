@@ -1,0 +1,121 @@
+@startuml PBMS_Driver_Use_Case
+skinparam actorStyle awesome
+skinparam usecase { BackgroundColor WhiteSmoke; BorderColor DarkGreen; FontSize 11 }
+skinparam actor { BackgroundColor LightGreen; BorderColor DarkGreen }
+skinparam package { BackgroundColor HoneyDew; BorderColor MediumSeaGreen }
+title PBMS — Parking Driver (Customer) · Detailed Use Case Diagram
+
+actor "Parking\nDriver" as Driver #LightGreen
+actor "Google\nOAuth" as Google #MistyRose
+actor "PayOS\nGateway" as PayOS #LightSalmon
+
+rectangle "PBMS — Driver Scope" {
+
+  package "Registration & Authentication" {
+    usecase "Register Driver\nAccount" as UC_Register
+    usecase "Login with\nEmail & Password" as UC_Login
+    usecase "Login / Register\nwith Google OAuth" as UC_GoogleLogin
+    usecase "Link Google Account\nto Existing Profile" as UC_LinkGoogle
+    usecase "Change Own\nPassword" as UC_ChangePass
+
+    UC_GoogleLogin ..> UC_Register : <<include>>\nif first-time Google user
+  }
+
+  package "Advance Reservation" {
+    usecase "Create Advance\nReservation" as UC_CreateRes
+    usecase "Select Vehicle Type\n& License Plate" as UC_SelectVehicle
+    usecase "Set Arrival &\nDeparture Window" as UC_SetTime
+    usecase "Select Preferred\nParking Zone" as UC_SelectZone
+    usecase "Request VIP\nSlot (+10,000 VND)" as UC_VIPReq
+    usecase "Confirm\nReservation" as UC_ConfirmRes
+    usecase "Cancel\nReservation" as UC_CancelRes
+    usecase "View All\nMy Reservations" as UC_ViewRes
+
+    UC_CreateRes ..> UC_SelectVehicle : <<include>>
+    UC_CreateRes ..> UC_SetTime       : <<include>>
+    UC_SelectZone ..> UC_CreateRes    : <<extend>>\nif zone preference set
+    UC_VIPReq     ..> UC_CreateRes    : <<extend>>\nif VIP flag checked
+    UC_ConfirmRes ..> UC_CreateRes    : <<include>>\nafter Pending state
+  }
+
+  package "Self-Service Checkout" {
+    usecase "Perform Self\nCheck-Out" as UC_SelfCheckOut
+    usecase "Preview\nFee Before Checkout" as UC_PreviewFee
+    usecase "Pay via\nDigital Wallet" as UC_WalletPay
+
+    UC_SelfCheckOut ..> UC_PreviewFee : <<include>>
+    UC_SelfCheckOut ..> UC_WalletPay  : <<include>>\nwallet deduction
+  }
+
+  package "Real-Time Slot Map" {
+    usecase "View Real-Time\nSlot Map" as UC_SlotMap
+    usecase "View Zone\nOccupancy Summary" as UC_ZoneSummary
+
+    UC_SlotMap ..> UC_ZoneSummary : <<include>>
+  }
+
+  package "Digital Wallet" {
+    usecase "Manage Digital\nWallet" as UC_ManageWallet
+    usecase "View Wallet\nBalance" as UC_ViewBalance
+    usecase "View Transaction\nHistory" as UC_WalletHistory
+    usecase "Top Up Wallet\nvia PayOS QR Code" as UC_TopUp
+    usecase "Scan Bank\nQR Code" as UC_ScanQR
+    usecase "Simulate Top-Up\n(Demo Mode)" as UC_SimTopUp
+
+    UC_ManageWallet ..> UC_ViewBalance   : <<include>>
+    UC_ManageWallet ..> UC_WalletHistory : <<include>>
+    UC_ManageWallet ..> UC_TopUp         : <<include>>
+    UC_TopUp        ..> UC_ScanQR        : <<include>>
+    UC_SimTopUp     ..> UC_TopUp         : <<extend>>\nif demo mode enabled
+  }
+
+  package "Monthly Subscription" {
+    usecase "Browse Subscription\nPlans" as UC_BrowsePlans
+    usecase "Purchase Monthly\nSubscription" as UC_BuySub
+    usecase "Cancel\nSubscription" as UC_CancelSub
+    usecase "View My\nSubscriptions" as UC_ViewSubs
+
+    UC_BuySub ..> UC_BrowsePlans : <<include>>
+    UC_BuySub ..> UC_WalletPay   : <<include>>\ndeduct plan price from wallet
+  }
+
+  package "Driver Self-Service Portal" {
+    usecase "View Own Parking\nHistory (Tickets)" as UC_History
+    usecase "Submit Parking\nFeedback" as UC_Feedback
+    usecase "Select Feedback\nType & Related Session" as UC_FeedbackDetail
+    usecase "View Driver\nNotifications" as UC_Notif
+
+    UC_Feedback ..> UC_FeedbackDetail : <<include>>
+
+    note right of UC_Notif
+      Notification types:
+      · Active session card
+      · Confirmed reservation alert
+      · Subscription expiry warning (<3 days)
+    end note
+  }
+
+}
+
+Driver --> UC_Register
+Driver --> UC_Login
+Driver --> UC_GoogleLogin
+Driver --> UC_LinkGoogle
+Driver --> UC_ChangePass
+Driver --> UC_CreateRes
+Driver --> UC_ConfirmRes
+Driver --> UC_CancelRes
+Driver --> UC_ViewRes
+Driver --> UC_SelfCheckOut
+Driver --> UC_SlotMap
+Driver --> UC_ManageWallet
+Driver --> UC_BuySub
+Driver --> UC_CancelSub
+Driver --> UC_ViewSubs
+Driver --> UC_History
+Driver --> UC_Feedback
+Driver --> UC_Notif
+
+Google --> UC_GoogleLogin
+PayOS --> UC_TopUp : async webhook\ncredits wallet
+@enduml
