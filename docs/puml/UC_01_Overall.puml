@@ -1,0 +1,193 @@
+@startuml PBMS_Overall_Use_Case_Diagram
+!pragma useNewPackage
+
+skinparam actorStyle awesome
+skinparam packageStyle rectangle
+skinparam usecase {
+  BackgroundColor WhiteSmoke
+  BorderColor DarkSlateGray
+  FontColor Black
+  FontSize 11
+}
+skinparam actor {
+  BackgroundColor LightSteelBlue
+  BorderColor DarkSlateGray
+  FontSize 11
+}
+skinparam arrow {
+  Color DarkSlateGray
+  FontSize 10
+}
+skinparam package {
+  BackgroundColor AliceBlue
+  BorderColor SteelBlue
+}
+
+title PBMS — Overall System Use Case Diagram\nParking Building Management System — SU26SWP08
+
+' Left: Human actors
+actor "System\nAdministrator" as Admin #LightSkyBlue
+actor "Parking\nManager" as Manager #LightSkyBlue
+actor "Parking\nStaff" as Staff #LightSkyBlue
+actor "Parking\nDriver" as Driver #LightGreen
+actor "Guest\nDriver" as Guest #LightGreen
+
+' Right: External systems
+actor "Google\nOAuth" as GoogleOAuth #MistyRose
+actor "PayOS\nPayment Gateway" as PayOS #MistyRose
+actor "OCR Engine\n(PaddleOCR)" as OCR #MistyRose
+actor "Plate Recognizer\nAPI" as PlateRec #MistyRose
+
+' Actor generalization
+Guest --|> Driver : <<generalization>>
+
+rectangle "Parking Building Management System" {
+
+  package "Authentication" {
+    usecase "Login with\nEmail & Password" as UC_Login
+    usecase "Register Driver\nAccount" as UC_Register
+    usecase "Login with\nGoogle OAuth" as UC_GoogleLogin
+    usecase "Change Password" as UC_ChangePass
+    usecase "Link Google\nAccount" as UC_LinkGoogle
+  }
+
+  package "User & System Administration" {
+    usecase "Manage User\nAccounts" as UC_ManageUsers
+    usecase "Lock / Unlock\nUser Account" as UC_LockUser
+    usecase "Reset User\nPassword" as UC_ResetPass
+    usecase "Manage System\nConfiguration" as UC_SystemConfig
+  }
+
+  package "Facility & Pricing Management" {
+    usecase "Manage Parking\nFacility Info" as UC_Facility
+    usecase "Manage Pricing\nPolicies" as UC_Pricing
+    usecase "Manage Parking\nZones & Slots" as UC_Zones
+    usecase "Manage Subscription\nPlans" as UC_ManagePlans
+  }
+
+  package "Parking Operations" {
+    usecase "Perform Vehicle\nCheck-In" as UC_CheckIn
+    usecase "Perform Vehicle\nCheck-Out" as UC_CheckOut
+    usecase "Calculate\nParking Fee" as UC_CalcFee
+    usecase "Recognize License\nPlate via OCR" as UC_OCR
+    usecase "View Real-Time\nSlot Map" as UC_SlotMap
+  }
+
+  package "Reservation Management" {
+    usecase "Create Advance\nReservation" as UC_CreateRes
+    usecase "Confirm\nReservation" as UC_ConfirmRes
+    usecase "Cancel\nReservation" as UC_CancelRes
+  }
+
+  package "Payment & Wallet" {
+    usecase "Top Up\nDigital Wallet" as UC_TopUp
+    usecase "Process Wallet\nPayment" as UC_WalletPay
+    usecase "Receive PayOS\nWebhook" as UC_Webhook
+    usecase "View Wallet\nBalance & History" as UC_WalletView
+  }
+
+  package "Subscription" {
+    usecase "Purchase Monthly\nSubscription" as UC_BuySub
+    usecase "Cancel\nSubscription" as UC_CancelSub
+  }
+
+  package "Incident Management" {
+    usecase "Create Incident\nRecord" as UC_CreateInc
+    usecase "Resolve / Cancel\nIncident" as UC_ResolveInc
+    usecase "Review Incident\nQueue" as UC_ReviewInc
+  }
+
+  package "Driver Self-Service" {
+    usecase "View Own Parking\nHistory" as UC_History
+    usecase "Submit Parking\nFeedback" as UC_Feedback
+    usecase "View Driver\nNotifications" as UC_Notif
+  }
+
+  package "Analytics & Reporting" {
+    usecase "View Manager\nDashboard" as UC_Dashboard
+    usecase "View Revenue\nReports" as UC_Revenue
+    usecase "View Zone\nOccupancy Report" as UC_Occupancy
+    usecase "View Session\nStatistics" as UC_SessionStats
+    usecase "Generate Daily\nReport Snapshot" as UC_Snapshot
+    usecase "View Staff\nOperations Overview" as UC_StaffOverview
+  }
+
+}
+
+' Admin associations
+Admin --> UC_Login
+Admin --> UC_ManageUsers
+Admin --> UC_LockUser
+Admin --> UC_ResetPass
+Admin --> UC_SystemConfig
+Admin --> UC_ChangePass
+
+' Manager associations
+Manager --> UC_Login
+Manager --> UC_Facility
+Manager --> UC_Pricing
+Manager --> UC_Zones
+Manager --> UC_ManagePlans
+Manager --> UC_SlotMap
+Manager --> UC_ResolveInc
+Manager --> UC_ReviewInc
+Manager --> UC_Dashboard
+Manager --> UC_Revenue
+Manager --> UC_Occupancy
+Manager --> UC_SessionStats
+Manager --> UC_Snapshot
+Manager --> UC_ChangePass
+
+' Staff associations
+Staff --> UC_Login
+Staff --> UC_CheckIn
+Staff --> UC_CheckOut
+Staff --> UC_SlotMap
+Staff --> UC_CreateInc
+Staff --> UC_ReviewInc
+Staff --> UC_ConfirmRes
+Staff --> UC_CancelRes
+Staff --> UC_StaffOverview
+Staff --> UC_ChangePass
+
+' Driver associations
+Driver --> UC_Register
+Driver --> UC_GoogleLogin
+Driver --> UC_Login
+Driver --> UC_ChangePass
+Driver --> UC_LinkGoogle
+Driver --> UC_CreateRes
+Driver --> UC_ConfirmRes
+Driver --> UC_CancelRes
+Driver --> UC_TopUp
+Driver --> UC_WalletView
+Driver --> UC_WalletPay
+Driver --> UC_BuySub
+Driver --> UC_CancelSub
+Driver --> UC_CheckOut
+Driver --> UC_History
+Driver --> UC_Feedback
+Driver --> UC_Notif
+Driver --> UC_SlotMap
+
+' External system associations
+GoogleOAuth --> UC_GoogleLogin
+PayOS --> UC_Webhook
+OCR --> UC_OCR
+PlateRec --> UC_OCR
+
+' <<include>> relationships
+UC_CheckIn  ..> UC_OCR      : <<include>>\n(optional auto-scan)
+UC_CheckIn  ..> UC_CalcFee  : <<include>>\nestimate fee
+UC_CheckOut ..> UC_CalcFee  : <<include>>\nfinal fee
+UC_BuySub   ..> UC_WalletPay : <<include>>\ndeduct balance
+UC_TopUp    ..> UC_Webhook   : <<include>>\n(async complete)
+UC_GoogleLogin ..> UC_Register : <<include>>\nif new account
+
+' <<extend>> relationships
+UC_CheckOut ..> UC_WalletPay  : <<extend>>\nif paymentMethod=EWallet
+UC_CalcFee  ..> UC_BuySub     : <<extend>>\nif active subscription→fee=0
+UC_CheckIn  ..> UC_ConfirmRes : <<extend>>\nif reservation provided
+UC_OCR      ..> PlateRec      : <<extend>>\nif server OCR unavailable
+
+@enduml
