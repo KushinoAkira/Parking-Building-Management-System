@@ -51,7 +51,7 @@ public class ParkingSessionService(
 
         var slotId = reservation?.SlotId
             ?? (await slotAllocation.FindAvailableSlotAsync(
-                request.VehicleTypeId, request.ZoneId, request.SlotId, reservation?.PreferVipSlot ?? false, ct)).SlotId;
+                request.VehicleTypeId, request.ZoneId, request.SlotId, request.PreferVipSlot ?? (reservation?.PreferVipSlot ?? false), ct)).SlotId;
 
         ParkingSession? session = null;
         await db.ExecuteInTransactionAsync(async () =>
