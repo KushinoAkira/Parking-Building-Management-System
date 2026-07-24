@@ -59,6 +59,17 @@ type StaffReservation = {
 const PAYMENT_METHODS = ["Cash", "BankTransfer", "EWallet"] as const;
 const INCIDENT_TYPES = ["WrongZone", "SlotOccupied", "WrongPlate", "Overstay", "Unpaid", "LostTicket", "Other"] as const;
 
+/** Preset fine options (VND) per violation type, based on common Vietnamese parking regulations */
+const VIOLATION_PRESETS: Record<string, number[]> = {
+  WrongZone:    [50_000, 100_000, 150_000, 200_000],
+  SlotOccupied: [50_000, 100_000, 200_000],
+  WrongPlate:   [100_000, 200_000, 300_000, 500_000],
+  Overstay:     [20_000, 50_000, 100_000, 200_000],
+  Unpaid:       [50_000, 100_000, 200_000, 500_000],
+  LostTicket:   [50_000, 100_000, 200_000],
+  Other:        [20_000, 50_000, 100_000, 200_000, 500_000],
+};
+
 /** Pending checkout context — populated before opening the modal */
 type CheckoutPending = {
   sessionId: number;
@@ -95,7 +106,14 @@ export function StaffDashboard() {
   const [vPlate, setVPlate] = useState("");
   const [vType, setVType] = useState("WrongZone");
   const [vNote, setVNote] = useState("");
-  const [vPenalty, setVPenalty] = useState("");
+  const [vPenalty, setVPenalty] = useState<number>(VIOLATION_PRESETS["WrongZone"][0]);
+
+  // ── Violation plate search ─────────────────────────────────────────────
+  type ActiveSessionHit = { sessionId: number; licensePlate: string; slotId: string; zoneCode: string };
+  const [vPlateSearch, setVPlateSearch] = useState("");
+  const [vPlateSuggestions, setVPlateSuggestions] = useState<ActiveSessionHit[]>([]);
+  const [vPlateDropdownOpen, setVPlateDropdownOpen] = useState(false);
+  const [vPlateSearching, setVPlateSearching] = useState(false);
   const [ticketCode, setTicketCode] = useState("");
   const [reservations, setReservations] = useState<StaffReservation[]>([]);
 
@@ -417,6 +435,24 @@ export function StaffDashboard() {
     });
   }
 
+  // ── Search active sessions by plate term (debounced) ──────────────────
+  async function searchActiveSessions(term: string) {
+    if (!term.trim()) { setVPlateSuggestions([]); return; }
+    setVPlateSearching(true);
+    try {
+      const data = await apiGet<ActiveSessionHit[]>(
+        `/api/parking-sessions/search?plate=${encodeURIComponent(term.trim())}`,
+        authToken,
+      );
+      setVPlateSuggestions(data);
+      setVPlateDropdownOpen(data.length > 0);
+    } catch {
+      setVPlateSuggestions([]);
+    } finally {
+      setVPlateSearching(false);
+    }
+  }
+
   async function submitViolation(e: React.FormEvent) {
     e.preventDefault();
     if (!vPlate.trim()) return;
@@ -432,16 +468,18 @@ export function StaffDashboard() {
         {
           incidentType: vType,
           description: vNote || "From staff dashboard",
-          penaltyFee: Number(vPenalty) || 0,
+          penaltyFee: vPenalty,
           reportedById: auth?.userId,
           sessionId: active?.sessionId ?? null,
         },
         authToken,
       );
       setVPlate("");
+      setVPlateSearch("");
+      setVPlateSuggestions([]);
       setVType("WrongZone");
       setVNote("");
-      setVPenalty("");
+      setVPenalty(VIOLATION_PRESETS["WrongZone"][0]);
       await loadViolations();
       setResult(t("staff.violationSuccess"));
     } catch (e) {
@@ -773,36 +811,111 @@ export function StaffDashboard() {
             <section className="bg-white dark:bg-[#1A1A1A] rounded-xl p-5 border border-gray-200 dark:border-gray-800">
               <h2 className="font-semibold mb-4">{t("staff.recordViolation")}</h2>
               <form onSubmit={submitViolation} className="space-y-3">
-                <input
-                  value={vPlate}
-                  onChange={(e) => setVPlate(e.target.value.toUpperCase())}
-                  placeholder={t("common.plate")}
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
-                />
+
+                {/* ── Plate search with active-session dropdown ── */}
+                <div className="relative">
+                  <div className="relative">
+                    <input
+                      value={vPlateSearch}
+                      onChange={(e) => {
+                        const v = e.target.value.toUpperCase();
+                        setVPlateSearch(v);
+                        setVPlate(v);
+                        void searchActiveSessions(v);
+                      }}
+                      onFocus={() => { if (vPlateSuggestions.length > 0) setVPlateDropdownOpen(true); }}
+                      onBlur={() => setTimeout(() => setVPlateDropdownOpen(false), 150)}
+                      placeholder={t("common.plate") + " (tìm xe đang đậu..."}
+                      className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212] font-mono uppercase pr-8"
+                    />
+                    {vPlateSearching && (
+                      <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400 animate-pulse">⏳</span>
+                    )}
+                  </div>
+
+                  {/* Dropdown suggestions */}
+                  {vPlateDropdownOpen && vPlateSuggestions.length > 0 && (
+                    <ul className="absolute z-30 w-full mt-1 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-700 rounded-lg shadow-xl overflow-hidden">
+                      {vPlateSuggestions.map((s) => (
+                        <li
+                          key={s.sessionId}
+                          onMouseDown={() => {
+                            setVPlate(s.licensePlate);
+                            setVPlateSearch(s.licensePlate);
+                            setVPlateSuggestions([]);
+                            setVPlateDropdownOpen(false);
+                          }}
+                          className="flex items-center justify-between px-3 py-2.5 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-600/10 border-b border-gray-100 dark:border-gray-800 last:border-0"
+                        >
+                          <span className="font-mono font-bold text-gray-900 dark:text-white text-sm">{s.licensePlate}</span>
+                          <span className="text-xs text-gray-500 dark:text-gray-400">{s.zoneCode} · {s.slotId}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  {/* No match hint */}
+                  {vPlateSearch.length >= 2 && !vPlateSearching && vPlateSuggestions.length === 0 && (
+                    <p className="text-xs text-amber-600 dark:text-amber-400 mt-1 px-1">⚠ Không tìm thấy xe đang đậu — vi phạm sẽ không gắn vào phiên nào.</p>
+                  )}
+
+                  {/* Selected badge */}
+                  {vPlate && vPlateSuggestions.length === 0 && !vPlateDropdownOpen && (
+                    <div className="flex items-center gap-2 mt-1 px-1">
+                      <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-blue-600/10 text-blue-700 dark:text-blue-300 text-xs font-semibold font-mono">
+                        🚗 {vPlate}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                {/* ── Violation type ── */}
                 <select
                   value={vType}
-                  onChange={(e) => setVType(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
+                  onChange={(e) => {
+                    setVType(e.target.value);
+                    setVPenalty(VIOLATION_PRESETS[e.target.value]?.[0] ?? 50_000);
+                  }}
+                  className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
                 >
                   {INCIDENT_TYPES.map((type) => (
                     <option key={type} value={type}>{t(`incident.${type}`)}</option>
                   ))}
                 </select>
+
+                {/* ── Description ── */}
                 <textarea
                   value={vNote}
                   onChange={(e) => setVNote(e.target.value)}
                   placeholder={t("staff.description")}
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
+                  rows={2}
+                  className="w-full border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212] resize-none"
                 />
-                <input
-                  type="number"
-                  min={0}
-                  value={vPenalty}
-                  onChange={(e) => setVPenalty(e.target.value)}
-                  placeholder={t("staff.penaltyFee")}
-                  className="w-full border rounded-lg px-3 py-2 bg-gray-50 dark:bg-[#121212]"
-                />
-                <button className="w-full bg-blue-600 text-white py-2 rounded-lg">
+
+                {/* ── Penalty fee preset ── */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-600 dark:text-gray-400 mb-1.5">
+                    {t("staff.penaltyFee")} (VNĐ)
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {(VIOLATION_PRESETS[vType] ?? [50_000]).map((fee) => (
+                      <button
+                        key={fee}
+                        type="button"
+                        onClick={() => setVPenalty(fee)}
+                        className={`py-2 rounded-lg text-sm font-semibold border transition-all ${
+                          vPenalty === fee
+                            ? "bg-red-600 text-white border-red-600"
+                            : "bg-white dark:bg-[#121212] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-red-400"
+                        }`}
+                      >
+                        {fee.toLocaleString("vi-VN")} đ
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <button className="w-full bg-blue-600 text-white py-2 rounded-lg font-semibold">
                   <AlertTriangle className="w-4 h-4 inline mr-2" />
                   {t("staff.saveViolation")}
                 </button>
