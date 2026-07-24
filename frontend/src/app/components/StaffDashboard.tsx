@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Camera, Car, CheckCircle, LogOut, ShieldAlert, List, Calendar, X } from "lucide-react";
+import { AlertTriangle, Camera, Car, CheckCircle, Clock, CreditCard, LogOut, ShieldAlert, List, Calendar, X, Ticket } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
 import { NotificationDropdown } from "./NotificationDropdown";
 import { ParkingSlotMap } from "./ParkingSlotMap";
-import type { StaffFloor } from "../lib/parkingFloors";
+import type { StaffFloor, StaffFloorSlot } from "../lib/parkingFloors";
 import { PlateCameraScanner } from "./PlateCameraScanner";
 import { useNavigate } from "react-router";
 import { apiGet, apiPost, isNetworkError, isTimeoutError } from "../lib/api";
@@ -58,6 +58,16 @@ type StaffReservation = {
 const PAYMENT_METHODS = ["Cash", "BankTransfer", "EWallet"] as const;
 const INCIDENT_TYPES = ["WrongZone", "SlotOccupied", "WrongPlate", "Overstay", "Unpaid", "LostTicket", "Other"] as const;
 
+/** Pending checkout context — populated before opening the modal */
+type CheckoutPending = {
+  sessionId: number;
+  licensePlate: string;
+  slotId: string;
+  entryTime: string;
+  coveredBySubscription?: boolean;
+  estimatedFee?: number;
+};
+
 export function StaffDashboard() {
   const navigate = useNavigate();
   const { t, formatMoney, formatDateTime, ts, tp, tv } = useLocale();
@@ -84,10 +94,16 @@ export function StaffDashboard() {
   const [vType, setVType] = useState("WrongZone");
   const [vNote, setVNote] = useState("");
   const [vPenalty, setVPenalty] = useState("");
-  const [lostTicket, setLostTicket] = useState(false);
-  const [paymentMethod, setPaymentMethod] = useState<(typeof PAYMENT_METHODS)[number]>("Cash");
   const [ticketCode, setTicketCode] = useState("");
   const [reservations, setReservations] = useState<StaffReservation[]>([]);
+
+  // ── Checkout modal state ──────────────────────────────────────────────────
+  const [checkoutPending, setCheckoutPending] = useState<CheckoutPending | null>(null);
+  const [modalPaymentMethod, setModalPaymentMethod] = useState<(typeof PAYMENT_METHODS)[number]>("Cash");
+  const [modalLostTicket, setModalLostTicket] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [modalError, setModalError] = useState("");
+  // ─────────────────────────────────────────────────────────────────────────
 
   const auth = getAuth();
   const authToken = auth?.token ?? "";
@@ -168,50 +184,48 @@ export function StaffDashboard() {
     return () => clearInterval(timer);
   }, []);
 
-  async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
+  // ── Check-in: always creates a new session ──────────────────────────────
+  async function doCheckIn(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
     const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
     if (!normalizedPlate) return false;
     setLoadingAction(true);
     setActionError("");
     setResult("");
-
     try {
-      const active = await apiGet<{ sessionId: number } | null>(
-        `/api/parking-sessions/active/${encodeURIComponent(normalizedPlate)}`,
-        authToken,
-      ).catch(() => null);
+      let vehicleTypeId = options?.vehicleTypeId;
+      let reservationId = options?.reservationId ?? null;
 
-      if (active?.sessionId) {
-        const out = await apiPost<{ totalFee: number }>(
-          `/api/parking-sessions/${active.sessionId}/check-out`,
-          {
-            paymentMethod,
-            exitStaffId: auth?.userId,
-            exitGate: selectedGate,
-            lostTicket,
-          },
+      if (!reservationId) {
+        // Auto-lookup active reservation for this plate
+        const reservation = await apiGet<{ reservationId: number; vehicleTypeId: number; status: string } | null>(
+          `/api/reservations/by-plate/${encodeURIComponent(normalizedPlate)}`,
           authToken,
-        );
-        setResult(t("staff.checkoutSuccess", { plate: normalizedPlate, fee: formatMoney(out.totalFee) }));
-      } else {
-        const vehicleTypeId = options?.vehicleTypeId ?? Number(selectedVehicleType);
-        if (!vehicleTypeId) throw new Error(t("staff.selectVehicleError"));
-        const checkIn = await apiPost<{ slotId: string }>(
-          "/api/parking-sessions/check-in",
-          {
-            licensePlate: normalizedPlate,
-            vehicleTypeId,
-            entryStaffId: auth?.userId,
-            entryGate: selectedGate,
-            reservationId: options?.reservationId ?? null,
-          },
-          authToken,
-        );
-        setResult(t("staff.checkinSuccess", { plate: normalizedPlate, slot: checkIn.slotId }));
+        ).catch(() => null);
+
+        if (reservation?.reservationId) {
+          reservationId = reservation.reservationId;
+          vehicleTypeId = vehicleTypeId ?? reservation.vehicleTypeId;
+        }
       }
 
+      vehicleTypeId = vehicleTypeId ?? Number(selectedVehicleType);
+      if (!vehicleTypeId) throw new Error(t("staff.selectVehicleError"));
+      const checkIn = await apiPost<{ slotId: string }>(
+        "/api/parking-sessions/check-in",
+        {
+          licensePlate: normalizedPlate,
+          vehicleTypeId,
+          entryStaffId: auth?.userId,
+          entryGate: selectedGate,
+          reservationId,
+        },
+        authToken,
+      );
+      
+      const successMsg = t("staff.checkinSuccess", { plate: normalizedPlate, slot: checkIn.slotId });
+      setResult(reservationId ? `${successMsg} (Từ đặt chỗ)` : successMsg);
+      
       setPlate("");
-      setLostTicket(false);
       await reloadQuiet();
       return true;
     } catch (e) {
@@ -222,6 +236,126 @@ export function StaffDashboard() {
     }
   }
 
+  // ── Open checkout modal: fetch active session then show modal ─────────────
+  async function openCheckoutModal(rawPlate: string) {
+    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
+    if (!normalizedPlate) return;
+    setLoadingAction(true);
+    setActionError("");
+    setResult("");
+    try {
+      const active = await apiGet<{
+        sessionId: number;
+        licensePlate: string;
+        slotId: string;
+        entryTime: string;
+        coveredBySubscription?: boolean;
+        estimatedFee?: number;
+      } | null>(
+        `/api/parking-sessions/active/${encodeURIComponent(normalizedPlate)}`,
+        authToken,
+      ).catch(() => null);
+
+      if (!active?.sessionId) {
+        setActionError(t("staff.noActiveSession") || `No active session found for ${normalizedPlate}`);
+        return;
+      }
+      setModalPaymentMethod("Cash");
+      setModalLostTicket(false);
+      setModalError("");
+      setCheckoutPending({
+        sessionId:   active.sessionId,
+        licensePlate: active.licensePlate,
+        slotId:      active.slotId,
+        entryTime:   active.entryTime,
+        coveredBySubscription: active.coveredBySubscription,
+        estimatedFee: active.estimatedFee,
+      });
+    } catch (e) {
+      setActionError(staffError(e, t("staff.plateFailed")));
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
+  // ── Open modal from occupied slot (already has session data) ──────────────
+  function openCheckoutModalFromSlot(slot: StaffFloorSlot) {
+    if (!slot.activeSession) return;
+    if (!slot.activeSession.sessionId) {
+      // sessionId not embedded in slot data — look it up via plate
+      void openCheckoutModal(slot.activeSession.licensePlate);
+      return;
+    }
+    setModalPaymentMethod("Cash");
+    setModalLostTicket(false);
+    setModalError("");
+    setCheckoutPending({
+      sessionId:    slot.activeSession.sessionId,
+      licensePlate: slot.activeSession.licensePlate,
+      slotId:       slot.slotId,
+      entryTime:    slot.activeSession.entryTime,
+    });
+  }
+
+  // ── Confirm checkout from modal ───────────────────────────────────────────
+  async function confirmCheckout() {
+    if (!checkoutPending || !auth) return;
+    setModalLoading(true);
+    setModalError("");
+    try {
+      const out = await apiPost<{ totalFee: number; coveredBySubscription?: boolean }>(
+        `/api/parking-sessions/${checkoutPending.sessionId}/check-out`,
+        {
+          paymentMethod: modalPaymentMethod,
+          exitStaffId:   auth.userId,
+          exitGate:      selectedGate,
+          lostTicket:    modalLostTicket,
+        },
+        authToken,
+      );
+      setCheckoutPending(null);
+      setResult(t("staff.checkoutSuccess", {
+        plate: checkoutPending.licensePlate,
+        fee: formatMoney(out.totalFee),
+      }));
+      await reloadQuiet();
+    } catch (e) {
+      setModalError(staffError(e, t("staff.plateFailed")));
+    } finally {
+      setModalLoading(false);
+    }
+  }
+
+  // ── Smart plate submit: check-in if no active session, else open modal ───
+  async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
+    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
+    if (!normalizedPlate) return false;
+    setLoadingAction(true);
+    setActionError("");
+    setResult("");
+    try {
+      const active = await apiGet<{ sessionId: number } | null>(
+        `/api/parking-sessions/active/${encodeURIComponent(normalizedPlate)}`,
+        authToken,
+      ).catch(() => null);
+
+      if (active?.sessionId) {
+        // Has active session → open confirmation modal instead of auto-checkout
+        setLoadingAction(false);
+        await openCheckoutModal(normalizedPlate);
+        return true;
+      } else {
+        return await doCheckIn(rawPlate, options);
+      }
+    } catch (e) {
+      setActionError(staffError(e, t("staff.plateFailed")));
+      return false;
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
+  // ── Ticket code search: find session info only, open modal if active ─────
   async function processTicketCode() {
     const code = ticketCode.trim();
     if (!code || !auth) return;
@@ -229,12 +363,32 @@ export function StaffDashboard() {
     setActionError("");
     setResult("");
     try {
-      const session = await apiGet<{ sessionId: number; licensePlate: string; status: string }>(
+      const session = await apiGet<{
+        sessionId: number;
+        licensePlate: string;
+        slotId: string;
+        entryTime: string;
+        status: string;
+        coveredBySubscription?: boolean;
+        estimatedFee?: number;
+      }>(
         `/api/parking-sessions/ticket/${encodeURIComponent(code)}`,
         authToken,
       );
       if (session.status === "Active") {
-        await processPlate(session.licensePlate);
+        // Show checkout modal — do NOT auto-checkout
+        setModalPaymentMethod("Cash");
+        setModalLostTicket(false);
+        setModalError("");
+        setCheckoutPending({
+          sessionId:            session.sessionId,
+          licensePlate:         session.licensePlate,
+          slotId:               session.slotId,
+          entryTime:            session.entryTime,
+          coveredBySubscription: session.coveredBySubscription,
+          estimatedFee:          session.estimatedFee,
+        });
+        setTicketCode("");
       } else {
         setResult(t("staff.ticketResult", { code, plate: session.licensePlate, status: ts(session.status) }));
       }
@@ -251,7 +405,7 @@ export function StaffDashboard() {
         v.typeCode.toLowerCase() === r.vehicleType.toLowerCase() ||
         v.typeName.toLowerCase() === r.vehicleType.toLowerCase(),
     );
-    await processPlate(r.licensePlate, {
+    await doCheckIn(r.licensePlate, {
       reservationId: r.reservationId,
       vehicleTypeId: vt?.vehicleTypeId ?? Number(selectedVehicleType),
     });
@@ -391,21 +545,6 @@ export function StaffDashboard() {
                     placeholder={t("staff.platePlaceholder")}
                     className="w-full bg-gray-50 dark:bg-[#121212] border border-gray-200 dark:border-gray-700 rounded-xl px-4 py-3 font-mono uppercase"
                   />
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={paymentMethod}
-                      onChange={(e) => setPaymentMethod(e.target.value as typeof paymentMethod)}
-                      className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
-                    >
-                      {PAYMENT_METHODS.map((m) => (
-                        <option key={m} value={m}>{tp(m)}</option>
-                      ))}
-                    </select>
-                    <label className="flex items-center gap-2 text-sm px-2 border border-gray-200 dark:border-gray-700 rounded-xl">
-                      <input type="checkbox" checked={lostTicket} onChange={(e) => setLostTicket(e.target.checked)} />
-                      {t("staff.lostTicket")}
-                    </label>
-                  </div>
                   <button
                     disabled={loadingAction || !plate.trim()}
                     className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
@@ -471,13 +610,141 @@ export function StaffDashboard() {
                 floors={floors}
                 activeFloorId={activeFloorId}
                 onFloorChange={setActiveFloorId}
-                onOccupiedSlotClick={(slot) => {
-                  if (slot.activeSession) processPlate(slot.activeSession.licensePlate);
-                }}
+                onOccupiedSlotClick={openCheckoutModalFromSlot}
               />
             </div>
           </div>
         )}
+
+        {/* ── Checkout Confirmation Modal ─────────────────────────────────── */}
+        <AnimatePresence>
+          {checkoutPending && (
+            <motion.div
+              key="checkout-modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+              onClick={(e) => { if (e.target === e.currentTarget && !modalLoading) setCheckoutPending(null); }}
+            >
+              <motion.div
+                key="checkout-modal"
+                initial={{ opacity: 0, scale: 0.94, y: 16 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.94, y: 16 }}
+                transition={{ type: "spring", duration: 0.35 }}
+                className="w-full max-w-md bg-white dark:bg-[#1A1A1A] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 overflow-hidden"
+              >
+                {/* Header */}
+                <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 dark:border-gray-800">
+                  <div className="flex items-center gap-2">
+                    <CreditCard className="w-5 h-5 text-red-500" />
+                    <h2 className="font-bold text-gray-900 dark:text-white">{t("staff.checkoutConfirm") || "Xác nhận Check-out"}</h2>
+                  </div>
+                  <button
+                    onClick={() => !modalLoading && setCheckoutPending(null)}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-400"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Session info */}
+                <div className="px-5 py-4 space-y-3">
+                  <div className="bg-gray-50 dark:bg-[#121212] rounded-xl border border-gray-100 dark:border-gray-800 p-4 space-y-2 text-sm">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">{t("common.plate") || "Biển số"}</span>
+                      <span className="font-mono font-bold text-base">{checkoutPending.licensePlate}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500">{t("common.slot") || "Vị trí"}</span>
+                      <span className="font-semibold">{checkoutPending.slotId}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-500 flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{t("slots.checkInLabel") || "Giờ vào"}</span>
+                      <span className="text-xs">{formatDateTime(checkoutPending.entryTime)}</span>
+                    </div>
+                    {checkoutPending.estimatedFee !== undefined && (
+                      <div className="flex justify-between items-center pt-1 border-t border-gray-100 dark:border-gray-800">
+                        <span className="text-gray-500">{t("staff.estimatedFee") || "Phí ước tính"}</span>
+                        <span className="font-bold text-blue-600">{formatMoney(checkoutPending.estimatedFee)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Subscription badge */}
+                  {checkoutPending.coveredBySubscription && (
+                    <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-emerald-50 dark:bg-emerald-500/10 border border-emerald-200 dark:border-emerald-500/30">
+                      <Ticket className="w-4 h-4 text-emerald-600" />
+                      <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">
+                        {t("staff.subscriptionCovered") || "Đã mua vé tháng — phí gửi xe miễn phí"}
+                      </span>
+                    </div>
+                  )}
+
+                  {/* Payment method */}
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">
+                      {t("staff.paymentMethod") || "Phương thức thanh toán"}
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {PAYMENT_METHODS.map((m) => (
+                        <button
+                          key={m}
+                          type="button"
+                          onClick={() => setModalPaymentMethod(m)}
+                          className={`py-2 rounded-xl text-sm font-semibold border transition-all ${
+                            modalPaymentMethod === m
+                              ? "bg-blue-600 text-white border-blue-600"
+                              : "bg-white dark:bg-[#121212] text-gray-700 dark:text-gray-300 border-gray-200 dark:border-gray-700 hover:border-blue-400"
+                          }`}
+                        >
+                          {tp(m)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Lost ticket */}
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={modalLostTicket}
+                      onChange={(e) => setModalLostTicket(e.target.checked)}
+                      className="w-4 h-4 rounded"
+                    />
+                    <span className="text-gray-700 dark:text-gray-300">{t("staff.lostTicket") || "Mất vé"}</span>
+                  </label>
+
+                  {/* Error */}
+                  {modalError && (
+                    <div className="text-sm text-red-600 bg-red-50 dark:bg-red-500/10 p-3 rounded-xl">{modalError}</div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="grid grid-cols-2 gap-3 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => !modalLoading && setCheckoutPending(null)}
+                      disabled={modalLoading}
+                      className="py-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-sm font-semibold text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-50"
+                    >
+                      {t("common.cancel") || "Hủy"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={confirmCheckout}
+                      disabled={modalLoading}
+                      className="py-2.5 rounded-xl bg-red-600 hover:bg-red-700 text-white text-sm font-semibold disabled:opacity-50"
+                    >
+                      {modalLoading ? (t("staff.processing") || "Đang xử lý...") : (t("slots.checkoutBtn") || "Xác nhận Checkout")}
+                    </button>
+                  </div>
+                </div>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {activeTab === "violations" && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

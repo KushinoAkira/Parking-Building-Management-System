@@ -89,7 +89,28 @@ public class ReservationsController(
         return Ok(await reservationService.ConfirmAsync(id, ct));
     }
 
+    [HttpGet("by-plate/{plate}")]
+    [Authorize(Roles = RoleNames.StaffOrAbove)]
+    public async Task<IActionResult> GetActiveByPlate(string plate, CancellationToken ct)
+    {
+        var normalized = plate.Trim().ToUpperInvariant();
+        var reservation = await db.Reservations
+            .AsNoTracking()
+            .Include(r => r.User)
+            .Include(r => r.VehicleType)
+            .Where(r =>
+                r.LicensePlate == normalized &&
+                (r.Status == "Confirmed" || r.Status == "Pending"))
+            .OrderBy(r => r.ReservedFrom)
+            .Select(DtoProjections.Reservation)
+            .FirstOrDefaultAsync(ct);
+
+        if (reservation is null) return NotFound();
+        return Ok(reservation);
+    }
+
     [HttpPost("{id:int}/cancel")]
+
     public async Task<IActionResult> Cancel(int id, CancellationToken ct)
     {
         if (User.GetRoleName() == RoleNames.Driver)
