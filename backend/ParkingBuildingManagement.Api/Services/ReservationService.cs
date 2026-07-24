@@ -30,14 +30,25 @@ public class ReservationService(
             throw new BusinessException("User not found.", 404);
 
         // ── Duplicate guard: no active (Pending/Confirmed) reservation for same plate ──
-        var normalizedPlate = request.LicensePlate?.Trim().ToUpperInvariant();
+        // Normalize: strip internal whitespace to match how plates are stored at check-in.
+        var normalizedPlate = string.IsNullOrWhiteSpace(request.LicensePlate)
+            ? null
+            : System.Text.RegularExpressions.Regex.Replace(
+                request.LicensePlate.Trim().ToUpperInvariant(), @"\s+", "");
         if (!string.IsNullOrEmpty(normalizedPlate))
         {
-            var hasDuplicate = await db.Reservations.AnyAsync(r =>
-                r.UserId == request.UserId &&
-                r.LicensePlate == normalizedPlate &&
-                (r.Status == "Pending" || r.Status == "Confirmed"),
-                ct);
+            // Also normalize stored plates the same way for in-memory comparison safety.
+            var activePlates = await db.Reservations
+                .Where(r =>
+                    r.UserId == request.UserId &&
+                    (r.Status == "Pending" || r.Status == "Confirmed") &&
+                    r.LicensePlate != null)
+                .Select(r => r.LicensePlate!)
+                .ToListAsync(ct);
+
+            var hasDuplicate = activePlates.Any(p =>
+                System.Text.RegularExpressions.Regex.Replace(
+                    p.Trim().ToUpperInvariant(), @"\s+", "") == normalizedPlate);
 
             if (hasDuplicate)
                 throw new BusinessException(
@@ -165,7 +176,9 @@ public class ReservationService(
         var now = DateTime.UtcNow;
         var overdue = await db.Reservations
             .Include(r => r.Slot)
-            .Where(r => r.Status == "Confirmed" && r.ReservedTo < now)
+            // Expire both Confirmed (slot is Reserved) and Pending (no slot held, but
+            // still blocks the duplicate guard — must be cleaned up so users can re-book).
+            .Where(r => (r.Status == "Confirmed" || r.Status == "Pending") && r.ReservedTo < now)
             .ToListAsync(ct);
 
         if (overdue.Count == 0)

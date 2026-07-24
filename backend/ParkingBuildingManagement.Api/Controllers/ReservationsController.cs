@@ -93,23 +93,22 @@ public class ReservationsController(
     [Authorize(Roles = RoleNames.StaffOrAbove)]
     public async Task<IActionResult> GetActiveByPlate(string plate, CancellationToken ct)
     {
-        // Strip all whitespace so "45F28889" matches "45F  28889" stored in DB
+        // Normalize once — same rule used at check-in (strip internal whitespace, uppercase).
         var normalized = System.Text.RegularExpressions.Regex.Replace(
             plate.Trim().ToUpperInvariant(), @"\s+", "");
-        var reservation = await db.Reservations
+
+        // Fetch only active reservations; plates are stored already-normalized so direct
+        // DB-side equality works and avoids loading the full table into memory.
+        var match = await db.Reservations
             .AsNoTracking()
             .Include(r => r.User)
             .Include(r => r.VehicleType)
             .Where(r =>
+                r.LicensePlate == normalized &&
                 (r.Status == "Confirmed" || r.Status == "Pending"))
             .OrderBy(r => r.ReservedFrom)
             .Select(DtoProjections.Reservation)
-            .ToListAsync(ct);
-
-        var match = reservation.FirstOrDefault(r =>
-            r.LicensePlate != null &&
-            System.Text.RegularExpressions.Regex.Replace(
-                r.LicensePlate.Trim().ToUpperInvariant(), @"\s+", "") == normalized);
+            .FirstOrDefaultAsync(ct);
 
         if (match is null) return NotFound();
         return Ok(match);
