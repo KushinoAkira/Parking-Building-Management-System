@@ -147,10 +147,7 @@ export function ParkingSlotMap({ floors, activeFloorId, onFloorChange, onOccupie
                         type="button"
                         whileHover={{ scale: 1.04 }}
                         key={slot.slotId}
-                        onClick={() => {
-                          setSelectedSlot(slot);
-                          if (ui === "occupied" && slot.activeSession) onOccupiedSlotClick?.(slot);
-                        }}
+                        onClick={() => setSelectedSlot(slot)}
                         className={`relative flex flex-col items-center justify-center p-2 rounded-xl border-2 min-h-[96px] transition-all ${
                           selectedSlot?.slotId === slot.slotId ? "ring-2 ring-blue-600 ring-offset-2 dark:ring-offset-[#1A1A1A]" : ""
                         } ${

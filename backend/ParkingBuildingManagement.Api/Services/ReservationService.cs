@@ -29,6 +29,41 @@ public class ReservationService(
         if (!userExists)
             throw new BusinessException("User not found.", 404);
 
+        // ── Duplicate guard: no active (Pending/Confirmed) reservation for same plate ──
+        var normalizedPlate = request.LicensePlate?.Trim().ToUpperInvariant();
+        if (!string.IsNullOrEmpty(normalizedPlate))
+        {
+            var hasDuplicate = await db.Reservations.AnyAsync(r =>
+                r.UserId == request.UserId &&
+                r.LicensePlate == normalizedPlate &&
+                (r.Status == "Pending" || r.Status == "Confirmed"),
+                ct);
+
+            if (hasDuplicate)
+                throw new BusinessException(
+                    $"Biển số '{normalizedPlate}' đã có đặt chỗ đang chờ hoặc đã xác nhận. " +
+                    "Vui lòng huỷ đặt chỗ hiện tại trước khi tạo mới.", 409);
+        }
+
+        // ── Check global active reservation cap (from SystemConfig) ─────────────────
+        var maxActive = await db.SystemConfigs
+            .Where(c => c.ConfigKey == "MAX_ACTIVE_RESERVATIONS")
+            .Select(c => c.ConfigValue)
+            .FirstOrDefaultAsync(ct);
+
+        if (int.TryParse(maxActive, out var cap) && cap > 0)
+        {
+            var activeCount = await db.Reservations.CountAsync(r =>
+                r.UserId == request.UserId &&
+                (r.Status == "Pending" || r.Status == "Confirmed"),
+                ct);
+
+            if (activeCount >= cap)
+                throw new BusinessException(
+                    $"Bạn đã đạt giới hạn {cap} đặt chỗ đang hoạt động. " +
+                    "Vui lòng huỷ một đặt chỗ trước khi tạo mới.", 409);
+        }
+
         ParkingSlot? slot = null;
         if (!string.IsNullOrWhiteSpace(request.SlotId))
         {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Car, MapPin, Clock, CreditCard, ChevronRight, Bell, Search, QrCode, Home, Ticket, Info, X, CheckCircle2, Wallet, History, Tag, ScanLine, Image as ImageIcon, Settings, AlertTriangle, Plus, ArrowUpRight, ArrowDownLeft, Calendar, MessageSquare, Loader2 } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
@@ -225,11 +225,16 @@ export function UserMobileHome() {
     });
   }, [parkingFloors]);
 
+  const bookSubmittingRef = useRef(false);
+
   async function handleBookSlot() {
     if (!authToken || !userId || !bookPlate.trim()) {
       setBookMessage(t("driver.bookPlateRequired"));
       return;
     }
+    // Ref-based guard: blocks concurrent calls even before state re-renders
+    if (bookSubmittingRef.current) return;
+    bookSubmittingRef.current = true;
     setBookSubmitting(true);
     setBookMessage("");
     try {
@@ -255,6 +260,7 @@ export function UserMobileHome() {
     } catch (e) {
       setBookMessage(driverError(e, t("driver.bookFailed")));
     } finally {
+      bookSubmittingRef.current = false;
       setBookSubmitting(false);
     }
   }
