@@ -88,6 +88,7 @@ export function StaffDashboard() {
   const [vehicleTypes, setVehicleTypes] = useState<BookVehicleType[]>([]);
   const [selectedVehicleType, setSelectedVehicleType] = useState<number | "">("");
   const [selectedGate, setSelectedGate] = useState<string>("Gate-A");
+  const [preferVip, setPreferVip] = useState(false);
 
   const staffVehicleTypes = bookableVehicleTypes(vehicleTypes);
   
@@ -186,7 +187,7 @@ export function StaffDashboard() {
   }, []);
 
   // ── Check-in: always creates a new session ──────────────────────────────
-  async function doCheckIn(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
+  async function doCheckIn(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number; preferVipSlot?: boolean }): Promise<boolean> {
     // rawApiPlate: strip all whitespace for DB/API matching (backend normalizes the same way)
     const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
     // displayPlate: formatted for UI messages only
@@ -222,6 +223,7 @@ export function StaffDashboard() {
           entryStaffId: auth?.userId,
           entryGate: selectedGate,
           reservationId,
+          preferVipSlot: options?.preferVipSlot ?? false,
         },
         authToken,
       );
@@ -331,7 +333,7 @@ export function StaffDashboard() {
   }
 
   // ── Smart plate submit: check-in if no active session, else open modal ───
-  async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
+  async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number; preferVipSlot?: boolean }): Promise<boolean> {
     const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
     if (!rawApiPlate) return false;
     setLoadingAction(true);
@@ -519,7 +521,7 @@ export function StaffDashboard() {
                   className="space-y-3"
                   onSubmit={async (e) => {
                     e.preventDefault();
-                    await processPlate(plate);
+                    await processPlate(plate, { preferVipSlot: preferVip });
                   }}
                 >
                   <div className="grid grid-cols-2 gap-2">
@@ -544,6 +546,20 @@ export function StaffDashboard() {
                       <option value="Gate-VIP">{t("staff.gateVip")}</option>
                     </select>
                   </div>
+
+                  {/* VIP slot checkbox */}
+                  <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+                    <input
+                      type="checkbox"
+                      checked={preferVip}
+                      onChange={(e) => setPreferVip(e.target.checked)}
+                      className="w-4 h-4 rounded accent-yellow-500"
+                    />
+                    <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                      ⭐ {t("staff.preferVip") || "Ưu tiên chỗ VIP"}
+                    </span>
+                  </label>
+
                   <input
                     value={plate}
                     onChange={(e) => setPlate(e.target.value.toUpperCase())}
