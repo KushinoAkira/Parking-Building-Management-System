@@ -13,6 +13,7 @@ public interface IParkingSessionService
     Task<CheckOutResultDto> CheckOutAsync(int sessionId, CheckOutRequest request, CancellationToken ct);
     Task<SessionDto?> GetByTicketCodeAsync(string ticketCode, CancellationToken ct);
     Task<SessionDto?> GetActiveByLicensePlateAsync(string licensePlate, CancellationToken ct);
+    Task<List<SessionDto>> SearchActiveByPlateAsync(string plateTerm, CancellationToken ct);
 }
 
 public class ParkingSessionService(
@@ -183,6 +184,21 @@ public class ParkingSessionService(
             .Where(s => s.LicensePlate == licensePlate.ToUpperInvariant() && s.Status == "Active")
             .Select(DtoProjections.Session)
             .FirstOrDefaultAsync(ct);
+
+    public async Task<List<SessionDto>> SearchActiveByPlateAsync(string plateTerm, CancellationToken ct)
+    {
+        var term = plateTerm.Trim().ToUpperInvariant();
+        if (term.Length == 0)
+            return [];
+
+        return await db.ParkingSessions
+            .AsNoTracking()
+            .Where(s => s.Status == "Active" && s.LicensePlate.Contains(term))
+            .OrderBy(s => s.LicensePlate)
+            .Take(20)
+            .Select(DtoProjections.Session)
+            .ToListAsync(ct);
+    }
 
     private async Task<SessionDto?> MapSessionAsync(int sessionId, CancellationToken ct) =>
         await db.ParkingSessions
