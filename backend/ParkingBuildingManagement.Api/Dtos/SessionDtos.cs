@@ -11,7 +11,8 @@ public record CheckInRequest(
     int? ReservationId,
     int? EntryStaffId,
     [MaxLength(50)] string? EntryGate,
-    [MaxLength(500)] string? Note);
+    [MaxLength(500)] string? Note,
+    bool? PreferVipSlot = false);
 
 public record CheckOutRequest(
     int? ExitStaffId,
