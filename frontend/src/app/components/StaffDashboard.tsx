@@ -187,8 +187,11 @@ export function StaffDashboard() {
 
   // ── Check-in: always creates a new session ──────────────────────────────
   async function doCheckIn(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
-    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
-    if (!normalizedPlate) return false;
+    // rawApiPlate: strip all whitespace for DB/API matching (backend normalizes the same way)
+    const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
+    // displayPlate: formatted for UI messages only
+    const displayPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase() || rawApiPlate;
+    if (!rawApiPlate) return false;
     setLoadingAction(true);
     setActionError("");
     setResult("");
@@ -197,9 +200,9 @@ export function StaffDashboard() {
       let reservationId = options?.reservationId ?? null;
 
       if (!reservationId) {
-        // Auto-lookup active reservation for this plate
+        // Auto-lookup active reservation for this plate using the stripped plate
         const reservation = await apiGet<{ reservationId: number; vehicleTypeId: number; status: string } | null>(
-          `/api/reservations/by-plate/${encodeURIComponent(normalizedPlate)}`,
+          `/api/reservations/by-plate/${encodeURIComponent(rawApiPlate)}`,
           authToken,
         ).catch(() => null);
 
@@ -214,7 +217,7 @@ export function StaffDashboard() {
       const checkIn = await apiPost<{ slotId: string }>(
         "/api/parking-sessions/check-in",
         {
-          licensePlate: normalizedPlate,
+          licensePlate: rawApiPlate,
           vehicleTypeId,
           entryStaffId: auth?.userId,
           entryGate: selectedGate,
@@ -223,7 +226,7 @@ export function StaffDashboard() {
         authToken,
       );
       
-      const successMsg = t("staff.checkinSuccess", { plate: normalizedPlate, slot: checkIn.slotId });
+      const successMsg = t("staff.checkinSuccess", { plate: displayPlate, slot: checkIn.slotId });
       setResult(reservationId ? `${successMsg} (Từ đặt chỗ)` : successMsg);
       
       setPlate("");
@@ -239,8 +242,8 @@ export function StaffDashboard() {
 
   // ── Open checkout modal: fetch active session then show modal ─────────────
   async function openCheckoutModal(rawPlate: string) {
-    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
-    if (!normalizedPlate) return;
+    const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
+    if (!rawApiPlate) return;
     setLoadingAction(true);
     setActionError("");
     setResult("");
@@ -253,12 +256,12 @@ export function StaffDashboard() {
         coveredBySubscription?: boolean;
         estimatedFee?: number;
       } | null>(
-        `/api/parking-sessions/active/${encodeURIComponent(normalizedPlate)}`,
+        `/api/parking-sessions/active/${encodeURIComponent(rawApiPlate)}`,
         authToken,
       ).catch(() => null);
 
       if (!active?.sessionId) {
-        setActionError(t("staff.noActiveSession") || `No active session found for ${normalizedPlate}`);
+        setActionError(t("staff.noActiveSession") || `No active session found for ${rawApiPlate}`);
         return;
       }
       setModalPaymentMethod("Cash");
@@ -329,21 +332,21 @@ export function StaffDashboard() {
 
   // ── Smart plate submit: check-in if no active session, else open modal ───
   async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number }): Promise<boolean> {
-    const normalizedPlate = normalizePlateDisplay(rawPlate).trim().toUpperCase();
-    if (!normalizedPlate) return false;
+    const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
+    if (!rawApiPlate) return false;
     setLoadingAction(true);
     setActionError("");
     setResult("");
     try {
       const active = await apiGet<{ sessionId: number } | null>(
-        `/api/parking-sessions/active/${encodeURIComponent(normalizedPlate)}`,
+        `/api/parking-sessions/active/${encodeURIComponent(rawApiPlate)}`,
         authToken,
       ).catch(() => null);
 
       if (active?.sessionId) {
         // Has active session → open confirmation modal instead of auto-checkout
         setLoadingAction(false);
-        await openCheckoutModal(normalizedPlate);
+        await openCheckoutModal(rawApiPlate);
         return true;
       } else {
         return await doCheckIn(rawPlate, options);
