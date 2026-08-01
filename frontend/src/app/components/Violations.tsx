@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Search, ShieldAlert, Car, MoreHorizontal, CheckCircle2, Loader2 } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, Fragment } from "react";
+import { Search, ShieldAlert, Car, MoreHorizontal, CheckCircle2, Loader2, ChevronDown, ChevronUp } from "lucide-react";
 import { apiGet, apiPost } from "../lib/api";
 import { getAuth } from "../lib/auth";
 import { apiErrorMessage } from "../lib/driverErrors";
@@ -31,6 +31,16 @@ export function Violations() {
   const [loading, setLoading] = useState(true);
   const [resolvingId, setResolvingId] = useState<number | null>(null);
   const [error, setError] = useState("");
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+
+  const toggleRow = (id: number) => {
+    setExpandedRows(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
 
   const load = useCallback(async () => {
     const auth = getAuth();
@@ -153,12 +163,18 @@ export function Violations() {
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((v) => (
-                  <tr key={v.incidentId} className="border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                {filtered.map((v) => {
+                  const isExpanded = expandedRows.has(v.incidentId);
+                  return (
+                  <Fragment key={v.incidentId}>
+                  <tr 
+                    className={`border-b border-gray-100 dark:border-gray-800/50 hover:bg-gray-50 dark:hover:bg-white/5 transition-colors cursor-pointer ${isExpanded ? "bg-gray-50/50 dark:bg-white/[0.02]" : ""}`}
+                    onClick={() => toggleRow(v.incidentId)}
+                  >
                     <td className="py-4 px-6">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center">
-                          <Car className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+                        <div className="w-10 h-10 bg-gray-100 dark:bg-gray-800 rounded-xl flex items-center justify-center shrink-0">
+                          {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-500" /> : <ChevronDown className="w-5 h-5 text-gray-500" />}
                         </div>
                         <div>
                           <div className="font-mono font-bold text-gray-900 dark:text-white">{v.licensePlate ?? v.ticketCode ?? "—"}</div>
@@ -186,7 +202,7 @@ export function Violations() {
                         {ts(v.status)}
                       </span>
                     </td>
-                    <td className="py-4 px-6 text-right">
+                    <td className="py-4 px-6 text-right" onClick={(e) => e.stopPropagation()}>
                       {v.status === "Open" ? (
                         <button
                           onClick={() => handleResolve(v.incidentId)}
@@ -203,7 +219,21 @@ export function Violations() {
                       )}
                     </td>
                   </tr>
-                ))}
+                  {isExpanded && (
+                    <tr className="bg-gray-50/30 dark:bg-black/20">
+                      <td colSpan={7} className="px-6 py-4 border-b border-gray-100 dark:border-gray-800/50">
+                        <div className="text-sm text-gray-700 dark:text-gray-300">
+                          <p className="font-semibold mb-1 text-gray-900 dark:text-white">Mô tả vi phạm:</p>
+                          <div className="p-4 rounded-xl bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-gray-800 mt-2 whitespace-pre-wrap">
+                            {v.description || <span className="italic text-gray-400">Không có mô tả chi tiết.</span>}
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
+                  );
+                })}
                 {filtered.length === 0 && (
                   <tr>
                     <td colSpan={7} className="py-12 text-center text-gray-500">{t("violations.empty")}</td>
