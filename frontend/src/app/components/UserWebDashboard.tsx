@@ -261,8 +261,8 @@ export function UserWebDashboard() {
               {x.icon}
               {x.label}
             </button>
-          ))}
-        </div>
+                ))}
+              </div>
 
         {loading && <div className="text-sm text-gray-500">{t("driver.loading")}</div>}
         <ErrorBanner offline={apiOffline && !home} offlineMessage={t("common.networkError")} />
@@ -311,7 +311,7 @@ export function UserWebDashboard() {
                 <p className="text-sm text-gray-500">{t("driver.noSession")}</p>
               )}
             </section>
-          </div>
+                    </div>
         )}
 
         {!loading && tab === "tickets" && (
@@ -378,7 +378,7 @@ export function UserWebDashboard() {
                   )}
                 </tbody>
               </table>
-            </div>
+      </div>
           </section>
         )}
 
@@ -560,7 +560,7 @@ export function UserWebDashboard() {
             </button>
           </section>
         )}
-      </main>
+        </main>
     </div>
   );
 }
