@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, Camera, Car, CheckCircle, Clock, CreditCard, LogOut, MapPin, ShieldAlert, List, Calendar, X, Ticket } from "lucide-react";
+import { AlertTriangle, Camera, Car, CheckCircle, Clock, CreditCard, LogOut, LogIn, MapPin, ShieldAlert, List, Calendar, X, Ticket } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { ThemeToggle } from "./ThemeToggle";
 import { LocaleSwitcher } from "./LocaleSwitcher";
@@ -21,7 +21,7 @@ import { useStableLoader } from "../lib/hooks/useStableLoader";
 import { TAB_ACTIVE, TAB_INACTIVE } from "../lib/uiClasses";
 import { ErrorBanner } from "./ErrorBanner";
 
-type Tab = "control" | "locate" | "violations" | "history" | "reservations";
+type Tab = "checkin" | "checkout" | "locate" | "violations" | "history" | "reservations";
 
 type Incident = {
   incidentId: number;
@@ -83,7 +83,7 @@ type CheckoutPending = {
 export function StaffDashboard() {
   const navigate = useNavigate();
   const { t, formatMoney, formatDateTime, ts, tp, tv } = useLocale();
-  const [activeTab, setActiveTab] = useState<Tab>("control");
+  const [activeTab, setActiveTab] = useState<Tab>("checkin");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [plate, setPlate] = useState("");
   const [result, setResult] = useState<string>("");
@@ -264,6 +264,7 @@ export function StaffDashboard() {
   async function openCheckoutModal(rawPlate: string) {
     const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
     if (!rawApiPlate) return;
+    setActiveTab("checkout");
     setLoadingAction(true);
     setActionError("");
     setResult("");
@@ -305,6 +306,7 @@ export function StaffDashboard() {
   // ── Open modal from occupied slot (already has session data) ──────────────
   function openCheckoutModalFromSlot(slot: StaffFloorSlot) {
     if (!slot.activeSession) return;
+    setActiveTab("checkout");
     if (!slot.activeSession.sessionId) {
       // sessionId not embedded in slot data — look it up via plate
       void openCheckoutModal(slot.activeSession.licensePlate);
@@ -350,8 +352,35 @@ export function StaffDashboard() {
     }
   }
 
-  // ── Smart plate submit: check-in if no active session, else open modal ───
-  async function processPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number; preferVipSlot?: boolean }): Promise<boolean> {
+  // ── Process plate for Check-in ───
+  async function processCheckInPlate(rawPlate: string, options?: { reservationId?: number; vehicleTypeId?: number; preferVipSlot?: boolean }): Promise<boolean> {
+    const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
+    if (!rawApiPlate) return false;
+    setLoadingAction(true);
+    setActionError("");
+    setResult("");
+    try {
+      const active = await apiGet<{ sessionId: number } | null>(
+        `/api/parking-sessions/active/${encodeURIComponent(rawApiPlate)}`,
+        authToken,
+      ).catch(() => null);
+
+      if (active?.sessionId) {
+        setActionError(`Xe mang biển số ${rawApiPlate} đã có trong bãi!`);
+        return false;
+      } else {
+        return await doCheckIn(rawPlate, options);
+      }
+    } catch (e) {
+      setActionError(staffError(e, t("staff.plateFailed")));
+      return false;
+    } finally {
+      setLoadingAction(false);
+    }
+  }
+
+  // ── Process plate for Check-out ───
+  async function processCheckOutPlate(rawPlate: string): Promise<boolean> {
     const rawApiPlate = rawPlate.trim().toUpperCase().replace(/\s+/g, "");
     if (!rawApiPlate) return false;
     setLoadingAction(true);
@@ -369,7 +398,8 @@ export function StaffDashboard() {
         await openCheckoutModal(rawApiPlate);
         return true;
       } else {
-        return await doCheckIn(rawPlate, options);
+        setActionError(`Xe mang biển số ${rawApiPlate} chưa được check-in vào bãi!`);
+        return false;
       }
     } catch (e) {
       setActionError(staffError(e, t("staff.plateFailed")));
@@ -519,7 +549,8 @@ export function StaffDashboard() {
       <main className="p-6 space-y-6">
         <div className="flex gap-3">
           {([
-            { id: "control" as const, icon: Camera, label: t("staff.control") },
+            { id: "checkin" as const, icon: LogIn, label: t("staff.checkIn") || "Check-in" },
+            { id: "checkout" as const, icon: LogOut, label: t("slots.checkoutBtn")?.replace(" xe này", "") || "Check-out" },
             { id: "locate" as const, icon: MapPin, label: t("staff.locateTab") },
             { id: "violations" as const, icon: ShieldAlert, label: t("staff.violationsTab") },
             { id: "history" as const, icon: List, label: t("staff.historyTab") },
@@ -538,11 +569,11 @@ export function StaffDashboard() {
 
         <ErrorBanner offline={apiOffline && floors.length === 0} offlineMessage={t("common.networkError")} />
         <ErrorBanner error={actionError} />
-        {result && activeTab !== "control" && (
+        {result && activeTab !== "checkin" && activeTab !== "checkout" && (
           <div className="text-sm text-green-700 bg-green-50 dark:bg-green-500/10 p-3 rounded-lg">{result}</div>
         )}
 
-        {activeTab === "control" && (
+        {(activeTab === "checkin" || activeTab === "checkout") && (
           <div className="flex flex-col lg:flex-row gap-6">
             <div className="lg:w-[360px] shrink-0 space-y-4">
               <PlateCameraScanner
@@ -550,7 +581,7 @@ export function StaffDashboard() {
                 disabled={loadingAction}
                 scanPlate={plate}
                 onScanPlateChange={setPlate}
-                onScan={processPlate}
+                onScan={activeTab === "checkin" ? processCheckInPlate : processCheckOutPlate}
               />
 
               <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
@@ -559,21 +590,27 @@ export function StaffDashboard() {
                   className="space-y-3"
                   onSubmit={async (e) => {
                     e.preventDefault();
-                    await processPlate(plate, { preferVipSlot: preferVip });
+                    if (activeTab === "checkin") {
+                      await processCheckInPlate(plate, { preferVipSlot: preferVip });
+                    } else {
+                      await processCheckOutPlate(plate);
+                    }
                   }}
                 >
-                  <div className="grid grid-cols-2 gap-2">
-                    <select
-                      value={selectedVehicleType}
-                      onChange={(e) => setSelectedVehicleType(e.target.value ? Number(e.target.value) : "")}
-                      className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
-                      required
-                    >
-                      <option value="" disabled>{t("staff.selectVehicle")}</option>
-                      {staffVehicleTypes.map((v) => (
-                        <option key={v.vehicleTypeId} value={v.vehicleTypeId}>{tv(v.typeCode)}</option>
-                      ))}
-                    </select>
+                  <div className={`grid gap-2 ${activeTab === "checkin" ? "grid-cols-2" : "grid-cols-1"}`}>
+                    {activeTab === "checkin" && (
+                      <select
+                        value={selectedVehicleType}
+                        onChange={(e) => setSelectedVehicleType(e.target.value ? Number(e.target.value) : "")}
+                        className="w-full border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm"
+                        required
+                      >
+                        <option value="" disabled>{t("staff.selectVehicle")}</option>
+                        {staffVehicleTypes.map((v) => (
+                          <option key={v.vehicleTypeId} value={v.vehicleTypeId}>{tv(v.typeCode)}</option>
+                        ))}
+                      </select>
+                    )}
                     <select
                       value={selectedGate}
                       onChange={(e) => setSelectedGate(e.target.value)}
@@ -585,18 +622,19 @@ export function StaffDashboard() {
                     </select>
                   </div>
 
-                  {/* VIP slot checkbox */}
-                  <label className="flex items-center gap-2 cursor-pointer select-none px-1">
-                    <input
-                      type="checkbox"
-                      checked={preferVip}
-                      onChange={(e) => setPreferVip(e.target.checked)}
-                      className="w-4 h-4 rounded accent-yellow-500"
-                    />
-                    <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
-                      ⭐ {t("staff.preferVip") || "Ưu tiên chỗ VIP"}
-                    </span>
-                  </label>
+                  {activeTab === "checkin" && (
+                    <label className="flex items-center gap-2 cursor-pointer select-none px-1">
+                      <input
+                        type="checkbox"
+                        checked={preferVip}
+                        onChange={(e) => setPreferVip(e.target.checked)}
+                        className="w-4 h-4 rounded accent-yellow-500"
+                      />
+                      <span className="text-sm font-semibold text-yellow-600 dark:text-yellow-400 flex items-center gap-1">
+                        ⭐ {t("staff.preferVip") || "Ưu tiên chỗ VIP"}
+                      </span>
+                    </label>
+                  )}
 
                   <input
                     value={plate}
@@ -608,30 +646,32 @@ export function StaffDashboard() {
                     disabled={loadingAction || !plate.trim()}
                     className="w-full bg-blue-600 text-white py-3 rounded-xl font-semibold disabled:opacity-50"
                   >
-                    {loadingAction ? t("staff.processing") : t("staff.writePlate")}
+                    {loadingAction ? t("staff.processing") : (activeTab === "checkin" ? t("staff.writePlate") : (t("slots.checkoutBtn") || "Check-out"))}
                   </button>
                 </form>
               </div>
 
-              <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
-                <h3 className="font-bold text-gray-900 dark:text-white mb-3">{t("staff.ticketSearch")}</h3>
-                <div className="flex gap-2">
-                  <input
-                    value={ticketCode}
-                    onChange={(e) => setTicketCode(e.target.value.toUpperCase())}
-                    placeholder={t("staff.ticketPlaceholder")}
-                    className="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm font-mono"
-                  />
-                  <button
-                    type="button"
-                    onClick={processTicketCode}
-                    disabled={loadingAction || !ticketCode.trim()}
-                    className="px-4 py-2 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
-                  >
-                    {t("staff.find")}
-                  </button>
+              {activeTab === "checkout" && (
+                <div className="bg-white dark:bg-[#1A1A1A] rounded-2xl border border-gray-200 dark:border-gray-800 p-5 shadow-sm">
+                  <h3 className="font-bold text-gray-900 dark:text-white mb-3">{t("staff.ticketSearch")}</h3>
+                  <div className="flex gap-2">
+                    <input
+                      value={ticketCode}
+                      onChange={(e) => setTicketCode(e.target.value.toUpperCase())}
+                      placeholder={t("staff.ticketPlaceholder")}
+                      className="flex-1 border border-gray-200 dark:border-gray-700 rounded-xl px-3 py-2 bg-gray-50 dark:bg-[#121212] text-sm font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={processTicketCode}
+                      disabled={loadingAction || !ticketCode.trim()}
+                      className="px-4 py-2 bg-gray-800 text-white rounded-xl text-sm font-semibold disabled:opacity-50"
+                    >
+                      {t("staff.find")}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
 
             <div className="flex-1 min-w-0 flex flex-col gap-4">
